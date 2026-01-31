@@ -1,0 +1,179 @@
+stages:
+  - install
+  - lint
+  - test
+  - migrate
+  - build
+  - deploy
+
+default:
+  image: oven/bun:1.1
+  cache:
+    key:
+      files:
+        - bun.lock
+    paths:
+      - .bun-cache/
+      - node_modules/
+    policy: pull-push
+
+# Shared installation job
+install_dependencies:
+  stage: install
+  script:
+    - bun install --frozen-lockfile --cache-dir .bun-cache
+  artifacts:
+    paths:
+      - node_modules/
+      - apps/api/node_modules/
+      - apps/web/node_modules/
+      - packages/shared/node_modules/
+    expire_in: 1 hour
+
+# Database Migrations
+migrate_database:
+  stage: migrate
+  script:
+    - bun run db:migrate --filter=@woolet/api
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - apps/api/drizzle/**/*
+        - apps/api/src/db/schema/**/*
+  environment:
+    name: production
+
+# API Pipeline
+lint_api:
+  stage: lint
+  script:
+    - bun run lint --filter=@woolet/api
+  rules:
+    - changes:
+        - apps/api/**/*
+        - packages/shared/**/*
+        - turbo.json
+        - package.json
+
+test_api:
+  stage: test
+  script:
+    - bun run test --filter=@woolet/api
+  rules:
+    - changes:
+        - apps/api/**/*
+        - packages/shared/**/*
+        - turbo.json
+        - package.json
+
+build_api:
+  stage: build
+  script:
+    - bun run build --filter=@woolet/api
+  artifacts:
+    paths:
+      - apps/api/dist/
+    expire_in: 1 week
+  rules:
+    - changes:
+        - apps/api/**/*
+        - packages/shared/**/*
+        - turbo.json
+        - package.json
+
+# Web Pipeline
+lint_web:
+  stage: lint
+  script:
+    - bun run lint --filter=@woolet/web
+  rules:
+    - changes:
+        - apps/web/**/*
+        - packages/shared/**/*
+        - turbo.json
+        - package.json
+
+test_web:
+  stage: test
+  script:
+    - bun run test --filter=@woolet/web
+  rules:
+    - changes:
+        - apps/web/**/*
+        - packages/shared/**/*
+        - turbo.json
+        - package.json
+
+build_web:
+  stage: build
+  script:
+    - bun run build --filter=@woolet/web
+  artifacts:
+    paths:
+      - apps/web/dist/
+    expire_in: 1 week
+  rules:
+    - changes:
+        - apps/web/**/*
+        - packages/shared/**/*
+        - turbo.json
+        - package.json
+
+# Docker Builds (Manual)
+build_docker_api:
+  stage: deploy
+  image: docker:latest
+  services:
+    - docker:dind
+  variables:
+    DOCKER_DRIVER: overlay2
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE/api:$CI_COMMIT_REF_SLUG -f apps/api/Dockerfile .
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - apps/api/**/*
+        - packages/shared/**/*
+      when: manual
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes:
+        - apps/api/**/*
+      when: manual
+
+build_docker_web:
+  stage: deploy
+  image: docker:latest
+  services:
+    - docker:dind
+  variables:
+    DOCKER_DRIVER: overlay2
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE/web:$CI_COMMIT_REF_SLUG -f apps/web/Dockerfile .
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - apps/web/**/*
+        - packages/shared/**/*
+      when: manual
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes:
+        - apps/web/**/*
+      when: manual
+
+# Deploy to Server
+deploy_to_server:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client git
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan $SERVER_HOST >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    - ssh $SERVER_USER@$SERVER_HOST "cd /path/to/your/project && git pull origin $CI_DEFAULT_BRANCH && ./deploy.sh"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual

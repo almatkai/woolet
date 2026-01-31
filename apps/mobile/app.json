@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "woolet -mobile",
+    "slug": "woolet -mobile",
+    "version": "1.0.0",
+    "scheme": "woolet ",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.almatkairatov.woolet "
+    },
+    "android": {
+      "package": "com.almatkairatov.woolet "
+    },
+    "web": {},
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store"
+    ]
+  }
+}

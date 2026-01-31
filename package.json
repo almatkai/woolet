@@ -1,0 +1,25 @@
+{
+  "name": "woolet",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "db:generate": "turbo run db:generate --filter=@woolet/api",
+    "db:migrate": "turbo run db:migrate --filter=@woolet/api",
+    "db:push": "turbo run db:push --filter=@woolet/api"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  },
+  "packageManager": "bun@1.1.42",
+  "engines": {
+    "node": ">=20"
+  }
+}

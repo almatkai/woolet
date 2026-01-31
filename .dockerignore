@@ -1,0 +1,9 @@
+node_modules
+.git
+.turbo
+apps/**/dist
+apps/**/.next
+apps/**/node_modules
+packages/**/node_modules
+.env
+bun.lock

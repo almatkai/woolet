@@ -1,0 +1,97 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1768140213245,
+      "tag": "0000_lucky_wonder_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1768150962871,
+      "tag": "0001_sharp_skaar",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1768155487263,
+      "tag": "0002_lying_forgotten_one",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1768653334895,
+      "tag": "0003_clean_crusher_hogan",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1768654240228,
+      "tag": "0004_equal_vapor",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1768670103284,
+      "tag": "0005_superb_ezekiel",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1769286000000,
+      "tag": "0006_category_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1769286600000,
+      "tag": "0007_drop_is_default",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1769448251971,
+      "tag": "0008_add_chat_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1769520000000,
+      "tag": "0009_add_mortgage_payments",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1769844695424,
+      "tag": "0010_awesome_reaper",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1769845788188,
+      "tag": "0011_talented_scourge",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1769849837067,
+      "tag": "0012_smiling_nocturne",
+      "breakpoints": true
+    }
+  ]
+}

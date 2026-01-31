@@ -1,0 +1,79 @@
+/* Hide resize handles when not in edit mode */
+.layout:not(.is-editing) .react-resizable-handle {
+    display: none !important;
+}
+
+/* Disable dragging when not in edit mode */
+.layout:not(.is-editing) .react-grid-item {
+    cursor: default !important;
+    pointer-events: auto;
+}
+
+.layout:not(.is-editing) .react-grid-item>* {
+    pointer-events: auto;
+}
+
+.layout:not(.is-editing) .react-draggable {
+    cursor: default !important;
+}
+
+/* Resizable handles - only visible in edit mode */
+.layout.is-editing .react-grid-item>.react-resizable-handle {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    bottom: 0;
+    right: 0;
+    background-position: bottom right;
+    padding: 0 3px 3px 0;
+    background-repeat: no-repeat;
+    background-origin: content-box;
+    box-sizing: border-box;
+    cursor: se-resize;
+    z-index: 100 !important;
+    /* Force on top */
+}
+
+.layout.is-editing .react-grid-item>.react-resizable-handle::after {
+    content: "";
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    width: 12px;
+    height: 12px;
+    border-right: 2px solid rgba(255, 255, 255, 0.4);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.4);
+}
+
+/* Drag placeholder styling */
+.layout.is-editing .react-grid-placeholder {
+    background: rgba(59, 130, 246, 0.12) !important;
+    border: 2px dashed rgba(59, 130, 246, 0.45) !important;
+    border-radius: 12px !important;
+    opacity: 1 !important;
+}
+
+/* Prevent flickering and layout fighting */
+.layout .react-grid-item {
+    will-change: transform;
+    contain: layout style;
+    transition: transform 150ms ease-out !important;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+/* Stable positioning - prevent layout recalculation jitter */
+.layout:not(.is-editing) .react-grid-item {
+    transition: none !important;
+}
+
+/* Mobile optimization - remove transform transitions on small screens */
+@media (max-width: 400px) {
+    .layout .react-grid-item {
+        transition: none !important;
+    }
+
+    .layout .react-grid-item>div {
+        overflow: hidden;
+    }
+}

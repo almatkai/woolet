@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  woolet-postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-woolet}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  woolet-pgbouncer:
+    image: edoburu/pgbouncer
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-password}@woolet-postgres:5432/${DB_NAME:-woolet}
+      AUTH_TYPE: md5
+      MAX_CLIENT_CONN: 100
+      DEFAULT_POOL_SIZE: 20
+    depends_on:
+      woolet-postgres:
+        condition: service_healthy
+
+  woolet-redis:
+    image: redis:7-alpine
+    restart: always
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  woolet-api:
+    image: ${WOOLET_API_IMAGE:-ghcr.io/${GITHUB_REPOSITORY:-owner/repo}/api:latest}
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-password}@woolet-pgbouncer:5432/${DB_NAME:-woolet}
+      REDIS_URL: redis://woolet-redis:6379
+    env_file:
+      - .env
+    depends_on:
+      woolet-redis:
+        condition: service_healthy
+      woolet-pgbouncer:
+        condition: service_started
+
+  woolet-web:
+    image: ${WOOLET_WEB_IMAGE:-ghcr.io/${GITHUB_REPOSITORY:-owner/repo}/web:latest}
+    restart: always
+    ports:
+      - "8080:80"
+    env_file:
+      - .env
+
+volumes:
+  redis_data:
+  postgres_data:

@@ -1,0 +1,79 @@
+.dashboard-widget__title {
+    @apply text-sm font-medium;
+}
+
+.dashboard-widget--compact .dashboard-widget__title {
+    @apply text-xs;
+}
+
+.dashboard-widget__desc {
+    @apply text-xs text-muted-foreground;
+}
+
+.dashboard-widget--compact .dashboard-widget__desc {
+    @apply text-[10px];
+}
+
+.dashboard-widget__value {
+    @apply text-[20px] font-bold;
+}
+
+.dashboard-widget--compact .dashboard-widget__value {
+    @apply text-lg;
+}
+
+.dashboard-widget__sub {
+    @apply text-xs text-muted-foreground;
+}
+
+.dashboard-widget--compact .dashboard-widget__sub {
+    @apply text-[10px];
+}
+
+.dashboard-widget__item {
+    @apply text-sm;
+}
+
+.dashboard-widget--compact .dashboard-widget__item {
+    @apply text-xs;
+}
+
+.dashboard-widget__meta {
+    @apply text-xs text-muted-foreground;
+}
+
+.dashboard-widget--compact .dashboard-widget__meta {
+    @apply text-[10px];
+}
+
+.dashboard-widget__icon {
+    @apply h-4 w-4 text-muted-foreground;
+}
+
+.dashboard-widget--compact .dashboard-widget__icon {
+    @apply h-3 w-3;
+}
+
+.dashboard-widget__tab {
+    @apply text-xs;
+}
+
+.dashboard-widget--compact .dashboard-widget__tab {
+    @apply text-[10px];
+}
+
+.dashboard-widget__button {
+    @apply text-xs;
+}
+
+.dashboard-widget--compact .dashboard-widget__button {
+    @apply text-[10px];
+}
+
+.dashboard-widget__badge {
+    @apply text-xs;
+}
+
+.dashboard-widget--compact .dashboard-widget__badge {
+    @apply text-[10px];
+}
