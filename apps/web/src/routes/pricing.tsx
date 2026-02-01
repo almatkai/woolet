@@ -5,7 +5,7 @@ export const Route = (createFileRoute as any)('/pricing')({
     component: PricingPage,
 });
 
-function PricingPage() {
+export function PricingPage() {
     return (
         <div className="min-h-screen">
             <PricingSection />

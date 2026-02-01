@@ -1,57 +1,64 @@
-import { createRootRoute, createRoute, Outlet, Link } from '@tanstack/react-router';
-import { SignedIn, SignedOut, SignInButton, useAuth } from '@clerk/clerk-react';
+
+import { createRootRoute, createRoute, Outlet, useLocation } from '@tanstack/react-router';
+import { SignedIn, useAuth } from '@clerk/clerk-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { Separator } from '@/components/ui/separator';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
+
+// Routes
 import { Dashboard } from './routes/index';
 import { AccountsPage } from './routes/accounts';
 import { SpendingPage } from './routes/spending';
 import { DebtsPage } from './routes/debts';
 import { InvestingPage } from './routes/investing';
-import { SettingsPage } from './routes/settings';
 import CreditsPage from './routes/financial/credits';
 import MortgagesPage from './routes/financial/mortgages';
 import DepositsPage from './routes/financial/deposits';
 import { SubscriptionsPage } from './routes/subscriptions';
 import { LoginPage } from './routes/login';
 import { RegisterPage } from './routes/register';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Bitcoin, Moon, Sun, Eclipse, FlaskConical, AlertTriangle, Trash2 } from 'lucide-react';
-import { useTheme } from '@/components/theme-provider';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { trpc } from '@/lib/trpc';
-import { DeleteConfirm } from '@/components/DeleteConfirm';
-import { toast } from 'sonner';
-import { useNavigate } from '@tanstack/react-router';
+import { SSOCallbackPage } from './routes/sso-callback';
+import { PricingPage } from './routes/pricing';
+// AccountPage no longer used as a route - now shown in dialog
+import { SettingsPage } from './routes/settings';
+
+// Layouts
+import { SettingsLayout } from './components/SettingsLayout';
+
+import { Bitcoin } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { PricingProvider } from '@/components/PricingProvider';
 
 // Root layout with sidebar
 function RootLayout() {
     const { isSignedIn } = useAuth();
+    const location = useLocation();
+    const isSettingsRoute = location.pathname.startsWith('/account') || location.pathname.startsWith('/settings');
 
     return (
-        <SidebarProvider>
-            <SignedIn>
-                <AppSidebar />
-            </SignedIn>
-            <SidebarInset className={!isSignedIn ? "!m-0 !rounded-none !border-0 !shadow-none bg-background" : ""}>
+        <PricingProvider>
+            <SidebarProvider>
                 <SignedIn>
-                    <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-                        <SidebarTrigger className="-ml-1" />
-                        <Separator orientation="vertical" className="mr-2 h-4" />
-                        <div className="flex flex-1 items-center justify-between">
-                            <DateRangePicker />
-                        </div>
-                    </header>
+                    <AppSidebar />
                 </SignedIn>
-                <main className={cn("flex-1", isSignedIn ? "p-6" : "p-0")}>
-                    <Outlet />
-                </main>
-            </SidebarInset>
-        </SidebarProvider>
+                <SidebarInset className={!isSignedIn ? "!m-0 !rounded-none !border-0 !shadow-none bg-background" : ""}>
+                    <SignedIn>
+                        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+                            <SidebarTrigger className="-ml-1" />
+                            <Separator orientation="vertical" className="mr-2 h-4" />
+                            <div className="flex flex-1 items-center justify-between">
+                                <DateRangePicker />
+                            </div>
+                        </header>
+                    </SignedIn>
+                    <main className={cn("flex-1", isSignedIn && !isSettingsRoute ? "p-6" : "p-0")}>
+                        <Outlet />
+                    </main>
+                </SidebarInset>
+            </SidebarProvider>
+        </PricingProvider>
     );
 }
 
@@ -72,7 +79,6 @@ function ComingSoonCrypto() {
         </div>
     );
 }
-
 
 // Define routes
 export const rootRoute = createRootRoute({
@@ -139,8 +145,17 @@ export const comingSoonCryptoRoute = createRoute({
     component: ComingSoonCrypto,
 });
 
-export const settingsRoute = createRoute({
+// Settings Layout and its children
+export const settingsLayoutRoute = createRoute({
     getParentRoute: () => rootRoute,
+    id: 'settings-layout',
+    component: SettingsLayout,
+});
+
+// Account route removed - Account is now accessed via dialog from sidebar
+
+export const settingsRoute = createRoute({
+    getParentRoute: () => settingsLayoutRoute,
     path: '/settings',
     component: SettingsPage,
 });
@@ -157,17 +172,16 @@ export const registerRoute = createRoute({
     component: RegisterPage,
 });
 
-import { SSOCallbackPage } from './routes/sso-callback';
-
-// ... (other imports remain the same, I will use ReplaceFileContent properly)
-
-// Define routes
-// ...
-
 export const ssoCallbackRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/sso-callback',
     component: SSOCallbackPage,
+});
+
+export const pricingRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/pricing',
+    component: PricingPage,
 });
 
 // Route tree
@@ -181,9 +195,11 @@ export const routeTree = rootRoute.addChildren([
     mortgagesRoute,
     depositsRoute,
     subscriptionsRoute,
-    comingSoonCryptoRoute,
-    settingsRoute,
+    settingsLayoutRoute.addChildren([
+        settingsRoute,
+    ]),
     loginRoute,
     registerRoute,
     ssoCallbackRoute,
+    pricingRoute,
 ]);
