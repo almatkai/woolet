@@ -1,0 +1,140 @@
+---
+import PricingCards from './react/PricingCards';
+import { StaggeredChildren, FadeIn } from './react';
+
+const plans = [
+  {
+    name: 'Free',
+    price: '$0',
+    period: 'forever',
+    description: 'Get started with basic personal finance tracking',
+    features: [
+      'Up to 2 bank accounts',
+      '2 accounts per bank',
+      '2 currencies per account',
+      'Track up to 5 stocks',
+      '3 total AI questions',
+      '90 days transaction history',
+      'Expense & debt tracking',
+    ],
+    limitations: [
+      'No currency widget',
+      'No market digest',
+    ],
+    cta: 'Get Started Free',
+    href: 'https://app.woolet.com/register',
+    popular: false,
+  },
+  {
+    name: 'Pro',
+    price: '$4.99',
+    period: '/month',
+    description: 'For serious financial management',
+    features: [
+      'Unlimited bank accounts',
+      'Unlimited accounts per bank',
+      '5 currencies per account',
+      'Track up to 20 stocks',
+      '5 AI questions per day',
+      'Unlimited history',
+      'Currency widget',
+      'Short market digest',
+    ],
+    limitations: [],
+    cta: 'Upgrade to Pro',
+    href: 'https://app.woolet.com/register?plan=pro',
+    popular: true,
+  },
+  {
+    name: 'Premium',
+    price: '$9.99',
+    period: '/month',
+    description: 'Complete financial command center',
+    features: [
+      'Everything in Pro',
+      'Unlimited currencies',
+      'Track up to 1000 stocks',
+      '20 AI questions per day',
+      'Complete market digest',
+      'Priority support',
+      'Early access to features',
+      'Advanced analytics',
+    ],
+    limitations: [],
+    cta: 'Go Premium',
+    href: 'https://app.woolet.com/register?plan=premium',
+    popular: false,
+  },
+];
+---
+
+<section id="pricing" class="relative py-24 sm:py-32 overflow-hidden">
+  <!-- Background -->
+  <div class="absolute inset-0 dot-pattern opacity-30"></div>
+  
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <StaggeredChildren client:visible>
+      <div class="text-center mb-16">
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-white/20 mb-6 pricing-badge">
+          <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+          <span class="text-sm text-slate-300">Simple Pricing</span>
+        </div>
+        
+        <h2 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 pricing-title">
+          Choose your <span class="bg-clip-text text-transparent bg-gradient-to-r from-white/90 to-white/60">plan</span>
+        </h2>
+        
+        <p class="text-lg text-slate-400 max-w-2xl mx-auto pricing-subtitle">
+          Start free and upgrade when you need more. No hidden fees, cancel anytime.
+        </p>
+      </div>
+    </StaggeredChildren>
+    
+    <!-- Pricing cards with React -->
+    <PricingCards plans={plans} client:visible />
+    
+    <!-- Bottom note -->
+    <FadeIn delay={0.4} client:visible>
+      <div class="mt-12 text-center pricing-note">
+        <p class="text-slate-400 text-sm">
+          <a href="/privacy" class="text-white/70 hover:text-white hover:underline transition-colors">View privacy policy →</a>
+        </p>
+      </div>
+    </FadeIn>
+  </div>
+</section>
+
+<style>
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .pricing-badge,
+  .pricing-title,
+  .pricing-subtitle,
+  .pricing-note {
+    animation: fadeInUp 0.6s ease-out both;
+  }
+
+  .pricing-badge { animation-delay: 0.1s; }
+  .pricing-title { animation-delay: 0.2s; }
+  .pricing-subtitle { animation-delay: 0.3s; }
+  .pricing-note { animation-delay: 0.6s; }
+
+  @keyframes border-shimmer {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  :global(.animate-border-shimmer) {
+    animation: border-shimmer 3s ease-in-out infinite;
+  }
+</style>

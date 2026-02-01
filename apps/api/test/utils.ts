@@ -2,16 +2,20 @@ import { mock } from 'bun:test';
 import type { Context } from '../src/lib/trpc';
 
 export const createMockContext = (overrides: Partial<Context> = {}): Context => {
+    const defaultUser = {
+        id: overrides.userId || 'test-user-id',
+        email: 'test@example.com',
+        name: 'Test User',
+        defaultCurrency: 'USD',
+        subscriptionTier: 'free',
+        testMode: false,
+        ...(overrides.user || {})
+    };
+
     const dbMock: any = {
         query: {
             users: {
-                findFirst: mock(() => Promise.resolve({
-                    id: overrides.userId || 'test-user-id',
-                    email: 'test@example.com',
-                    name: 'Test User',
-                    defaultCurrency: 'USD',
-                    testMode: false,
-                })),
+                findFirst: mock(() => Promise.resolve(defaultUser)),
             },
         },
         insert: mock(() => ({
@@ -42,7 +46,8 @@ export const createMockContext = (overrides: Partial<Context> = {}): Context => 
     // console.log('DEBUG: dbMock.query keys:', Object.keys(dbMock.query));
 
     return {
-        userId: 'test-user-id',
+        userId: overrides.userId || 'test-user-id',
+        user: defaultUser,
         honoContext: {} as any,
         ...overrides,
         db: dbMock as any,

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect x="10" y="10" width="80" height="80" rx="16" fill="#38bdf8" transform="rotate(6 50 50)"/>
+  <rect x="10" y="10" width="80" height="80" rx="16" fill="#0ea5e9" transform="rotate(-3 50 50)"/>
+  <text x="50" y="68" font-family="system-ui, sans-serif" font-size="48" font-weight="bold" fill="white" text-anchor="middle">W</text>
+</svg>

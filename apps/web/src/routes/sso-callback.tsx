@@ -1,0 +1,11 @@
+import { AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
+
+export function SSOCallbackPage() {
+    return (
+        <div className="flex min-h-screen items-center justify-center bg-background">
+            <AuthenticateWithRedirectCallback />
+        </div>
+    );
+}
+
+export default SSOCallbackPage;

@@ -16,6 +16,8 @@ import CreditsPage from './routes/financial/credits';
 import MortgagesPage from './routes/financial/mortgages';
 import DepositsPage from './routes/financial/deposits';
 import { SubscriptionsPage } from './routes/subscriptions';
+import { LoginPage } from './routes/login';
+import { RegisterPage } from './routes/register';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Bitcoin, Moon, Sun, Eclipse, FlaskConical, AlertTriangle, Trash2 } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
@@ -143,6 +145,31 @@ export const settingsRoute = createRoute({
     component: SettingsPage,
 });
 
+export const loginRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/login',
+    component: LoginPage,
+});
+
+export const registerRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/register',
+    component: RegisterPage,
+});
+
+import { SSOCallbackPage } from './routes/sso-callback';
+
+// ... (other imports remain the same, I will use ReplaceFileContent properly)
+
+// Define routes
+// ...
+
+export const ssoCallbackRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/sso-callback',
+    component: SSOCallbackPage,
+});
+
 // Route tree
 export const routeTree = rootRoute.addChildren([
     indexRoute,
@@ -156,4 +183,7 @@ export const routeTree = rootRoute.addChildren([
     subscriptionsRoute,
     comingSoonCryptoRoute,
     settingsRoute,
+    loginRoute,
+    registerRoute,
+    ssoCallbackRoute,
 ]);

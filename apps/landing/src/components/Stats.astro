@@ -1,0 +1,35 @@
+---
+import { AnimatedCounter, StaggeredChildren } from './react';
+
+const stats = [
+  { value: 20, suffix: '+', label: 'Features', description: 'Comprehensive financial tools' },
+  { value: 170, suffix: '+', label: 'Currencies Supported', description: 'Global finance tracking' },
+  { value: 3, suffix: '', label: 'Pricing Tiers', description: 'Plans for everyone' },
+  { value: 100, suffix: '%', label: 'Private & Secure', description: 'Your data, your control' },
+];
+---
+
+<section class="relative py-24 sm:py-32 overflow-hidden">
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <StaggeredChildren client:visible>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+        {stats.map((stat) => (
+          <div class="text-center">
+            <div class="relative inline-block mb-4">
+              <span class="text-4xl sm:text-5xl lg:text-6xl font-bold text-white">
+                <AnimatedCounter 
+                  value={stat.value} 
+                  suffix={stat.suffix} 
+                  duration={2}
+                  client:visible 
+                />
+              </span>
+            </div>
+            <h3 class="text-lg font-semibold text-white mb-1">{stat.label}</h3>
+            <p class="text-sm text-slate-400">{stat.description}</p>
+          </div>
+        ))}
+      </div>
+    </StaggeredChildren>
+  </div>
+</section>

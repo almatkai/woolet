@@ -1,0 +1,520 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  image?: string;
+  canonical?: string;
+}
+
+const { 
+  title, 
+  description, 
+  image = '/og-image.png',
+  canonical = Astro.url.href 
+} = Astro.props;
+
+const siteName = 'Woo-Let';
+const twitterHandle = '@wooletapp';
+---
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Primary Meta Tags -->
+    <title>{title}</title>
+    <meta name="title" content={title} />
+    <meta name="description" content={description} />
+    <meta name="author" content="Woo-Let" />
+    <meta name="robots" content="index, follow" />
+    <meta name="googlebot" content="index, follow" />
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href={canonical} />
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#0b0d10" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={new URL(image, Astro.site).href} />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:locale" content="en_US" />
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content={canonical} />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={new URL(image, Astro.site).href} />
+    <meta name="twitter:site" content={twitterHandle} />
+    <meta name="twitter:creator" content={twitterHandle} />
+    
+    <!-- Additional SEO -->
+    <meta name="keywords" content="finance tracker, money management, expense tracking, budget app, debt tracker, investment portfolio, financial planning, personal finance, spending tracker, savings goals" />
+    <meta name="rating" content="General" />
+    <meta name="revisit-after" content="7 days" />
+    
+    <!-- Preconnect to external resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    
+    <!-- Structured Data -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Woo-Let",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Web",
+      "description": description,
+      "url": Astro.site,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    })} />
+    
+    <style is:global>
+      @tailwind base;
+      @tailwind components;
+      @tailwind utilities;
+      
+      :root {
+        --color-primary: #f8fafc;
+        --color-secondary: #f59e0b;
+        --color-dark: #0b0d10;
+        --color-light: #f8fafc;
+      }
+      
+      html {
+        scroll-behavior: smooth;
+      }
+      
+      body {
+        font-family: 'Inter', system-ui, sans-serif;
+        background-color: #0b0d10;
+        color: #f8fafc;
+        overflow-x: hidden;
+      }
+      
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      
+      ::-webkit-scrollbar-track {
+        background: #1e293b;
+      }
+      
+      ::-webkit-scrollbar-thumb {
+        background: #475569;
+        border-radius: 4px;
+      }
+      
+      ::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
+      }
+      
+      /* Text selection */
+      ::selection {
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+      }
+      
+      /* Noise texture overlay */
+      .noise-overlay {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9999;
+        opacity: 0.03;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+      }
+      
+      /* Glass morphism */
+      .glass {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      
+      /* Animated underline */
+      .animated-underline {
+        position: relative;
+      }
+      
+      .animated-underline::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: var(--color-primary);
+        transition: width 0.3s ease;
+      }
+      
+      .animated-underline:hover::after {
+        width: 100%;
+      }
+      
+      /* Stagger animation delay utilities */
+      .stagger-1 { animation-delay: 0.1s; }
+      .stagger-2 { animation-delay: 0.2s; }
+      .stagger-3 { animation-delay: 0.3s; }
+      .stagger-4 { animation-delay: 0.4s; }
+      .stagger-5 { animation-delay: 0.5s; }
+      .stagger-6 { animation-delay: 0.6s; }
+      
+      /* Magnetic button effect */
+      .magnetic-btn {
+        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      
+      /* Split text animation */
+      .split-text span {
+        display: inline-block;
+        opacity: 0;
+        transform: translateY(100%);
+        animation: splitReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      
+      @keyframes splitReveal {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      
+      /* Blob shapes */
+      .blob {
+        border-radius: 60% 40% 30% 70%/60% 30% 70% 40%;
+        animation: morph 8s ease-in-out infinite;
+      }
+      
+      /* Grid pattern */
+      .grid-pattern {
+        background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M60 0H0V60' fill='none' stroke='rgba(255,255,255,0.04)' stroke-width='1'/%3E%3C/svg%3E");
+        background-size: 60px 60px;
+      }
+      
+      /* Dotted pattern */
+      .dot-pattern {
+        background-image: url("data:image/svg+xml,%3Csvg width='30' height='30' viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='1' cy='1' r='1' fill='rgba(255,255,255,0.08)'/%3E%3C/svg%3E");
+        background-size: 30px 30px;
+      }
+      
+      /* Feature card hover */
+      .feature-card {
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      
+      .feature-card:hover {
+        transform: translateY(-8px) scale(1.02);
+      }
+      
+      /* Shimmer effect */
+      .shimmer {
+        background: rgba(255, 255, 255, 0.03);
+        animation: shimmerPulse 3s ease-in-out infinite;
+      }
+      
+      @keyframes shimmerPulse {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 0.6; }
+      }
+      
+      /* Perspective card */
+      .perspective-card {
+        transform-style: preserve-3d;
+        perspective: 1000px;
+      }
+      
+      /* Reveal on scroll */
+      .reveal {
+        opacity: 0;
+        transform: translateY(30px);
+        transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      
+      .reveal.active {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      
+      /* Counter animation */
+      .counter {
+        font-variant-numeric: tabular-nums;
+      }
+      
+      /* Particle container */
+      .particles {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+      
+      .particle {
+        position: absolute;
+        width: 3px;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        animation: particleFloat 10s infinite;
+      }
+      
+      @keyframes particleFloat {
+        0%, 100% {
+          transform: translateY(0) translateX(0);
+          opacity: 0;
+        }
+        10% {
+          opacity: 1;
+        }
+        90% {
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(-100vh) translateX(50px);
+          opacity: 0;
+        }
+      }
+    </style>
+  </head>
+  <body class="antialiased">
+    <!-- Noise overlay for texture -->
+    <div class="noise-overlay"></div>
+    
+
+    <slot />
+    
+    <!-- GSAP & Animations -->
+    <script>
+      import gsap from 'gsap';
+      
+      // Reveal on scroll
+      const revealElements = document.querySelectorAll('.reveal');
+      
+      const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('active');
+          }
+        });
+      }, {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+      });
+      
+      revealElements.forEach((el) => revealObserver.observe(el));
+      
+      // Magnetic button effect
+      document.querySelectorAll('.magnetic-btn').forEach((btn) => {
+        btn.addEventListener('mousemove', (e) => {
+          const rect = btn.getBoundingClientRect();
+          const x = e.clientX - rect.left - rect.width / 2;
+          const y = e.clientY - rect.top - rect.height / 2;
+          
+          gsap.to(btn, {
+            x: x * 0.3,
+            y: y * 0.3,
+            duration: 0.3,
+            ease: 'power2.out'
+          });
+        });
+        
+        btn.addEventListener('mouseleave', () => {
+          gsap.to(btn, {
+            x: 0,
+            y: 0,
+            duration: 0.5,
+            ease: 'elastic.out(1, 0.3)'
+          });
+        });
+      });
+      
+      // Counter animation
+      const counters = document.querySelectorAll('[data-counter]');
+      
+      const counterObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const target = parseInt(entry.target.getAttribute('data-counter') || '0');
+            const suffix = entry.target.getAttribute('data-suffix') || '';
+            const duration = 2;
+            
+            gsap.to(entry.target, {
+              innerText: target,
+              duration: duration,
+              snap: { innerText: 1 },
+              ease: 'power1.out',
+              onUpdate: function() {
+                entry.target.textContent = Math.round(parseFloat(entry.target.textContent || '0')) + suffix;
+              }
+            });
+            
+            counterObserver.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.5 });
+      
+      counters.forEach((counter) => counterObserver.observe(counter));
+      
+      // Stagger reveal for lists
+      document.querySelectorAll('[data-stagger]').forEach((container) => {
+        const children = container.children;
+        
+        const staggerObserver = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              gsap.fromTo(children, 
+                { opacity: 0, y: 30 },
+                { 
+                  opacity: 1, 
+                  y: 0, 
+                  duration: 0.6, 
+                  stagger: 0.1,
+                  ease: 'power2.out'
+                }
+              );
+              staggerObserver.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.2 });
+        
+        staggerObserver.observe(container);
+      });
+      
+      // Parallax effect
+      document.querySelectorAll('[data-parallax]').forEach((el) => {
+        const speed = parseFloat(el.getAttribute('data-parallax') || '0.5');
+        
+        window.addEventListener('scroll', () => {
+          const rect = el.getBoundingClientRect();
+          const scrolled = window.scrollY;
+          
+          if (rect.top < window.innerHeight && rect.bottom > 0) {
+            gsap.to(el, {
+              y: scrolled * speed,
+              duration: 0.1
+            });
+          }
+        });
+      });
+      
+      // Text scramble effect
+      class TextScramble {
+        private el: HTMLElement;
+        private chars: string;
+        private queue: Array<{from: string, to: string, start: number, end: number, char?: string}>;
+        private frame: number;
+        private frameRequest: number;
+        private resolve!: () => void;
+        
+        constructor(el: HTMLElement) {
+          this.el = el;
+          this.chars = '!<>-_\\/[]{}—=+*^?#________';
+          this.queue = [];
+          this.frame = 0;
+          this.frameRequest = 0;
+        }
+        
+        setText(newText: string): Promise<void> {
+          const oldText = this.el.innerText;
+          const length = Math.max(oldText.length, newText.length);
+          const promise = new Promise<void>((resolve) => this.resolve = resolve);
+          this.queue = [];
+          
+          for (let i = 0; i < length; i++) {
+            const from = oldText[i] || '';
+            const to = newText[i] || '';
+            const start = Math.floor(Math.random() * 40);
+            const end = start + Math.floor(Math.random() * 40);
+            this.queue.push({ from, to, start, end });
+          }
+          
+          cancelAnimationFrame(this.frameRequest);
+          this.frame = 0;
+          this.update();
+          return promise;
+        }
+        
+        update() {
+          let output = '';
+          let complete = 0;
+          
+          for (let i = 0; i < this.queue.length; i++) {
+            let { from, to, start, end, char } = this.queue[i];
+            
+            if (this.frame >= end) {
+              complete++;
+              output += to;
+            } else if (this.frame >= start) {
+              if (!char || Math.random() < 0.28) {
+                char = this.chars[Math.floor(Math.random() * this.chars.length)];
+                this.queue[i].char = char;
+              }
+              output += `<span class="text-sky-400">${char}</span>`;
+            } else {
+              output += from;
+            }
+          }
+          
+          this.el.innerHTML = output;
+          
+          if (complete === this.queue.length) {
+            this.resolve();
+          } else {
+            this.frameRequest = requestAnimationFrame(() => this.update());
+            this.frame++;
+          }
+        }
+      }
+      
+      // Initialize text scramble on elements with data-scramble
+      document.querySelectorAll('[data-scramble]').forEach((el) => {
+        const htmlEl = el as HTMLElement;
+        const phrases = (htmlEl.getAttribute('data-scramble') || '').split('|');
+        if (phrases.length === 0) return;
+        
+        const fx = new TextScramble(htmlEl);
+        let counter = 0;
+        
+        const next = () => {
+          fx.setText(phrases[counter]).then(() => {
+            setTimeout(next, 3000);
+          });
+          counter = (counter + 1) % phrases.length;
+        };
+        
+        // Start after element is visible
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              next();
+              observer.unobserve(entry.target);
+            }
+          });
+        });
+        
+        observer.observe(htmlEl);
+      });
+    </script>
+  </body>
+</html>

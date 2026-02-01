@@ -1,0 +1,124 @@
+---
+const faqs = [
+  {
+    question: "Is Woo-Let free to use?",
+    answer: "Yes! Our Free plan lets you track up to 2 bank accounts with 2 accounts per bank, 2 currencies per account, up to 5 stocks, and 3 total AI questions. No credit card required to sign up.",
+  },
+  {
+    question: "How secure is my financial data?",
+    answer: "Your data is encrypted in transit using TLS/SSL and stored securely in cloud infrastructure. Authentication is handled by Clerk, a trusted identity platform. We do not store your passwords and never sell your data to third parties.",
+  },
+  {
+    question: "Do you connect to my bank accounts?",
+    answer: "No, Woo-Let does not connect directly to your bank accounts. You manually enter your financial data, giving you full control over what information is stored. This also means your banking credentials are never shared with us.",
+  },
+  {
+    question: "What's included in the Pro plan?",
+    answer: "Pro ($4.99/month) gives you unlimited bank accounts and accounts per bank, 5 currencies per account, up to 20 stocks, 5 AI questions per day, unlimited transaction history, a currency widget, and a short market digest.",
+  },
+  {
+    question: "What's the Premium plan?",
+    answer: "Premium ($9.99/month) includes everything in Pro plus unlimited currencies, up to 1000 stocks, 20 AI questions per day, complete market digest, priority support, and early access to new features.",
+  },
+  {
+    question: "Can I track investments?",
+    answer: "Yes! You can track stocks with real-time price updates. The number of stocks you can track depends on your plan: 5 on Free, 20 on Pro, and 1000 on Premium.",
+  },
+  {
+    question: "What currencies are supported?",
+    answer: "Woo-Let supports over 170 currencies with real-time exchange rates. Free users can have 2 currencies per account, Pro users get 5, and Premium users have unlimited currencies.",
+  },
+  {
+    question: "What is Woo AI?",
+    answer: "Woo AI is our AI-powered financial assistant that can answer questions about your finances and provide insights. Usage is limited based on your plan: 3 total questions on Free, 5 per day on Pro, and 20 per day on Premium.",
+  },
+];
+---
+
+<section id="faq" class="relative py-24 sm:py-32 overflow-hidden">
+  <!-- Background -->
+  <div class="absolute inset-0"></div>
+  
+  <div class="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="text-center mb-16">
+      <div class="reveal inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-white/20 mb-6">
+        <span class="text-sm text-slate-300">FAQ</span>
+      </div>
+      
+      <h2 class="reveal stagger-1 text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
+        Got <span class="text-white/70">questions?</span>
+      </h2>
+      
+      <p class="reveal stagger-2 text-lg text-slate-400 max-w-2xl mx-auto">
+        Find answers to commonly asked questions about Woo-Let.
+      </p>
+    </div>
+    
+    <!-- FAQ Accordion -->
+    <div class="space-y-4" data-stagger>
+      {faqs.map((faq, index) => (
+        <div class="faq-item glass rounded-xl border border-white/10 overflow-hidden">
+          <button 
+            class="faq-trigger w-full flex items-center justify-between p-6 text-left hover:bg-white/5 transition-colors duration-200"
+            aria-expanded="false"
+          >
+            <span class="text-white font-medium pr-8">{faq.question}</span>
+            <svg class="faq-icon w-5 h-5 text-slate-400 flex-shrink-0 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <div class="faq-content hidden">
+            <div class="px-6 pb-6 text-slate-400 leading-relaxed">
+              {faq.answer}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+    
+    <!-- Contact CTA -->
+    <div class="reveal mt-12 text-center">
+      <p class="text-slate-400 mb-4">Still have questions?</p>
+      <a 
+        href="mailto:support@woolet.com"
+        class="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors duration-200"
+      >
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+        <span>Contact our support team</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<script>
+  // FAQ Accordion
+  document.querySelectorAll('.faq-trigger').forEach((trigger) => {
+    trigger.addEventListener('click', () => {
+      const item = trigger.closest('.faq-item');
+      const content = item?.querySelector('.faq-content');
+      const icon = trigger.querySelector('.faq-icon');
+      const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+      
+      // Close all other FAQs
+      document.querySelectorAll('.faq-item').forEach((otherItem) => {
+        if (otherItem !== item) {
+          const otherTrigger = otherItem.querySelector('.faq-trigger');
+          const otherContent = otherItem.querySelector('.faq-content');
+          const otherIcon = otherItem.querySelector('.faq-icon');
+          
+          otherTrigger?.setAttribute('aria-expanded', 'false');
+          otherContent?.classList.add('hidden');
+          otherIcon?.classList.remove('rotate-180');
+        }
+      });
+      
+      // Toggle current FAQ
+      trigger.setAttribute('aria-expanded', (!isOpen).toString());
+      content?.classList.toggle('hidden');
+      icon?.classList.toggle('rotate-180');
+    });
+  });
+</script>

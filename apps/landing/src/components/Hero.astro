@@ -1,0 +1,285 @@
+---
+import { MorphingText, WritingText, FadeIn, StaggeredChildren, StaggeredItem } from './react';
+
+const appUrl = 'http://localhost:3000';
+const words = ['Expenses', 'Debts', 'Investments', 'Goals', 'Subscriptions'];
+---
+
+<section id="hero" class="relative min-h-[90vh] flex items-center justify-center overflow-hidden pt-20">
+  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+    <StaggeredChildren client:load baseDelay={0.2}>
+      <!-- App Icon with glow -->
+      <StaggeredItem client:load className="flex justify-center mb-10">
+        <div class="relative group">
+          <div class="absolute -inset-4 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all duration-500 scale-110"></div>
+          <img 
+            src="/android-chrome-192x192.png" 
+            alt="Woo-Let" 
+            class="relative w-20 h-20 rounded-2xl shadow-2xl animate-float transition-transform duration-500 hover:scale-110" 
+          />
+        </div>
+      </StaggeredItem>
+      
+      <!-- Main headline with WritingText -->
+      <StaggeredItem client:load>
+        <h1 class="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-extrabold text-white leading-[1.05] tracking-tight mb-4">
+          <WritingText 
+            client:load 
+            text="Woo-Let" 
+            inView={true}
+            spacing="0.2em"
+            transition={{ type: "spring", bounce: 0, duration: 5, delay: 0.8 }}
+          />
+        </h1>
+      </StaggeredItem>
+      
+      <!-- Morphing subtitle -->
+      <StaggeredItem client:load className="mb-8">
+        <div class="text-xl sm:text-2xl md:text-3xl font-medium text-white/60 tracking-wide">
+          Track <MorphingText client:load texts={words} className="text-white font-bold" />
+        </div>
+      </StaggeredItem>
+      
+      <!-- Subtitle -->
+      <StaggeredItem client:load>
+        <p class="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-12 leading-relaxed font-light">
+          The all-in-one platform for managing your spending, tracking debts, 
+          monitoring investments, and keeping your financial products organized.
+        </p>
+      </StaggeredItem>
+      
+      <!-- CTA Buttons -->
+      <StaggeredItem client:load className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-20">
+        <a 
+          href={`${appUrl}/register`}
+          class="magnetic-btn group relative inline-flex items-center gap-3 px-10 py-5 bg-white text-slate-900 rounded-full font-bold text-lg overflow-hidden transition-all duration-300 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)] hover:scale-105"
+        >
+          <span class="relative z-10">Get Started Free</span>
+          <svg class="relative z-10 w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
+        </a>
+        
+        <a 
+          href="#features"
+          class="magnetic-btn group inline-flex items-center gap-3 px-10 py-5 text-white rounded-full font-bold text-lg border border-white/20 hover:border-white/40 transition-all duration-300 hover:bg-white/5"
+        >
+          <span>Explore Features</span>
+          <svg class="w-5 h-5 group-hover:translate-y-1 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </a>
+      </StaggeredItem>
+      
+      <!-- Trust indicators -->
+      <StaggeredItem client:load className="flex flex-wrap items-center justify-center gap-10 text-sm text-slate-500 mb-20">
+        <div class="flex items-center gap-2 group cursor-default">
+          <div class="w-2 h-2 rounded-full bg-emerald-500 group-hover:scale-150 transition-transform duration-300"></div>
+          <span class="group-hover:text-slate-300 transition-colors">Free forever for basic features</span>
+        </div>
+        <div class="flex items-center gap-2 group cursor-default">
+          <div class="w-2 h-2 rounded-full bg-emerald-500 group-hover:scale-150 transition-transform duration-300"></div>
+          <span class="group-hover:text-slate-300 transition-colors">No credit card required</span>
+        </div>
+        <div class="flex items-center gap-2 group cursor-default">
+          <div class="w-2 h-2 rounded-full bg-emerald-500 group-hover:scale-150 transition-transform duration-300"></div>
+          <span class="group-hover:text-slate-300 transition-colors">Secure & Private</span>
+        </div>
+        <a
+          href="https://github.com/almatkai/woolet"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex items-center gap-2 hover:text-white transition-all duration-300"
+        >
+          <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+            <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+          </svg>
+          <span class="font-medium">Open source on GitHub</span>
+        </a>
+      </StaggeredItem>
+    </StaggeredChildren>
+    
+    <!-- App preview with floating effect -->
+    <FadeIn client:load delay={0.8} direction="up" duration={1}>
+      <div class="relative max-w-5xl mx-auto perspective-card">
+        <!-- Glow behind preview -->
+        <div class="absolute inset-0 bg-gradient-to-t from-white/5 to-transparent rounded-3xl blur-3xl scale-110 -z-10"></div>
+        
+        <div class="preview-card relative glass rounded-2xl sm:rounded-3xl p-2 sm:p-3 border border-white/20 shadow-2xl transition-all duration-700 group">
+          <!-- Browser chrome -->
+          <div class="relative flex items-center gap-2 px-4 py-3 border-b border-white/10">
+            <div class="flex gap-1.5">
+              <div class="w-3 h-3 rounded-full bg-red-400/80 hover:bg-red-400 transition-colors cursor-pointer"></div>
+              <div class="w-3 h-3 rounded-full bg-yellow-400/80 hover:bg-yellow-400 transition-colors cursor-pointer"></div>
+              <div class="w-3 h-3 rounded-full bg-emerald-400/80 hover:bg-emerald-400 transition-colors cursor-pointer"></div>
+            </div>
+            <div class="flex-1 flex justify-center">
+              <div class="px-6 py-1 rounded-md bg-white/5 text-slate-400 text-sm border border-white/10 font-medium tracking-wide">
+                app.woolet.com
+              </div>
+            </div>
+          </div>
+          
+          <!-- Dashboard mockup -->
+          <div class="relative aspect-video rounded-lg sm:rounded-xl overflow-hidden bg-[#0b0d10]">
+            <!-- Simplified dashboard UI -->
+            <div class="absolute inset-0 p-4 sm:p-8">
+              <!-- Header -->
+              <div class="flex items-center justify-between mb-8 sm:mb-12">
+                <div class="flex items-center gap-4 sm:gap-6">
+                  <div class="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-white/10 relative overflow-hidden">
+                    <div class="absolute inset-0 shimmer"></div>
+                  </div>
+                  <div>
+                    <div class="h-3 w-32 sm:h-4 sm:w-48 bg-white/20 rounded-full mb-3"></div>
+                    <div class="h-2 w-20 sm:h-3 sm:w-28 bg-white/10 rounded-full"></div>
+                  </div>
+                </div>
+                <div class="flex gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-white/5 border border-white/10"></div>
+                  <div class="w-10 h-10 rounded-xl bg-white/5 border border-white/10"></div>
+                </div>
+              </div>
+              
+              <!-- Stats cards -->
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-8 sm:mb-12">
+                <div class="stat-card glass-light rounded-2xl p-4 sm:p-6 border border-white/10 transition-all duration-300 hover:border-white/20">
+                  <div class="text-xs text-slate-400 mb-2 uppercase tracking-wider font-semibold">Total Balance</div>
+                  <div class="text-xl sm:text-2xl font-bold text-white">$24,580</div>
+                  <div class="text-xs text-emerald-400 mt-2 font-medium">+12.5%</div>
+                </div>
+                <div class="stat-card glass-light rounded-2xl p-4 sm:p-6 border border-white/10 transition-all duration-300 hover:border-white/20">
+                  <div class="text-xs text-slate-400 mb-2 uppercase tracking-wider font-semibold">Monthly Spend</div>
+                  <div class="text-xl sm:text-2xl font-bold text-white">$3,240</div>
+                  <div class="text-xs text-red-400 mt-2 font-medium">-8.2%</div>
+                </div>
+                <div class="stat-card glass-light rounded-2xl p-4 sm:p-6 border border-white/10 transition-all duration-300 hover:border-white/20 hidden sm:block">
+                  <div class="text-xs text-slate-400 mb-2 uppercase tracking-wider font-semibold">Investments</div>
+                  <div class="text-xl sm:text-2xl font-bold text-white">$15,890</div>
+                  <div class="text-xs text-emerald-400 mt-2 font-medium">+23.1%</div>
+                </div>
+                <div class="stat-card glass-light rounded-2xl p-4 sm:p-6 border border-white/10 transition-all duration-300 hover:border-white/20 hidden sm:block">
+                  <div class="text-xs text-slate-400 mb-2 uppercase tracking-wider font-semibold">Debts</div>
+                  <div class="text-xl sm:text-2xl font-bold text-white">$2,100</div>
+                  <div class="text-xs text-emerald-400 mt-2 font-medium">-15.3%</div>
+                </div>
+              </div>
+              
+              <!-- Chart area -->
+              <div class="glass-light rounded-3xl p-6 sm:p-10 border border-white/10 h-40 sm:h-64 flex items-end justify-between gap-2 sm:gap-6 relative overflow-hidden group/chart">
+                <div class="absolute inset-x-10 bottom-0 h-[1px] bg-white/5 opacity-0 group-hover/chart:opacity-100 transition-opacity"></div>
+                {[40, 65, 45, 80, 55, 75, 90, 60, 85, 70, 95, 80].map((height, i) => (
+                  <div 
+                    class="chart-bar flex-1 bg-gradient-to-t from-white/10 to-white/20 rounded-t-lg transition-all duration-700 hover:from-white/30 hover:to-white/40 cursor-pointer"
+                    style={"--bar-height: " + height + "%; --bar-delay: " + (i * 0.05) + "s;"}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </FadeIn>
+  </div>
+</section>
+
+<style>
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  .perspective-card {
+    perspective: 2000px;
+    transform-style: preserve-3d;
+  }
+
+  .glass-light {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+  }
+
+  .chart-bar {
+    height: 0;
+    animation: growBar 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: var(--bar-delay);
+  }
+  
+  @keyframes growBar {
+    to { height: var(--bar-height); }
+  }
+
+  .shimmer {
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.05) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .stat-card:hover {
+    transform: translateY(-5px);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .preview-card:hover {
+    box-shadow: 0 40px 100px -20px rgba(0,0,0,0.8), 0 0 50px rgba(255,255,255,0.05);
+  }
+</style>
+
+<script>
+  import { gsap } from 'gsap';
+  
+  // Magnetic button effect
+  document.querySelectorAll('.magnetic-btn').forEach((btn) => {
+    btn.addEventListener('mousemove', (e) => {
+      const rect = btn.getBoundingClientRect();
+      const x = (e as MouseEvent).clientX - rect.left - rect.width / 2;
+      const y = (e as MouseEvent).clientY - rect.top - rect.height / 2;
+      
+      gsap.to(btn, {
+        x: x * 0.3,
+        y: y * 0.3,
+        duration: 0.3,
+        ease: 'power2.out'
+      });
+    });
+    
+    btn.addEventListener('mouseleave', () => {
+      gsap.to(btn, {
+        x: 0,
+        y: 0,
+        duration: 0.5,
+        ease: 'elastic.out(1, 0.3)'
+      });
+    });
+  });
+
+  // Subtle lift effect on preview card
+  const previewCard = document.querySelector('.preview-card');
+  if (previewCard) {
+    previewCard.addEventListener('mouseenter', () => {
+      gsap.to(previewCard, {
+        y: -10,
+        scale: 1.02,
+        duration: 0.6,
+        ease: 'power2.out'
+      });
+    });
+    
+    previewCard.addEventListener('mouseleave', () => {
+      gsap.to(previewCard, {
+        y: 0,
+        scale: 1,
+        duration: 0.6,
+        ease: 'power2.out'
+      });
+    });
+  }
+</script>

@@ -40,37 +40,37 @@
   }
 
   .dark {
-    --background: 220 13% 12%;
-    --foreground: 210 20% 95%;
-    --card: 220 13% 14%;
-    --card-foreground: 210 20% 95%;
-    --popover: 220 13% 14%;
-    --popover-foreground: 210 20% 95%;
-    --primary: 210 20% 95%;
-    --primary-foreground: 220 13% 12%;
-    --secondary: 220 13% 20%;
-    --secondary-foreground: 210 20% 95%;
-    --muted: 220 13% 20%;
-    --muted-foreground: 215 16% 60%;
-    --accent: 220 13% 20%;
-    --accent-foreground: 210 20% 95%;
+    --background: 200 23% 5%;
+    --foreground: 195 12% 95%;
+    --card: 210 8% 10%;
+    --card-foreground: 195 12% 95%;
+    --popover: 210 8% 10%;
+    --popover-foreground: 195 12% 95%;
+    --primary: 195 12% 95%;
+    --primary-foreground: 200 23% 5%;
+    --secondary: 210 8% 14%;
+    --secondary-foreground: 195 12% 95%;
+    --muted: 210 8% 14%;
+    --muted-foreground: 195 5% 65%;
+    --accent: 210 8% 14%;
+    --accent-foreground: 195 12% 95%;
     --destructive: 0 62.8% 40%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 13% 22%;
-    --input: 220 13% 22%;
-    --ring: 215 20% 65%;
+    --border: 206 14% 10%;
+    --input: 206 14% 10%;
+    --ring: 195 12% 65%;
     --chart-1: 220 70% 55%;
     --chart-2: 160 60% 50%;
     --chart-3: 30 80% 60%;
     --chart-4: 280 65% 65%;
     --chart-5: 340 75% 60%;
-    --sidebar-background: 220 13% 10%;
-    --sidebar-foreground: 210 20% 90%;
+    --sidebar-background: 200 23% 4%;
+    --sidebar-foreground: 195 12% 90%;
     --sidebar-primary: 224.3 76.3% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 13% 16%;
-    --sidebar-accent-foreground: 210 20% 90%;
-    --sidebar-border: 220 13% 18%;
+    --sidebar-accent: 210 8% 12%;
+    --sidebar-accent-foreground: 195 12% 90%;
+    --sidebar-border: 206 14% 12%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
@@ -108,6 +108,10 @@
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
+  .theme {
+    --animate-ripple: ripple var(--duration, 2s) ease calc(var(--i, 0)*.2s) infinite;
+  }
 }
 
 @layer base {
@@ -117,5 +121,37 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+.animate-rectangles {
+  animation: rectangles 3s ease-in-out infinite;
+}
+
+@theme inline {
+  @keyframes ripple {
+
+    0%,
+    100% {
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    50% {
+      transform: translate(-50%, -50%) scale(0.9);
+    }
+  }
+}
+
+@keyframes rectangles {
+
+  0%,
+  100% {
+    transform: translate(-50%, -50%) rotate(45deg) scale(1);
+    opacity: var(--opacity, 0.2);
+  }
+
+  50% {
+    transform: translate(-50%, -50%) rotate(45deg) scale(0.95);
+    opacity: calc(var(--opacity, 0.2) * 0.8);
   }
 }

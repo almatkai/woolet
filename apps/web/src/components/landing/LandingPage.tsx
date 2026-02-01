@@ -4,6 +4,7 @@ import { FeaturesGrid } from './FeaturesGrid';
 import { StatsCounter } from './StatsCounter';
 import { DemoChart } from './DemoChart';
 import { ScrollMarquee } from './ScrollMarquee';
+import { PricingSection } from './PricingSection';
 import { CTASection } from './CTASection';
 import { FloatingIcons } from './FloatingIcons';
 
@@ -16,6 +17,7 @@ export function LandingPage() {
             <StatsCounter />
             <DemoChart />
             <ScrollMarquee />
+            <PricingSection />
             <CTASection />
         </div>
     );

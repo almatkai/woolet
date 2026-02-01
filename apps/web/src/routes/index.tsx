@@ -1,5 +1,6 @@
 import React from 'react';
-import { SignedIn, SignedOut, SignInButton } from '@clerk/clerk-react';
+import { SignedIn, SignedOut } from '@clerk/clerk-react';
+import { Navigate } from '@tanstack/react-router';
 import {
     Pencil,
     Save,
@@ -25,8 +26,8 @@ import { InvestmentPortfolioWidget } from '@/components/dashboard/InvestmentPort
 import { InvestmentPerformanceWidget } from '@/components/dashboard/InvestmentPerformanceWidget';
 import { AssetAllocationWidget } from '@/components/dashboard/AssetAllocationWidget';
 import { SplitBillWidget } from '@/components/dashboard/SplitBillWidget';
-import { LandingPage } from '@/components/landing/LandingPage';
 import { SpendingAnomalyCard } from '@/components/dashboard/SpendingAnomalyCard';
+import { PricingCtaBanner } from '@/components/PricingCtaBanner';
 
 export function Dashboard() {
     const [isEditing, setIsEditing] = React.useState(false);
@@ -35,7 +36,7 @@ export function Dashboard() {
     return (
         <div className="space-y-6">
             <SignedOut>
-                <LandingPage />
+                <Navigate to="/login" />
             </SignedOut>
 
             <SignedIn>
@@ -78,6 +79,8 @@ export function Dashboard() {
                         <UniversalAddSheet />
                     </div>
                 </div>
+
+                <PricingCtaBanner variant="inline" className="mb-4" />
 
                 <SpendingAnomalyCard />
 

@@ -1,0 +1,114 @@
+---
+const steps = [
+  {
+    number: '01',
+    title: 'Create Your Account',
+    description: 'Sign up in seconds with email or social login. Start with our free tier.',
+    icon: `<svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+    </svg>`,
+  },
+  {
+    number: '02',
+    title: 'Add Your Accounts',
+    description: 'Manually add your bank accounts, credit cards, and investments. Your data stays private.',
+    icon: `<svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+    </svg>`,
+  },
+  {
+    number: '03',
+    title: 'Track Everything',
+    description: 'Log transactions, subscriptions, and debts. See where your money goes.',
+    icon: `<svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    </svg>`,
+  },
+  {
+    number: '04',
+    title: 'Get Insights',
+    description: 'View analytics, charts, and AI-powered insights to make better financial decisions.',
+    icon: `<svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+    </svg>`,
+  },
+];
+---
+
+<section id="how-it-works" class="relative py-24 sm:py-32 overflow-hidden">
+  <!-- Background -->
+  <div class="absolute inset-0 grid-pattern opacity-30"></div>
+  
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="text-center mb-16 sm:mb-20">
+      <div class="reveal inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-white/20 mb-6">
+        <span class="text-sm text-slate-300">Simple Setup</span>
+      </div>
+      
+      <h2 class="reveal stagger-1 text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
+        Get started in
+        <span class="text-white/70">minutes</span>
+      </h2>
+      
+      <p class="reveal stagger-2 text-lg text-slate-400 max-w-2xl mx-auto">
+        Four simple steps to take control of your financial life. No complicated setup, no hidden fees.
+      </p>
+    </div>
+    
+    <!-- Steps -->
+    <div class="relative">
+      <!-- Connection line -->
+      <div class="hidden lg:block absolute top-1/2 left-0 right-0 h-0.5 bg-white/10 -translate-y-1/2"></div>
+      
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6" data-stagger>
+        {steps.map((step, index) => (
+          <div class="relative">
+            <!-- Step card -->
+            <div class="feature-card glass rounded-2xl p-6 border border-white/10 hover:border-white/20 h-full">
+              <!-- Number badge -->
+              <div class="relative z-10 w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
+                <span class="text-white font-bold">{step.number}</span>
+              </div>
+              
+              <!-- Icon -->
+              <div class="text-white/60 mb-4" set:html={step.icon} />
+              
+              <!-- Content -->
+              <h3 class="text-xl font-semibold text-white mb-2">{step.title}</h3>
+              <p class="text-slate-400 text-sm leading-relaxed">{step.description}</p>
+            </div>
+            
+            <!-- Connection dot for desktop -->
+            <div class="hidden lg:block absolute -bottom-4 left-1/2 -translate-x-1/2">
+              <div class="w-3 h-3 rounded-full bg-white/60 border-2 border-white/80"></div>
+            </div>
+            
+            {/* Arrow for mobile/tablet */}
+            {index < steps.length - 1 && (
+              <div class="lg:hidden flex justify-center my-4">
+                <svg class="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+    
+    <!-- Bottom CTA -->
+    <div class="reveal mt-16 text-center">
+      <a 
+        href="https://localhost:3000/register"
+        class="magnetic-btn inline-flex items-center gap-3 px-8 py-4 bg-white text-slate-900 rounded-full font-semibold text-lg hover:bg-white/90 transition-colors duration-300"
+      >
+        <span>Start Your Journey</span>
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+        </svg>
+      </a>
+      <p class="mt-4 text-sm text-slate-400">Free forever for basic features</p>
+    </div>
+  </div>
+</section>

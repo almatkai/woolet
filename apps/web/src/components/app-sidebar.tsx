@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AiChatSidebarItem } from '@/components/AiChatWidget';
+import { PricingCtaBanner } from '@/components/PricingCtaBanner';
 
 const mainNavItems = [
     { title: 'Dashboard', url: '/', icon: LayoutDashboard },
@@ -195,6 +196,8 @@ export function AppSidebar() {
                     </SidebarMenu>
                 )}
 
+                <PricingCtaBanner variant="sidebar" className="mb-2" />
+                
                 <AiChatSidebarItem />
 
                 <SidebarMenu>
