@@ -60,7 +60,7 @@ const getBreakpointFromWidth = (width: number): Breakpoint => {
 // Custom WidthProvider implementation
 const withSize = (Component: any) => {
     return (props: any) => {
-        const [width, setWidth] = useState(1200);
+        const [width, setWidth] = useState<number | null>(null);
         const ref = useRef<HTMLDivElement>(null);
 
         useEffect(() => {
@@ -82,7 +82,7 @@ const withSize = (Component: any) => {
 
         return (
             <div ref={ref} className={props.className} style={props.style}>
-                <Component {...props} width={width} />
+                {width !== null && width > 0 ? <Component {...props} width={width} /> : null}
             </div>
         );
     };
@@ -605,6 +605,7 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                     layouts={layoutsWithStatic}
                     breakpoints={BREAKPOINTS}
                     cols={COLS}
+                    measureBeforeMount
                     rowHeight={currentBreakpoint === 'xs' ? 36 : currentBreakpoint === 'sm' ? 40 : 100}
                     isDraggable={isEditing}
                     isResizable={isEditing}
