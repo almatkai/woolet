@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import { secureHeaders } from 'hono/secure-headers';
 import { trpcServer } from '@hono/trpc-server';
 import { clerkMiddleware } from '@hono/clerk-auth';
 
@@ -13,6 +14,7 @@ const app = new Hono();
 
 // Global middleware
 app.use('*', logger());
+app.use('*', secureHeaders());
 app.use('*', cors({
     origin: process.env.WEB_URL || 'http://localhost:3000',
     credentials: true,

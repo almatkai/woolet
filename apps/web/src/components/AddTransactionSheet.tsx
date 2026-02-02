@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import posthog from 'posthog-js';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -194,10 +195,18 @@ export function AddTransactionSheet({
     const canSaveAsShortcut = !selectedShortcut;
 
     const createTransaction = trpc.transaction.create.useMutation({
-        onSuccess: () => {
+        onSuccess: (_data, variables) => {
             utils.transaction.list.invalidate();
             utils.account.getTotalBalance.invalidate();
             setOpen(false);
+
+            posthog.capture('transaction_added', {
+                type: variables.type,
+                amount: variables.amount,
+                category_id: variables.categoryId,
+                is_split: splitEnabled
+            });
+
             reset();
             toast.success('Transaction added successfully');
         },

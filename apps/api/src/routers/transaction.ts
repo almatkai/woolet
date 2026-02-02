@@ -141,8 +141,19 @@ export const transactionRouter = router({
             // For split bills (Option 2: tag people on transaction)
             split: quickSplitSchema.optional(),
             parentTransactionId: z.string().uuid().optional(),
+            idempotencyKey: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
+            // Check idempotency first if key is provided
+            if (input.idempotencyKey) {
+                const existing = await ctx.db.query.transactions.findFirst({
+                    where: eq(transactions.idempotencyKey, input.idempotencyKey),
+                });
+                if (existing) {
+                    return existing; // Return existing transaction if duplicate request
+                }
+            }
+
             // Check test mode limits
             await checkEntityLimit(ctx.db, ctx.userId!, 'transactions');
 
@@ -227,6 +238,7 @@ export const transactionRouter = router({
                 description: input.description,
                 toCurrencyBalanceId: input.toCurrencyBalanceId,
                 parentTransactionId: input.parentTransactionId,
+                idempotencyKey: input.idempotencyKey,
                 fee: input.fee?.toString(),
                 exchangeRate: input.exchangeRate?.toString(),
                 cashbackAmount: input.cashbackAmount?.toString(),
@@ -481,13 +493,28 @@ export const transactionRouter = router({
     delete: protectedProcedure
         .input(z.object({ id: z.string().uuid() }))
         .mutation(async ({ ctx, input }) => {
-            // Get transaction to rollback balance
+            // Get transaction to rollback balance and verify ownership
             const transaction = await ctx.db.query.transactions.findFirst({
-                where: eq(transactions.id, input.id)
+                where: eq(transactions.id, input.id),
+                with: {
+                    currencyBalance: {
+                        with: {
+                            account: {
+                                with: {
+                                    bank: true
+                                }
+                            }
+                        }
+                    }
+                }
             });
 
             if (!transaction) {
                 throw new TRPCError({ code: 'NOT_FOUND', message: 'Transaction not found' });
+            }
+
+            if (transaction.currencyBalance.account.bank.userId !== ctx.userId) {
+                throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not have permission to delete this transaction' });
             }
 
             const amount = Number(transaction.amount);

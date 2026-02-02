@@ -5,7 +5,9 @@ const WINDOW_SIZE_MS = 60 * 1000; // 1 minute
 const MAX_REQUESTS = 100;
 
 export const rateLimitMiddleware = async (c: Context, next: Next) => {
-    const identifier = c.get('userId') || c.req.header('x-forwarded-for') || 'anonymous';
+    const userId = c.get('userId');
+    const ip = c.req.header('x-forwarded-for')?.split(',')[0].trim() || c.req.header('x-real-ip') || 'anonymous';
+    const identifier = userId ? `user:${userId}` : `ip:${ip}`;
     const key = `ratelimit:${identifier}`;
     const now = Date.now();
 
@@ -16,9 +18,14 @@ export const rateLimitMiddleware = async (c: Context, next: Next) => {
 
         c.header('X-RateLimit-Limit', MAX_REQUESTS.toString());
         c.header('X-RateLimit-Remaining', Math.max(0, MAX_REQUESTS - count - 1).toString());
+        c.header('X-RateLimit-Reset', Math.ceil((now + WINDOW_SIZE_MS) / 1000).toString());
 
         if (count >= MAX_REQUESTS) {
-            return c.json({ error: 'Too Many Requests' }, 429);
+            console.warn(`Rate limit exceeded for ${identifier}`);
+            return c.json({ 
+                error: 'Too Many Requests',
+                message: 'You have exceeded the rate limit. Please try again later.'
+            }, 429);
         }
 
         // Add current request

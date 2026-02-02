@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import posthog from 'posthog-js';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -115,6 +116,11 @@ export function AiChatSidebarItem() {
         chatMutation.mutate({
             message: newMsg.text,
             sessionId: currentSessionId
+        });
+
+        posthog.capture('ai_message_sent', { 
+            session_id: currentSessionId,
+            message_length: newMsg.text.length 
         });
     };
 

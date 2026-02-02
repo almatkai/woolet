@@ -235,4 +235,30 @@ export const userRouter = router({
                 user: resetUser
             };
         }),
+
+    deleteAccount: protectedProcedure
+        .mutation(async ({ ctx }) => {
+            // 1. Manually delete entities that might not have cascade delete
+            // (Though we should ideally update the schema, we'll be safe here)
+            
+            // Delete user settings
+            await ctx.db.delete(userSettings).where(eq(userSettings.userId, ctx.userId));
+            
+            // Delete subscriptions (assuming they don't cascade)
+            await ctx.db.delete(subscriptions).where(eq(subscriptions.userId, ctx.userId));
+
+            // 2. Delete the main user record. 
+            // Most other tables (banks, stocks, ai_usage, categories, dashboard_layouts)
+            // have onDelete: 'cascade' on their userId foreign key.
+            await ctx.db.delete(users).where(eq(users.id, ctx.userId));
+
+            // Clear any user-specific cache
+            await investingCache.invalidatePattern(`*:${ctx.userId}`);
+            await redis.del(`ratelimit:user:${ctx.userId}`);
+
+            return {
+                success: true,
+                message: 'Your account and all associated data have been permanently deleted.'
+            };
+        }),
 });

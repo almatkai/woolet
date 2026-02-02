@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react"
+import posthog from "posthog-js"
 
 type Theme = "dark" | "light" | "super-dark"
 
@@ -34,6 +35,8 @@ export function ThemeProvider({
 
     root.classList.remove("light", "dark", "super-dark")
     root.classList.add(theme)
+    
+    posthog.register({ theme })
   }, [theme])
 
   const value = {
@@ -41,6 +44,8 @@ export function ThemeProvider({
     setTheme: (theme: Theme) => {
       localStorage.setItem(storageKey, theme)
       setTheme(theme)
+      posthog.capture('theme_changed', { theme })
+      posthog.register({ theme }) // Register as a super property for all future events
     },
   }
 

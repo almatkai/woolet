@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { Brain, ChevronDown, ChevronUp } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import posthog from 'posthog-js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 
@@ -41,6 +42,12 @@ export function AiDigestCard() {
         staleTime: 1000 * 60 * 60, // Cache for 1 hour
         refetchOnWindowFocus: false,
     });
+
+    useEffect(() => {
+        if (digest) {
+            posthog.capture('ai_digest_loaded');
+        }
+    }, [digest]);
 
     if (isLoading) {
         return (

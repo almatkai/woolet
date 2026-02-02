@@ -30,6 +30,7 @@ import { SettingsLayout } from './components/SettingsLayout';
 import { Bitcoin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PricingProvider } from '@/components/PricingProvider';
+import { PostHogPageviewTracker, PostHogUserIdentifier } from './components/PostHogProvider';
 
 // Root layout with sidebar
 function RootLayout() {
@@ -39,6 +40,8 @@ function RootLayout() {
 
     return (
         <PricingProvider>
+            <PostHogUserIdentifier />
+            <PostHogPageviewTracker />
             <SidebarProvider>
                 <SignedIn>
                     <AppSidebar />

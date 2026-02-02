@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import posthog from 'posthog-js';
 import { trpc } from '@/lib/trpc';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -192,6 +193,19 @@ export function InvestingPage() {
     });
 
     const utils = trpc.useUtils();
+
+    useEffect(() => {
+        if (summary) {
+            posthog.set_person_properties({ 
+                investment_count: summary.holdings.length,
+                total_investment_value: summary.totalValue
+            });
+            posthog.capture('investing_viewed', { 
+                investment_count: summary.holdings.length,
+                total_investment_value: summary.totalValue
+            });
+        }
+    }, [summary]);
 
     const buyStock = trpc.investing.buyStock.useMutation({
         onSuccess: () => {

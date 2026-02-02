@@ -23,6 +23,7 @@ export const transactions = pgTable('transactions', {
     debtId: uuid('debt_id').references(() => debts.id, { onDelete: 'cascade' }),
     excludeFromMonthlyStats: boolean('exclude_from_monthly_stats').default(false).notNull(),
     parentTransactionId: uuid('parent_transaction_id'), // Self-reference for linked transactions
+    idempotencyKey: text('idempotency_key'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
@@ -31,6 +32,7 @@ export const transactions = pgTable('transactions', {
     debtPaymentIdIdx: index('transactions_debt_payment_id_idx').on(table.debtPaymentId),
     debtIdIdx: index('transactions_debt_id_idx').on(table.debtId),
     parentTransactionIdIdx: index('transactions_parent_transaction_id_idx').on(table.parentTransactionId),
+    idempotencyKeyIdx: index('transactions_idempotency_key_idx').on(table.idempotencyKey),
 }));
 
 export const transactionsRelations = relations(transactions, ({ one, many }) => ({

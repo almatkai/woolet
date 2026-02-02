@@ -1,5 +1,6 @@
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import posthog from 'posthog-js';
 import { DeleteConfirm } from '@/components/DeleteConfirm';
 import { AddBankSheet } from '@/components/AddBankSheet';
 import { AddAccountSheet } from '@/components/AddAccountSheet';
@@ -42,6 +43,20 @@ export function AccountsPage() {
     const { data: banks, isLoading } = trpc.bank.getHierarchy.useQuery(undefined, {
         staleTime: 1000 * 60,
     }) as { data: Bank[] | undefined, isLoading: boolean };
+
+    useEffect(() => {
+        if (banks) {
+            const totalAccounts = banks.reduce((acc, bank) => acc + bank.accounts.length, 0);
+            posthog.set_person_properties({ 
+                bank_count: banks.length,
+                account_count: totalAccounts 
+            });
+            posthog.capture('accounts_viewed', { 
+                bank_count: banks.length,
+                account_count: totalAccounts 
+            });
+        }
+    }, [banks]);
 
     // Show all banks with all accounts
     const banksWithAccounts = useMemo(() => {

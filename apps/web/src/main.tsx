@@ -73,24 +73,27 @@ declare global {
 }
 
 import { ThemeProvider } from './components/theme-provider';
+import { PostHogProvider } from './components/PostHogProvider';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
         <ClerkProvider publishableKey={VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_demo'}>
-            <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-                <trpc.Provider client={trpcClient} queryClient={queryClient}>
-                    <QueryClientProvider client={queryClient}>
-                        <RouterProvider router={router} />
-                        <Toaster
-                            position="bottom-right"
-                            richColors
-                            closeButton
-                            duration={5000}
-                            offset={{ right: '24px', bottom: 'var(--toast-bottom-offset, 24px)' }}
-                        />
-                    </QueryClientProvider>
-                </trpc.Provider>
-            </ThemeProvider>
+            <PostHogProvider>
+                <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+                    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+                        <QueryClientProvider client={queryClient}>
+                            <RouterProvider router={router} />
+                            <Toaster
+                                position="bottom-right"
+                                richColors
+                                closeButton
+                                duration={5000}
+                                offset={{ right: '24px', bottom: 'var(--toast-bottom-offset, 24px)' }}
+                            />
+                        </QueryClientProvider>
+                    </trpc.Provider>
+                </ThemeProvider>
+            </PostHogProvider>
         </ClerkProvider>
     </React.StrictMode>
 );

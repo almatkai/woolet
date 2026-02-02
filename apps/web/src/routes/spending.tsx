@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import posthog from 'posthog-js';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -145,6 +146,17 @@ export function SpendingPage() {
     const [shortcutsListOpen, setShortcutsListOpen] = useState(false);
     const [editingShortcut, setEditingShortcut] = useState<TransactionShortcut | null>(null);
     const [shortcuts, setShortcuts] = useState<TransactionShortcut[]>([]);
+
+    useEffect(() => {
+        if (shortcuts.length > 0) {
+            const favoriteCount = shortcuts.filter(s => s.isFavorite).length;
+            posthog.set_person_properties({ 
+                total_shortcuts_count: shortcuts.length, 
+                favorite_shortcuts_count: favoriteCount 
+            });
+        }
+    }, [shortcuts]);
+
     const [favoritesWidgetVisible, setFavoritesWidgetVisible] = useState(() => {
         if (typeof localStorage !== 'undefined') {
             const saved = localStorage.getItem(FAVORITES_WIDGET_KEY);
@@ -414,6 +426,11 @@ export function SpendingPage() {
     const openShortcut = (shortcut: TransactionShortcut) => {
         setSelectedShortcut(shortcut);
         setTransactionSheetOpen(true);
+        posthog.capture('shortcut_opened', { 
+            shortcut_id: shortcut.id,
+            shortcut_name: shortcut.name,
+            shortcut_type: shortcut.type
+        });
     };
 
     const openEditShortcut = (shortcut: TransactionShortcut) => {

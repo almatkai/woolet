@@ -47,6 +47,8 @@ Woo-Let is a sophisticated personal finance and investment tracking application 
 ├── packages/
 │   └── shared/       # Shared Zod schemas and types
 ├── docs/             # Technical design documents
+│   ├── INVESTING_MODULE_DESIGN.md
+│   └── POSTHOG_IMPLEMENTATION.md # Analytics & User Behavior Tracking
 └── docker-compose.yml # Infrastructure (Postgres, Redis)
 ```
 
