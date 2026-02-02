@@ -273,7 +273,12 @@ export function AddTransactionSheet({
                     </SheetDescription>
                 </SheetHeader>
                 <div className="flex-1 overflow-y-auto px-1">
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pt-6 pb-10">
+                    <form onSubmit={handleSubmit(onSubmit, (errors) => {
+                        const errorMessages = Object.values(errors).map(e => e?.message).filter(Boolean);
+                        if (errorMessages.length > 0) {
+                            toast.error(`Please fill required fields: ${errorMessages.join(', ')}`);
+                        }
+                    })} className="space-y-6 pt-6 pb-10">
                     <Tabs defaultValue={watch('type') || 'expense'} onValueChange={(val: any) => setValue('type', val)} className="w-full">
                         <TabsList className="grid w-full grid-cols-3">
                             <TabsTrigger value="expense">Expense</TabsTrigger>
@@ -299,7 +304,7 @@ export function AddTransactionSheet({
                                 const opt = currencyOptions.find(o => o.id === val);
                                 if (opt) setValue('currencyCode', opt.currencyCode);
                             }}
-                            defaultValue={watch('currencyBalanceId') || ''}
+                            value={watch('currencyBalanceId') || ''}
                         >
                             <SelectTrigger className="h-14 bg-background">
                                 <SelectValue placeholder="Select Account" />
@@ -332,7 +337,7 @@ export function AddTransactionSheet({
                             </div>
                             <Select
                                 onValueChange={(val) => setValue('toCurrencyBalanceId', val)}
-                                defaultValue={watch('toCurrencyBalanceId') || ''}
+                                value={watch('toCurrencyBalanceId') || ''}
                             >
                                 <SelectTrigger className="h-14 bg-background">
                                     <SelectValue placeholder="Select Target Account" />
@@ -388,7 +393,7 @@ export function AddTransactionSheet({
                                 </span>
                             )}
                         </div>
-                        <Select onValueChange={(val) => setValue('categoryId', val)} defaultValue={watch('categoryId')}>
+                        <Select onValueChange={(val) => setValue('categoryId', val)} value={watch('categoryId') || ''}>
                             <SelectTrigger className="h-12 bg-background border-muted-foreground/20">
                                 <SelectValue placeholder="Select Category" />
                             </SelectTrigger>
@@ -533,7 +538,7 @@ export function AddTransactionSheet({
                         <div className="space-y-2">
                             <Label htmlFor="date" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground ml-1">Date</Label>
                             <div className="relative">
-                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/70" />
                                 <Input id="date" type="date" {...register('date')} className="h-10 pl-9 bg-background border-muted-foreground/20" />
                             </div>
                             {errors.date && <p className="text-sm text-red-500 mt-1">{(errors.date as any).message}</p>}

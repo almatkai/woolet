@@ -1195,7 +1195,7 @@ export function SpendingPage() {
 
             {/* Floating Favorites Widget */}
             {favoritesWidgetVisible && (
-                <div className="fixed bottom-6 right-6 z-40">
+                <div className="fixed bottom-6 right-6 z-[100]">
                     <div className="bg-card border border-border rounded-2xl shadow-lg p-4">
                         <div className="flex items-center justify-between mb-3">
                             <p className="text-sm font-semibold">Starred Shortcuts</p>

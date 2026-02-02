@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 interface TooltipData {
     name: string;
@@ -35,10 +36,12 @@ export function useTooltipPro(data: TooltipData[] = [], formatValue?: (value: nu
     const [showMobileTooltip, setShowMobileTooltip] = useState(false);
     const [isTouchDevice, setIsTouchDevice] = useState(false);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+    const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
         setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+        setPortalTarget(document.body);
     }, []);
 
     const total = useMemo(() => {
@@ -58,10 +61,9 @@ export function useTooltipPro(data: TooltipData[] = [], formatValue?: (value: nu
 
     const handleMouseMove = (event: React.MouseEvent) => {
         if (isTouchDevice) return;
-        const rect = event.currentTarget.getBoundingClientRect();
         setMousePos({
-            x: event.clientX - rect.left + 12,
-            y: event.clientY - rect.top + 12,
+            x: event.clientX + 12,
+            y: event.clientY + 12,
         });
     };
 
@@ -93,47 +95,52 @@ export function useTooltipPro(data: TooltipData[] = [], formatValue?: (value: nu
         }
     }, [showMobileTooltip]);
 
-    const renderTooltip = () => (
-        <>
-            {/* Custom cursor-following tooltip */}
-            {!isTouchDevice && hoveredItem && (
-                <div
-                    className="absolute rounded-xl border border-purple-200/50 dark:border-purple-800/50 bg-background/70 backdrop-blur-xl px-2.5 py-1.5 z-50 pointer-events-none shadow-2xl ring-1 ring-white/10 min-w-[110px]"
-                    style={{ left: mousePos.x, top: mousePos.y }}
-                >
-                    <div className="text-[9px] uppercase tracking-widest text-muted-foreground font-medium mb-0.5 line-clamp-1">
-                        {hoveredItem.name}
-                    </div>
-                    <div className="text-sm font-bold text-foreground">
-                        {valueFormatter(hoveredItem.value)}
-                    </div>
-                    {showPercentage && total > 0 && (
-                        <div className="text-[8px] text-muted-foreground mt-0.5">
-                            {((hoveredItem.value / total) * 100).toFixed(1)}%
-                        </div>
-                    )}
-                </div>
-            )}
+    const renderTooltip = () => {
+        if (!portalTarget) return null;
 
-            {/* Mobile tooltip */}
-            {isTouchDevice && showMobileTooltip && selectedItem && (
-                <div 
-                    className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-2xl border border-purple-200/50 dark:border-purple-800/50 bg-background/70 backdrop-blur-xl px-4 py-2 z-10 shadow-2xl ring-1 ring-white/10 whitespace-nowrap"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <div className="font-bold text-sm">{selectedItem.name}</div>
-                    <div className="text-sm font-medium text-muted-foreground">
-                        {valueFormatter(selectedItem.value)}
-                    </div>
-                    {showPercentage && total > 0 && (
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                            {((selectedItem.value / total) * 100).toFixed(1)}%
+        return createPortal(
+            <>
+                {/* Custom cursor-following tooltip */}
+                {!isTouchDevice && hoveredItem && (
+                    <div
+                        className="fixed rounded-xl border border-purple-200/50 dark:border-purple-800/50 bg-background/70 backdrop-blur-xl px-2.5 py-1.5 z-[9999] pointer-events-none shadow-2xl ring-1 ring-white/10 min-w-[110px]"
+                        style={{ left: mousePos.x, top: mousePos.y }}
+                    >
+                        <div className="text-[9px] uppercase tracking-widest text-muted-foreground font-medium mb-0.5 line-clamp-1">
+                            {hoveredItem.name}
                         </div>
-                    )}
-                </div>
-            )}
-        </>
-    );
+                        <div className="text-sm font-bold text-foreground">
+                            {valueFormatter(hoveredItem.value)}
+                        </div>
+                        {showPercentage && total > 0 && (
+                            <div className="text-[8px] text-muted-foreground mt-0.5">
+                                {((hoveredItem.value / total) * 100).toFixed(1)}%
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Mobile tooltip */}
+                {isTouchDevice && showMobileTooltip && selectedItem && (
+                    <div 
+                        className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-2xl border border-purple-200/50 dark:border-purple-800/50 bg-background/70 backdrop-blur-xl px-4 py-2 z-[9999] shadow-2xl ring-1 ring-white/10 whitespace-nowrap"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="font-bold text-sm">{selectedItem.name}</div>
+                        <div className="text-sm font-medium text-muted-foreground">
+                            {valueFormatter(selectedItem.value)}
+                        </div>
+                        {showPercentage && total > 0 && (
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                                {((selectedItem.value / total) * 100).toFixed(1)}%
+                            </div>
+                        )}
+                    </div>
+                )}
+            </>,
+            portalTarget
+        );
+    };
 
     return {
         hoveredItem,
