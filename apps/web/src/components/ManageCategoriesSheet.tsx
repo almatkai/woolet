@@ -183,7 +183,16 @@ export function ManageCategoriesSheet({ trigger, defaultType }: ManageCategories
                     {(isCreating || editingId) ? (
                         <div className="space-y-4 border rounded-md p-4 bg-muted/30">
                             <h3 className="font-semibold">{editingId ? 'Edit Category' : 'New Category'}</h3>
-                            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                            <div 
+                                className="space-y-4"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleSubmit(onSubmit)();
+                                    }
+                                }}
+                            >
                                 <div className="grid grid-cols-4 gap-4">
                                     <div className="col-span-1 space-y-2">
                                         <Label htmlFor="icon">Icon</Label>
@@ -237,11 +246,15 @@ export function ManageCategoriesSheet({ trigger, defaultType }: ManageCategories
                                 </div>
                                 <div className="flex justify-end gap-2 pt-2">
                                     <Button type="button" variant="ghost" onClick={handleCancel}>Cancel</Button>
-                                    <Button type="submit" disabled={createCategory.isLoading || updateCategory.isLoading}>
+                                    <Button 
+                                        type="button" 
+                                        onClick={handleSubmit(onSubmit)}
+                                        disabled={createCategory.isLoading || updateCategory.isLoading}
+                                    >
                                         {editingId ? 'Save Changes' : 'Create Category'}
                                     </Button>
                                 </div>
-                            </form>
+                            </div>
                         </div>
                     ) : (
                         <Button

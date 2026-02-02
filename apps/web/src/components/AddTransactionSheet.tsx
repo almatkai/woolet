@@ -97,7 +97,10 @@ export function AddTransactionSheet({
     const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
     const [equalSplit, setEqualSplit] = useState(true);
     const [customAmounts, setCustomAmounts] = useState<{ participantId: string; amount: number }[]>([]);
+    const [participantAccounts, setParticipantAccounts] = useState<{ participantId: string; paybackCurrencyBalanceId: string }[]>([]);
     const [includeSelf, setIncludeSelf] = useState(false);
+    const [instantMoneyBack, setInstantMoneyBack] = useState(false);
+    const [paybackCurrencyBalanceId, setPaybackCurrencyBalanceId] = useState<string>('');
 
     // Fetch hierarchy to select account/currency
     const { data: banks } = trpc.bank.getHierarchy.useQuery();
@@ -231,9 +234,19 @@ export function AddTransactionSheet({
             // Add split data if enabled
             ...(splitEnabled && data.type === 'expense' && selectedParticipants.length > 0 && {
                 split: {
-                    participants: selectedParticipants,
+                    participantIds: selectedParticipants,
                     equalSplit,
-                    customAmounts: !equalSplit ? customAmounts : [],
+                    amounts: selectedParticipants.map(pid => {
+                        const acc = participantAccounts.find(a => a.participantId === pid)?.paybackCurrencyBalanceId;
+                        return {
+                            participantId: pid,
+                            amount: !equalSplit ? (customAmounts.find(a => a.participantId === pid)?.amount || 0) : 1, // 1 is placeholder if equalSplit
+                            paybackCurrencyBalanceId: (acc && acc !== '__none__') ? acc : undefined,
+                        };
+                    }),
+                    includeSelf,
+                    instantMoneyBack,
+                    paybackCurrencyBalanceId: (instantMoneyBack && paybackCurrencyBalanceId && paybackCurrencyBalanceId !== '__none__') ? paybackCurrencyBalanceId : undefined,
                 }
             })
         };
@@ -252,14 +265,15 @@ export function AddTransactionSheet({
                     )}
                 </SheetTrigger>
             )}
-            <SheetContent>
-                <SheetHeader>
+            <SheetContent className="flex flex-col h-full">
+                <SheetHeader className="px-1">
                     <SheetTitle>Add Transaction</SheetTitle>
                     <SheetDescription>
                         Record your income, expense, or transfer.
                     </SheetDescription>
                 </SheetHeader>
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pt-6">
+                <div className="flex-1 overflow-y-auto px-1">
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pt-6 pb-10">
                     <Tabs defaultValue={watch('type') || 'expense'} onValueChange={(val: any) => setValue('type', val)} className="w-full">
                         <TabsList className="grid w-full grid-cols-3">
                             <TabsTrigger value="expense">Expense</TabsTrigger>
@@ -500,9 +514,16 @@ export function AddTransactionSheet({
                                     onEqualSplitChange={setEqualSplit}
                                     customAmounts={customAmounts}
                                     onCustomAmountsChange={setCustomAmounts}
+                                    participantAccounts={participantAccounts}
+                                    onParticipantAccountsChange={setParticipantAccounts}
                                     transactionAmount={Number(watch('amount')) || 0}
                                     includeSelf={includeSelf}
                                     onIncludeSelfChange={setIncludeSelf}
+                                    instantMoneyBack={instantMoneyBack}
+                                    onInstantMoneyBackChange={setInstantMoneyBack}
+                                    paybackCurrencyBalanceId={paybackCurrencyBalanceId}
+                                    onPaybackCurrencyBalanceIdChange={setPaybackCurrencyBalanceId}
+                                    currencyOptions={currencyOptions}
                                 />
                             )}
                         </div>
@@ -561,6 +582,7 @@ export function AddTransactionSheet({
                         </Button>
                     </SheetFooter>
                 </form>
+                </div>
             </SheetContent>
         </Sheet>
     );

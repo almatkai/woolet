@@ -15,9 +15,11 @@ interface Transaction {
     description?: string | null;
     date: string;
     type: string;
+    parentTransactionId?: string | null;
     category?: {
         name: string;
         icon: string;
+        type: string;
     } | null;
     currencyBalance?: {
         currencyCode: string;
@@ -27,9 +29,8 @@ interface Transaction {
 type GridParams = { w: number; h: number; breakpoint?: string };
 
 export function MonthlyExpensesWidget({ gridParams }: { gridParams?: GridParams }) {
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
     const startOfMonthStr = startOfMonth.toISOString();
 
     const { data: expenseData, isLoading } = trpc.transaction.list.useQuery({
@@ -49,7 +50,7 @@ export function MonthlyExpensesWidget({ gridParams }: { gridParams?: GridParams 
     const isWide = (gridParams?.w ?? 0) >= 2;
 
     const transactions = expenseData?.transactions || [];
-    const transactionCount = expenseData?.total ?? transactions.length;
+    const transactionCount = transactions.length;
     const totalExpense = transactions.reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0);
     
     // Sort by date descending (newest first)
@@ -57,7 +58,7 @@ export function MonthlyExpensesWidget({ gridParams }: { gridParams?: GridParams 
         new Date(b.date).getTime() - new Date(a.date).getTime()
     );
 
-    // Chart data
+    // Chart data - group by date to show net per day
     const chartData = transactions
         .map(t => ({ date: t.date, amount: Number(t.amount) }))
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());

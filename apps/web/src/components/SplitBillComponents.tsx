@@ -140,7 +140,16 @@ export function ManageParticipantsSheet({ open, onOpenChange }: ManageParticipan
                     </SheetDescription>
                 </SheetHeader>
 
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
+                <div 
+                    className="space-y-4 py-4"
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleSubmit(onSubmit)();
+                        }
+                    }}
+                >
                     <div className="space-y-2">
                         <Label htmlFor="name">Name</Label>
                         <Input
@@ -207,9 +216,10 @@ export function ManageParticipantsSheet({ open, onOpenChange }: ManageParticipan
 
                     <div className="flex gap-2">
                         <Button
-                            type="submit"
+                            type="button"
                             className="flex-1"
                             disabled={createMutation.isPending || updateMutation.isPending}
+                            onClick={handleSubmit(onSubmit)}
                         >
                             {editingId ? 'Update' : 'Add'} Contact
                         </Button>
@@ -219,7 +229,7 @@ export function ManageParticipantsSheet({ open, onOpenChange }: ManageParticipan
                             </Button>
                         )}
                     </div>
-                </form>
+                </div>
 
                 <ScrollArea className="flex-1">
                     <div className="space-y-2">
@@ -288,9 +298,16 @@ interface SplitSelectorProps {
     onEqualSplitChange: (equal: boolean) => void;
     customAmounts: { participantId: string; amount: number }[];
     onCustomAmountsChange: (amounts: { participantId: string; amount: number }[]) => void;
+    participantAccounts?: { participantId: string; paybackCurrencyBalanceId: string }[];
+    onParticipantAccountsChange?: (accounts: { participantId: string; paybackCurrencyBalanceId: string }[]) => void;
     transactionAmount: number;
     includeSelf: boolean;
     onIncludeSelfChange: (include: boolean) => void;
+    instantMoneyBack: boolean;
+    onInstantMoneyBackChange: (val: boolean) => void;
+    paybackCurrencyBalanceId?: string;
+    onPaybackCurrencyBalanceIdChange: (val: string) => void;
+    currencyOptions: { id: string; label: string; balance: number; currencyCode: string }[];
 }
 
 export function SplitSelector({
@@ -300,9 +317,16 @@ export function SplitSelector({
     onEqualSplitChange,
     customAmounts,
     onCustomAmountsChange,
+    participantAccounts = [],
+    onParticipantAccountsChange,
     transactionAmount,
     includeSelf,
     onIncludeSelfChange,
+    instantMoneyBack,
+    onInstantMoneyBackChange,
+    paybackCurrencyBalanceId,
+    onPaybackCurrencyBalanceIdChange,
+    currencyOptions,
 }: SplitSelectorProps) {
     const [showManager, setShowManager] = useState(false);
     const { data: participants } = trpc.splitBill.listParticipants.useQuery();
@@ -324,6 +348,18 @@ export function SplitSelector({
             ));
         } else {
             onCustomAmountsChange([...customAmounts, { participantId, amount }]);
+        }
+    };
+
+    const updateParticipantAccount = (participantId: string, paybackCurrencyBalanceId: string) => {
+        if (!onParticipantAccountsChange) return;
+        const existing = participantAccounts.find(a => a.participantId === participantId);
+        if (existing) {
+            onParticipantAccountsChange(participantAccounts.map(a =>
+                a.participantId === participantId ? { ...a, paybackCurrencyBalanceId } : a
+            ));
+        } else {
+            onParticipantAccountsChange([...participantAccounts, { participantId, paybackCurrencyBalanceId }]);
         }
     };
 
@@ -353,7 +389,7 @@ export function SplitSelector({
                 </div>
                 <div className="text-center py-4 bg-muted rounded-lg">
                     <p className="text-sm text-muted-foreground mb-2">No contacts yet</p>
-                    <Button size="sm" variant="outline" onClick={() => setShowManager(true)}>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setShowManager(true)}>
                         <Plus className="h-4 w-4 mr-1" /> Add Contacts
                     </Button>
                 </div>
@@ -369,7 +405,7 @@ export function SplitSelector({
                     <Users className="h-4 w-4" />
                     Split Bill
                 </Label>
-                <Button size="sm" variant="ghost" onClick={() => setShowManager(true)}>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setShowManager(true)}>
                     <Plus className="h-4 w-4 mr-1" /> Manage
                 </Button>
             </div>
@@ -413,6 +449,50 @@ export function SplitSelector({
                         </div>
                     </div>
 
+                    <div className="flex flex-col gap-3 p-3 rounded-lg border bg-primary/5">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="instant-payback"
+                                    checked={instantMoneyBack}
+                                    onCheckedChange={(c) => onInstantMoneyBackChange(c === true)}
+                                />
+                                <Label htmlFor="instant-payback" className="text-sm font-medium cursor-pointer">
+                                    Instant money back
+                                </Label>
+                            </div>
+                        </div>
+
+                        {instantMoneyBack && (
+                            <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                                    Received to account
+                                </Label>
+                                <Select
+                                    value={paybackCurrencyBalanceId || "__none__"}
+                                    onValueChange={onPaybackCurrencyBalanceIdChange}
+                                >
+                                    <SelectTrigger className="h-9 bg-background">
+                                        <SelectValue placeholder="Select account" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="__none__">
+                                            <span className="text-muted-foreground italic">None (Mark as Pending)</span>
+                                        </SelectItem>
+                                        {currencyOptions.map((opt) => (
+                                            <SelectItem key={opt.id} value={opt.id}>
+                                                <div className="flex items-center justify-between w-full gap-4">
+                                                    <span>{opt.label}</span>
+                                                    <span className="text-muted-foreground text-xs">{opt.currencyCode}</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Split Details */}
                     <div className="bg-muted rounded-lg p-3 space-y-2">
                         {selectedParticipants.map(id => {
@@ -420,32 +500,81 @@ export function SplitSelector({
                             if (!participant) return null;
                             const customAmount = customAmounts.find(a => a.participantId === id)?.amount;
                             const displayAmount = equalSplit ? perPersonAmount : (customAmount || 0);
+                            const participantAccount = participantAccounts.find(a => a.participantId === id)?.paybackCurrencyBalanceId;
 
                             return (
-                                <div key={id} className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <div
-                                            className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs"
-                                            style={{ backgroundColor: participant.color }}
-                                        >
-                                            {participant.name.charAt(0)}
+                                <div key={id} className="space-y-1.5 py-1">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div
+                                                className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs"
+                                                style={{ backgroundColor: participant.color }}
+                                            >
+                                                {participant.name.charAt(0)}
+                                            </div>
+                                            <span className="text-sm font-medium">{participant.name}</span>
                                         </div>
-                                        <span className="text-sm">{participant.name}</span>
-                                    </div>
-                                    {equalSplit ? (
-                                        <span className="font-medium">{displayAmount.toFixed(2)}</span>
-                                    ) : (
+                                    <div className="flex items-center gap-2">
                                         <Input
                                             type="number"
                                             className="w-24 h-8 text-right"
-                                            value={customAmount || ''}
-                                            onChange={(e) => updateCustomAmount(id, Number(e.target.value) || 0)}
+                                            value={displayAmount || ''}
+                                            onChange={(e) => {
+                                                const val = Number(e.target.value) || 0;
+                                                if (equalSplit) {
+                                                    // If we were in equal split, initialize custom amounts with the current equal value for everyone
+                                                    const initialCustom = selectedParticipants.map(pid => ({
+                                                        participantId: pid,
+                                                        amount: pid === id ? val : perPersonAmount
+                                                    }));
+                                                    onCustomAmountsChange(initialCustom);
+                                                    onEqualSplitChange(false);
+                                                } else {
+                                                    updateCustomAmount(id, val);
+                                                }
+                                            }}
                                             placeholder="0.00"
                                         />
-                                    )}
+                                    </div>
                                 </div>
-                            );
-                        })}
+                                {instantMoneyBack && (
+                                    <div className="ml-8 flex flex-col gap-1">
+                                        <Select
+                                            value={participantAccount || paybackCurrencyBalanceId || '__none__'}
+                                            onValueChange={(val) => updateParticipantAccount(id, val)}
+                                        >
+                                            <SelectTrigger 
+                                                className={cn(
+                                                    "h-7 text-[10px] bg-background/50 border-dashed py-0 px-2",
+                                                    (!(participantAccount || paybackCurrencyBalanceId) || (participantAccount === '__none__' || (!participantAccount && paybackCurrencyBalanceId === '__none__'))) && "border-yellow-500/50 text-yellow-600 bg-yellow-50/10"
+                                                )}
+                                            >
+                                                <SelectValue placeholder="Recipient account (Unpaid if empty)" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="__none__">
+                                                    <span className="text-[10px] text-muted-foreground italic">None (Mark as Pending)</span>
+                                                </SelectItem>
+                                                {currencyOptions.map((opt) => (
+                                                    <SelectItem key={opt.id} value={opt.id}>
+                                                        <div className="flex items-center justify-between w-full gap-4 text-[10px]">
+                                                            <span>{opt.label}</span>
+                                                            <span className="text-muted-foreground">{opt.currencyCode}</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {(!(participantAccount || paybackCurrencyBalanceId) || (participantAccount === '__none__' || (!participantAccount && paybackCurrencyBalanceId === '__none__'))) && (
+                                            <span className="text-[9px] text-yellow-600 font-medium ml-1">
+                                                ⚠️ This will be saved as PENDING
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
 
                         <div className="border-t pt-2 mt-2 flex justify-between text-sm">
                             <span className="text-muted-foreground">Total owed by others:</span>

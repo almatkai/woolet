@@ -1,35 +1,39 @@
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import Groq from 'groq-sdk';
 
-type AiProvider = 'openrouter' | 'openai' | 'gemini';
+type AiProvider = 'openrouter' | 'openai' | 'gemini' | 'groq';
 
 const OPENROUTER_API_KEY = process.env.OPEN_ROUTER_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 const OPENROUTER_SITE_URL = process.env.OPENROUTER_SITE_URL;
 const OPENROUTER_APP_NAME = process.env.OPENROUTER_APP_NAME;
 
-const OPENROUTER_CHAT_MODEL = process.env.OPENROUTER_CHAT_MODEL || 'upstage/solar-pro-3:free';
+const OPENROUTER_CHAT_MODEL = process.env.OPENROUTER_CHAT_MODEL || 'openrouter/auto';
 const OPENAI_CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GROQ_CHAT_MODEL = process.env.GROQ_CHAT_MODEL || 'llama-3.3-70b-versatile';
 
-const DEFAULT_PROVIDER_ORDER: AiProvider[] = (process.env.AI_PROVIDER_ORDER || 'openrouter,openai,gemini')
+const DEFAULT_PROVIDER_ORDER: AiProvider[] = (process.env.AI_PROVIDER_ORDER || 'openrouter,groq,openai,gemini')
     .split(',')
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean)
-    .filter((s): s is AiProvider => s === 'openrouter' || s === 'openai' || s === 'gemini');
+    .filter((s): s is AiProvider => s === 'openrouter' || s === 'openai' || s === 'gemini' || s === 'groq');
 
 function isEnabled(provider: AiProvider): boolean {
     if (provider === 'openrouter') return Boolean(OPENROUTER_API_KEY);
     if (provider === 'openai') return Boolean(OPENAI_API_KEY);
     if (provider === 'gemini') return Boolean(GEMINI_API_KEY);
+    if (provider === 'groq') return Boolean(GROQ_API_KEY);
     return false;
 }
 
 function enabledProviders(order: AiProvider[] = DEFAULT_PROVIDER_ORDER): AiProvider[] {
     const seen = new Set<AiProvider>();
-    const providers: AiProvider[] = order.length ? order : ['openrouter', 'openai', 'gemini'];
+    const providers: AiProvider[] = order.length ? order : ['openrouter', 'groq', 'openai', 'gemini'];
     return providers.filter((p: AiProvider) => {
         if (seen.has(p)) return false;
         seen.add(p);
@@ -77,6 +81,10 @@ export const openai = new OpenAI({
     apiKey: OPENAI_API_KEY || 'missing-openai-key',
 });
 
+export const groq = new Groq({
+    apiKey: GROQ_API_KEY || 'missing-groq-key',
+});
+
 export const gemini = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 
 // Backwards compatible defaults (previously used as OpenRouter model IDs)
@@ -87,23 +95,25 @@ export async function createChatCompletionWithFallback(
     params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
     opts?: {
         providerOrder?: AiProvider[];
-        models?: { openrouter?: string; openai?: string };
+        models?: { openrouter?: string; openai?: string; groq?: string };
         purpose?: string;
     }
 ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
     const providers = enabledProviders(opts?.providerOrder).filter(
-        (p): p is 'openrouter' | 'openai' => p === 'openrouter' || p === 'openai'
+        (p): p is 'openrouter' | 'openai' | 'groq' => p === 'openrouter' || p === 'openai' || p === 'groq'
     );
 
     const errors: Array<{ provider: string; error: unknown }> = [];
 
     for (const provider of providers) {
         try {
-            const client = provider === 'openrouter' ? openrouter : openai;
+            const client = provider === 'openrouter' ? openrouter : (provider === 'openai' ? openai : (groq as any));
             const model =
                 provider === 'openrouter'
                     ? (opts?.models?.openrouter || OPENROUTER_CHAT_MODEL)
-                    : (opts?.models?.openai || OPENAI_CHAT_MODEL);
+                    : provider === 'openai'
+                    ? (opts?.models?.openai || OPENAI_CHAT_MODEL)
+                    : (opts?.models?.groq || GROQ_CHAT_MODEL);
 
             return await client.chat.completions.create({
                 ...params,
@@ -132,7 +142,7 @@ export async function generateTextWithFallback(
     },
     opts?: {
         providerOrder?: AiProvider[];
-        models?: { openrouter?: string; openai?: string; gemini?: string };
+        models?: { openrouter?: string; openai?: string; gemini?: string; groq?: string };
     }
 ): Promise<{ text: string; provider: AiProvider; model: string }>
 {
@@ -154,7 +164,7 @@ export async function generateTextWithFallback(
                 return { text, provider, model };
             }
 
-            // OpenAI-compatible providers
+            // OpenAI-compatible providers (OpenAI, OpenRouter, Groq)
             const completion = await createChatCompletionWithFallback(
                 {
                     model: 'will-be-overridden',
@@ -165,16 +175,20 @@ export async function generateTextWithFallback(
                     temperature: input.temperature,
                 },
                 {
-                    providerOrder: [provider],
+                    providerOrder: [provider as any],
                     models: {
                         openrouter: opts?.models?.openrouter,
                         openai: opts?.models?.openai,
+                        groq: opts?.models?.groq,
                     },
                     purpose: input.purpose,
                 }
             );
             const text = completion.choices[0]?.message?.content || '';
-            const modelUsed = (completion as any)?.model || (provider === 'openrouter' ? OPENROUTER_CHAT_MODEL : OPENAI_CHAT_MODEL);
+            const modelUsed = (completion as any)?.model || 
+                (provider === 'openrouter' ? OPENROUTER_CHAT_MODEL : 
+                 provider === 'openai' ? OPENAI_CHAT_MODEL : 
+                 GROQ_CHAT_MODEL);
             return { text, provider, model: modelUsed };
         } catch (error) {
             errors.push({ provider, error });
@@ -196,11 +210,13 @@ export function getAiStatus() {
             openrouter: Boolean(OPENROUTER_API_KEY),
             openai: Boolean(OPENAI_API_KEY),
             gemini: Boolean(GEMINI_API_KEY),
+            groq: Boolean(GROQ_API_KEY),
         },
         models: {
             openrouter: OPENROUTER_CHAT_MODEL,
             openai: OPENAI_CHAT_MODEL,
             gemini: GEMINI_MODEL,
+            groq: GROQ_CHAT_MODEL,
         },
         providerOrder: DEFAULT_PROVIDER_ORDER,
     };

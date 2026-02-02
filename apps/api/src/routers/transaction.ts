@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { eq, desc, and, gte, lte, sql, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../lib/trpc';
-import { transactions, currencyBalances, categories, banks, accounts, transactionSplits, splitParticipants } from '../db/schema';
+import { transactions, currencyBalances, categories, banks, accounts, transactionSplits, splitParticipants, splitPayments } from '../db/schema';
 import { checkEntityLimit } from '../lib/limits';
 import { quickSplitSchema } from '@woolet/shared';
 
@@ -17,6 +17,7 @@ export const transactionRouter = router({
             currencyBalanceId: z.string().uuid().optional(),
             excludeFromStats: z.boolean().optional(),
             hideAdjustments: z.boolean().optional(),
+            includeChildren: z.boolean().optional(),
         }))
         .query(async ({ ctx, input }) => {
             // Complex filtering
@@ -55,6 +56,10 @@ export const transactionRouter = router({
             if (input.endDate) conditions.push(lte(transactions.date, input.endDate.split('T')[0]));
             if (input.currencyBalanceId) conditions.push(eq(transactions.currencyBalanceId, input.currencyBalanceId));
             if (input.excludeFromStats !== undefined) conditions.push(eq(transactions.excludeFromMonthlyStats, input.excludeFromStats));
+            // Show only main transactions by default (exclude child paybacks from main list to avoid clutter)
+            if (!input.includeChildren) {
+                conditions.push(sql`${transactions.parentTransactionId} IS NULL`);
+            }
             // Hide transactions marked as deleting (e.g., soft-deleted debts/payments)
             conditions.push(eq(transactions.lifecycleStatus, 'active'));
             // Filter out manual adjustments if requested
@@ -85,6 +90,21 @@ export const transactionRouter = router({
                             participant: true,
                         },
                     },
+                    childTransactions: {
+                        with: {
+                            category: true,
+                            currencyBalance: {
+                                with: {
+                                    account: {
+                                        with: {
+                                            bank: true
+                                        }
+                                    },
+                                    currency: true
+                                }
+                            }
+                        }
+                    }
                 }
             });
 
@@ -120,6 +140,7 @@ export const transactionRouter = router({
 
             // For split bills (Option 2: tag people on transaction)
             split: quickSplitSchema.optional(),
+            parentTransactionId: z.string().uuid().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             // Check test mode limits
@@ -205,6 +226,7 @@ export const transactionRouter = router({
                 date: input.date.split('T')[0],
                 description: input.description,
                 toCurrencyBalanceId: input.toCurrencyBalanceId,
+                parentTransactionId: input.parentTransactionId,
                 fee: input.fee?.toString(),
                 exchangeRate: input.exchangeRate?.toString(),
                 cashbackAmount: input.cashbackAmount?.toString(),
@@ -234,27 +256,84 @@ export const transactionRouter = router({
                         : input.split.participantIds.length;
                     const perPersonAmount = amount / totalParticipants;
 
-                    splitAmounts = input.split.participantIds.map(id => ({
-                        participantId: id,
-                        amount: Math.round(perPersonAmount * 100) / 100,
-                    }));
+                    splitAmounts = input.split.participantIds.map(id => {
+                        const override = input.split.amounts?.find(a => a.participantId === id);
+                        return {
+                            participantId: id,
+                            amount: Math.round(perPersonAmount * 100) / 100,
+                            paybackCurrencyBalanceId: override?.paybackCurrencyBalanceId
+                        };
+                    });
                 } else if (input.split.amounts) {
                     // Custom amounts
                     splitAmounts = input.split.amounts.map(a => ({
                         participantId: a.participantId,
                         amount: a.amount,
+                        paybackCurrencyBalanceId: a.paybackCurrencyBalanceId
                     }));
                 }
 
                 // Create splits
                 if (splitAmounts.length > 0) {
-                    await ctx.db.insert(transactionSplits).values(
-                        splitAmounts.map(s => ({
-                            transactionId: transaction.id,
-                            participantId: s.participantId,
-                            owedAmount: String(s.amount),
-                        }))
-                    );
+                    const createdSplits = await ctx.db.insert(transactionSplits).values(
+                        splitAmounts.map(s => {
+                            const participantSetting = input.split?.amounts?.find(a => a.participantId === s.participantId);
+                            const paybackBalanceId = participantSetting?.paybackCurrencyBalanceId || input.split?.paybackCurrencyBalanceId;
+                            
+                            // Only set as settled if we actually have an account to receive money
+                            const isInstantlyPaid = input.split?.instantMoneyBack && paybackBalanceId && paybackBalanceId !== '';
+                            
+                            return {
+                                transactionId: transaction.id,
+                                participantId: s.participantId,
+                                owedAmount: String(s.amount),
+                                status: isInstantlyPaid ? ('settled' as const) : ('pending' as const),
+                                paidAmount: isInstantlyPaid ? String(s.amount) : '0',
+                            };
+                        })
+                    ).returning();
+
+                    // Handle instant money back
+                    if (input.split.instantMoneyBack) {
+                        for (const split of createdSplits) {
+                            // Find if there is a specific account for this participant
+                            const participantSetting = input.split.amounts?.find(a => a.participantId === split.participantId);
+                            const paybackBalanceId = participantSetting?.paybackCurrencyBalanceId || input.split.paybackCurrencyBalanceId;
+
+                            if (!paybackBalanceId || paybackBalanceId === '') continue;
+
+                            // 1. Create income transaction for payback
+                            const [paybackTx] = await ctx.db.insert(transactions).values({
+                                currencyBalanceId: paybackBalanceId,
+                                categoryId: transaction.categoryId, // Same category to net out
+                                amount: split.owedAmount,
+                                type: 'income',
+                                date: transaction.date,
+                                description: `Payback from ${participants.find(p => p.id === split.participantId)?.name || 'friend'} for ${transaction.description || 'split bill'}`,
+                                parentTransactionId: transaction.id, // Linking here
+                            }).returning();
+
+                            // 2. Create split payment record
+                            await ctx.db.insert(splitPayments).values({
+                                splitId: split.id,
+                                amount: split.owedAmount,
+                                receivedToCurrencyBalanceId: paybackBalanceId,
+                                linkedTransactionId: paybackTx.id,
+                                paidAt: new Date(),
+                            });
+
+                            // 3. Update the payback account balance
+                            const paybackBalance = await ctx.db.query.currencyBalances.findFirst({
+                                where: eq(currencyBalances.id, paybackBalanceId),
+                            });
+
+                            if (paybackBalance) {
+                                await ctx.db.update(currencyBalances)
+                                    .set({ balance: (Number(paybackBalance.balance) + Number(split.owedAmount)).toString() })
+                                    .where(eq(currencyBalances.id, paybackBalanceId));
+                            }
+                        }
+                    }
                 }
             }
 
@@ -306,6 +385,8 @@ export const transactionRouter = router({
             description: z.string().optional(),
             date: z.string().optional(),
             categoryId: z.string().uuid().optional(),
+            amount: z.number().optional(),
+            currencyBalanceId: z.string().uuid().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             const transaction = await ctx.db.query.transactions.findFirst({
@@ -335,6 +416,55 @@ export const transactionRouter = router({
             if (input.description !== undefined) updates.description = input.description;
             if (input.date !== undefined) updates.date = input.date.split('T')[0];
             if (input.categoryId !== undefined) updates.categoryId = input.categoryId;
+
+            // Handle amount and account change
+            const oldAmount = Number(transaction.amount);
+            const newAmount = input.amount !== undefined ? input.amount : oldAmount;
+            const oldBalanceId = transaction.currencyBalanceId;
+            const newBalanceId = input.currencyBalanceId !== undefined ? input.currencyBalanceId : oldBalanceId;
+
+            if (oldAmount !== newAmount || oldBalanceId !== newBalanceId) {
+                // If moving to a new account, verify ownership
+                if (newBalanceId !== oldBalanceId) {
+                    const newBalance = await ctx.db.query.currencyBalances.findFirst({
+                        where: eq(currencyBalances.id, newBalanceId),
+                        with: {
+                            account: {
+                                with: {
+                                    bank: true
+                                }
+                            }
+                        }
+                    });
+                    if (!newBalance || newBalance.account.bank.userId !== ctx.userId) {
+                        throw new TRPCError({ code: 'FORBIDDEN', message: 'Target account not found or access denied' });
+                    }
+                }
+
+                // Only handle income and expense for now
+                if (transaction.type === 'income') {
+                    // Revert old from old
+                    await ctx.db.update(currencyBalances)
+                        .set({ balance: sql`${currencyBalances.balance} - ${oldAmount}` })
+                        .where(eq(currencyBalances.id, oldBalanceId));
+                    // Apply new to new
+                    await ctx.db.update(currencyBalances)
+                        .set({ balance: sql`${currencyBalances.balance} + ${newAmount}` })
+                        .where(eq(currencyBalances.id, newBalanceId));
+                } else if (transaction.type === 'expense') {
+                    // Revert old from old
+                    await ctx.db.update(currencyBalances)
+                        .set({ balance: sql`${currencyBalances.balance} + ${oldAmount}` })
+                        .where(eq(currencyBalances.id, oldBalanceId));
+                    // Apply new to new
+                    await ctx.db.update(currencyBalances)
+                        .set({ balance: sql`${currencyBalances.balance} - ${newAmount}` })
+                        .where(eq(currencyBalances.id, newBalanceId));
+                }
+                
+                updates.amount = newAmount.toString();
+                updates.currencyBalanceId = newBalanceId;
+            }
 
             if (Object.keys(updates).length > 0) {
                 await ctx.db.update(transactions)
@@ -419,15 +549,8 @@ export const transactionRouter = router({
             currencyBalanceId: z.string().uuid().optional(),
         }))
         .query(async ({ ctx, input }) => {
-            const conditions = [
-                eq(transactions.type, 'expense'),
-                gte(transactions.date, input.startDate.split('T')[0]),
-                lte(transactions.date, input.endDate.split('T')[0]),
-                // Exclude transfers and adjustments ideally, already checking type='expense'
-                // Exclude debt repayments if needed, or keeping them?
-                // Let's exclude transactions marked as excludeFromMonthlyStats
-                eq(transactions.excludeFromMonthlyStats, false),
-            ];
+            const startDate = input.startDate.split('T')[0];
+            const endDate = input.endDate.split('T')[0];
 
             // Fetch allowed currencyBalanceIds based on testMode
             const userBanks = await ctx.db.query.banks.findMany({
@@ -448,21 +571,32 @@ export const transactionRouter = router({
             if (allowedBalanceIds.length === 0) {
                 return { timeSeriesData: [], categoryData: [], total: 0 };
             }
-            conditions.push(inArray(transactions.currencyBalanceId, allowedBalanceIds));
+
+            // Step 1: Get all EXPENSE transactions in date range
+            const expenseConditions = [
+                eq(transactions.type, 'expense'),
+                gte(transactions.date, startDate),
+                lte(transactions.date, endDate),
+                eq(transactions.excludeFromMonthlyStats, false),
+                inArray(transactions.currencyBalanceId, allowedBalanceIds),
+            ];
 
             if (input.categoryIds && input.categoryIds.length > 0) {
-                // If 'all' is not in the list (though frontend should probably handle 'all' by sending undefined or empty)
-                conditions.push(sql`${transactions.categoryId} IN ${input.categoryIds}`);
+                expenseConditions.push(inArray(transactions.categoryId, input.categoryIds));
             }
             if (input.currencyBalanceId) {
-                conditions.push(eq(transactions.currencyBalanceId, input.currencyBalanceId));
+                expenseConditions.push(eq(transactions.currencyBalanceId, input.currencyBalanceId));
             }
 
             const expenseTransactions = await ctx.db.query.transactions.findMany({
-                where: and(...conditions),
+                where: and(...expenseConditions),
                 with: {
                     category: true,
                     currencyBalance: true,
+                    // Get child transactions (paybacks) linked to this expense
+                    childTransactions: {
+                        where: eq(transactions.type, 'income'),
+                    },
                 }
             });
 
@@ -472,11 +606,22 @@ export const transactionRouter = router({
             const byCategory: Record<string, { id: string, name: string, color: string, value: number }> = {};
 
             expenseTransactions.forEach(tx => {
-                const amount = Number(tx.amount);
+                const expenseAmount = Number(tx.amount);
                 const date = tx.date; // YYYY-MM-DD
 
+                // Calculate paybacks for this expense
+                let paybackTotal = 0;
+                if (tx.childTransactions && tx.childTransactions.length > 0) {
+                    tx.childTransactions.forEach(child => {
+                        paybackTotal += Number(child.amount);
+                    });
+                }
+
+                // Net spend = expense - paybacks
+                const netAmount = expenseAmount - paybackTotal;
+
                 // By Date
-                byDate[date] = (byDate[date] || 0) + amount;
+                byDate[date] = (byDate[date] || 0) + netAmount;
 
                 // By Category
                 if (tx.category) {
@@ -488,7 +633,7 @@ export const transactionRouter = router({
                             value: 0
                         };
                     }
-                    byCategory[tx.categoryId].value += amount;
+                    byCategory[tx.categoryId].value += netAmount;
                 }
             });
 
@@ -500,10 +645,13 @@ export const transactionRouter = router({
             const categoryData = Object.values(byCategory)
                 .sort((a, b) => b.value - a.value);
 
+            // Total is the sum of net spending across all processed transactions
+            const total = Object.values(byDate).reduce((sum, amt) => sum + amt, 0);
+
             return {
                 timeSeriesData,
                 categoryData,
-                total: expenseTransactions.reduce((sum, tx) => sum + Number(tx.amount), 0)
+                total
             };
         }),
 });

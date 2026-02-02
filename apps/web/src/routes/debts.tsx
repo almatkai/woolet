@@ -102,7 +102,9 @@ type EditPaymentForm = z.infer<typeof editPaymentSchema>;
 
 export function DebtsPage() {
     const { data: debtsData, isLoading } = trpc.debt.list.useQuery({}) as { data: { debts: Debt[], total: number } | undefined, isLoading: boolean };
+    const { data: pendingSplits, isLoading: isLoadingSplits } = trpc.splitBill.getPendingSplits.useQuery({});
     const { data: accountsData } = trpc.account.list.useQuery({});
+    const { data: banks } = trpc.bank.getHierarchy.useQuery();
     const utils = trpc.useUtils();
 
     const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
@@ -113,6 +115,34 @@ export function DebtsPage() {
     const itemsPerPage = 6;
     const [activePage, setActivePage] = useState(1);
     const [historyPage, setHistoryPage] = useState(1);
+
+    // Split payment state
+    const [recordPaymentSplit, setRecordPaymentSplit] = useState<{
+        splitId: string;
+        participantName: string;
+        remaining: number;
+        currencyCode: string;
+        transactionId: string;
+        transactionDescription: string;
+    } | null>(null);
+    const [splitPaymentAmount, setSplitPaymentAmount] = useState('');
+    const [splitPaymentDate, setSplitPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+    const [splitPaymentAccountId, setSplitPaymentAccountId] = useState('');
+
+    const recordSplitPayment = trpc.splitBill.recordPayment.useMutation({
+        onSuccess: () => {
+            utils.splitBill.getPendingSplits.invalidate();
+            utils.transaction.list.invalidate();
+            toast.success('Payment recorded');
+            setRecordPaymentSplit(null);
+            setSplitPaymentAmount('');
+            setSplitPaymentDate(new Date().toISOString().split('T')[0]);
+            setSplitPaymentAccountId('');
+        },
+        onError: (error: any) => {
+            toast.error(error.message || 'Failed to record payment');
+        }
+    });
 
     const { register, handleSubmit, reset, formState: { errors } } = useForm<EditDebtForm>({
         resolver: zodResolver(editDebtSchema),
@@ -505,10 +535,10 @@ export function DebtsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-green-600">They Owe Me</CardTitle>
-                        <CardDescription>Money others need to pay you</CardDescription>
+                        <CardDescription>Money others need to pay you (including split bills)</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {isLoading ? (
+                        {(isLoading || isLoadingSplits) ? (
                             <div className="space-y-3">
                                 {Array.from({ length: 3 }).map((_, i) => (
                                     <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
@@ -517,15 +547,102 @@ export function DebtsPage() {
                                     </div>
                                 ))}
                             </div>
-                        ) : theyOweActive.length === 0 ? (
+                        ) : (theyOweActive.length === 0 && (!pendingSplits || pendingSplits.length === 0)) ? (
                             <p className="text-muted-foreground text-center py-4">No one owes you</p>
                         ) : (
                             <div className="space-y-3">
+                                {/* Regular debts */}
                                 {theyOweActive
                                     .slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage)
                                     .map(debt => (
                                         <DebtCard key={debt.id} debt={debt} />
                                     ))}
+                                
+                                {/* Pending splits from transactions */}
+                                {pendingSplits && pendingSplits.length > 0 && (
+                                    <>
+                                        {theyOweActive.length > 0 && (
+                                            <div className="border-t pt-3 mt-3">
+                                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">From Split Bills</p>
+                                            </div>
+                                        )}
+                                        {pendingSplits.map((split: any) => {
+                                            // Defensive access for amounts (try both camelCase and snake_case)
+                                            const owedRaw = split.owedAmount ?? split.owed_amount;
+                                            const paidRaw = split.paidAmount ?? split.paid_amount;
+                                            const owed = owedRaw ? Number(owedRaw) : 0;
+                                            const paid = paidRaw ? Number(paidRaw) : 0;
+                                            const remaining = Math.max(0, owed - paid);
+                                            
+                                            const transaction = split.transaction;
+                                            const currency = transaction?.currencyBalance?.currencyCode || transaction?.currencyBalance?.currency?.code || 'USD';
+                                            const description = transaction?.description || transaction?.category?.name || 'Split bill';
+                                            const dateValue = transaction?.date || split.createdAt;
+                                            const dateDisplay = dateValue ? new Date(dateValue).toLocaleDateString() : 'Unknown date';
+                                            
+                                            const participant = split.participant;
+                                            const pName = participant?.name || 'Unknown';
+                                            const pColor = participant?.color || '#6366f1';
+                                            
+                                            return (
+                                                <div key={split.id} className="border rounded-lg p-4 space-y-3">
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="flex items-center gap-3">
+                                                            <div 
+                                                                className="h-10 w-10 rounded-full flex items-center justify-center text-sm text-white font-medium shrink-0"
+                                                                style={{ backgroundColor: pColor }}
+                                                            >
+                                                                {pName.slice(0, 2).toUpperCase()}
+                                                            </div>
+                                                            <div>
+                                                                <div className="font-medium">{pName}</div>
+                                                                <div className="text-sm text-muted-foreground">
+                                                                    {description}
+                                                                </div>
+                                                                <div className="text-xs text-muted-foreground">
+                                                                    {dateDisplay}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-8 shrink-0"
+                                                            onClick={() => {
+                                                                setSplitPaymentAmount(String(remaining));
+                                                                setRecordPaymentSplit({
+                                                                    splitId: split.id,
+                                                                    participantName: pName,
+                                                                    remaining,
+                                                                    currencyCode: currency,
+                                                                    transactionId: split.transactionId,
+                                                                    transactionDescription: description,
+                                                                });
+                                                            }}
+                                                        >
+                                                            <Banknote className="h-4 w-4 mr-1" />
+                                                            Record Payment
+                                                        </Button>
+                                                    </div>
+                                                    <div className="grid grid-cols-3 gap-2 text-sm border-t pt-3">
+                                                        <div>
+                                                            <div className="text-muted-foreground text-xs">Total</div>
+                                                            <div className="font-medium"><CurrencyDisplay amount={owed} currency={currency} /></div>
+                                                        </div>
+                                                        <div className="text-center">
+                                                            <div className="text-muted-foreground text-xs">Paid</div>
+                                                            <div className="font-medium">{paid > 0 ? <CurrencyDisplay amount={paid} currency={currency} /> : '-'}</div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className="text-muted-foreground text-xs">Remaining</div>
+                                                            <div className="font-medium text-green-600"><CurrencyDisplay amount={remaining} currency={currency} /></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </>
+                                )}
                             </div>
                         )}
                         {theyOweActive.length > itemsPerPage && (
@@ -789,6 +906,87 @@ export function DebtsPage() {
                             </Button>
                         </SheetFooter>
                     </form>
+                </SheetContent>
+            </Sheet>
+
+            {/* Record Split Payment Sheet */}
+            <Sheet open={!!recordPaymentSplit} onOpenChange={(open) => !open && setRecordPaymentSplit(null)}>
+                <SheetContent>
+                    <SheetHeader>
+                        <SheetTitle>Record Payment</SheetTitle>
+                        <SheetDescription>
+                            Record payment from {recordPaymentSplit?.participantName} for "{recordPaymentSplit?.transactionDescription}"
+                        </SheetDescription>
+                    </SheetHeader>
+                    <div className="space-y-4 pt-6">
+                        <div className="space-y-2">
+                            <Label>Amount ({recordPaymentSplit?.currencyCode})</Label>
+                            <Input
+                                type="number"
+                                placeholder={`Remaining: ${recordPaymentSplit?.remaining?.toLocaleString()}`}
+                                value={splitPaymentAmount}
+                                onChange={(e) => setSplitPaymentAmount(e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Remaining: {recordPaymentSplit?.currencyCode} {recordPaymentSplit?.remaining?.toLocaleString()}
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Date</Label>
+                            <Input
+                                type="date"
+                                value={splitPaymentDate}
+                                onChange={(e) => setSplitPaymentDate(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Receive to Account</Label>
+                            <Select
+                                value={splitPaymentAccountId}
+                                onValueChange={setSplitPaymentAccountId}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select account" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {banks?.map((bank: any) =>
+                                        bank.accounts?.map((account: any) =>
+                                            account.currencyBalances?.map((cb: any) => (
+                                                <SelectItem key={cb.id} value={cb.id}>
+                                                    [{bank?.name || 'Unknown'}] {account?.name || 'Unknown Account'} ({cb.currencyCode})
+                                                </SelectItem>
+                                            ))
+                                        )
+                                    )}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex gap-2 pt-4">
+                            <Button
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => setRecordPaymentSplit(null)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                className="flex-1"
+                                disabled={!splitPaymentAmount || !splitPaymentAccountId || recordSplitPayment.isPending}
+                                onClick={() => {
+                                    if (!recordPaymentSplit || !splitPaymentAmount || !splitPaymentAccountId) return;
+                                    recordSplitPayment.mutate({
+                                        splitId: recordPaymentSplit.splitId,
+                                        amount: parseFloat(splitPaymentAmount),
+                                        receivedToCurrencyBalanceId: splitPaymentAccountId,
+                                        createIncomeTransaction: true,
+                                        date: splitPaymentDate,
+                                    });
+                                }}
+                            >
+                                {recordSplitPayment.isPending ? 'Recording...' : 'Record Payment'}
+                            </Button>
+                        </div>
+                    </div>
                 </SheetContent>
             </Sheet>
         </div>

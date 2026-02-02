@@ -15,9 +15,11 @@ interface Transaction {
     description?: string | null;
     date: string;
     type: string;
+    parentTransactionId?: string | null;
     category?: {
         name: string;
         icon: string;
+        type: string;
     } | null;
     currencyBalance?: {
         currencyCode: string;
@@ -49,7 +51,7 @@ export function MonthlyIncomeWidget({ gridParams }: { gridParams?: GridParams })
     const isWide = (gridParams?.w ?? 0) >= 2;
 
     const transactions = incomeData?.transactions || [];
-    const transactionCount = incomeData?.total ?? transactions.length;
+    const transactionCount = transactions.length;
     const totalIncome = transactions.reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0);
     
     // Sort by date descending (newest first)

@@ -57,7 +57,10 @@ export function AddTransactionForm({ onSuccess, onCancel }: AddTransactionFormPr
     const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
     const [equalSplit, setEqualSplit] = useState(true);
     const [customAmounts, setCustomAmounts] = useState<{ participantId: string; amount: number }[]>([]);
+    const [participantAccounts, setParticipantAccounts] = useState<{ participantId: string; paybackCurrencyBalanceId: string }[]>([]);
     const [includeSelf, setIncludeSelf] = useState(false);
+    const [instantMoneyBack, setInstantMoneyBack] = useState(false);
+    const [paybackCurrencyBalanceId, setPaybackCurrencyBalanceId] = useState<string>('');
 
     const { data: banks } = trpc.bank.getHierarchy.useQuery();
     const { data: categories } = trpc.category.list.useQuery();
@@ -169,9 +172,19 @@ export function AddTransactionForm({ onSuccess, onCancel }: AddTransactionFormPr
             // Add split data if enabled
             ...(splitEnabled && data.type === 'expense' && selectedParticipants.length > 0 && {
                 split: {
-                    participants: selectedParticipants,
+                    participantIds: selectedParticipants,
                     equalSplit,
-                    customAmounts: !equalSplit ? customAmounts : [],
+                    amounts: selectedParticipants.map(pid => {
+                        const acc = participantAccounts.find(a => a.participantId === pid)?.paybackCurrencyBalanceId;
+                        return {
+                            participantId: pid,
+                            amount: !equalSplit ? (customAmounts.find(a => a.participantId === pid)?.amount || 0) : 1, // 1 is placeholder if equalSplit
+                            paybackCurrencyBalanceId: (acc && acc !== '__none__') ? acc : undefined,
+                        };
+                    }),
+                    includeSelf,
+                    instantMoneyBack,
+                    paybackCurrencyBalanceId: (instantMoneyBack && paybackCurrencyBalanceId && paybackCurrencyBalanceId !== '__none__') ? paybackCurrencyBalanceId : undefined,
                 }
             })
         };
@@ -381,9 +394,16 @@ export function AddTransactionForm({ onSuccess, onCancel }: AddTransactionFormPr
                                 onEqualSplitChange={setEqualSplit}
                                 customAmounts={customAmounts}
                                 onCustomAmountsChange={setCustomAmounts}
+                                participantAccounts={participantAccounts}
+                                onParticipantAccountsChange={setParticipantAccounts}
                                 transactionAmount={Number(watch('amount')) || 0}
                                 includeSelf={includeSelf}
                                 onIncludeSelfChange={setIncludeSelf}
+                                instantMoneyBack={instantMoneyBack}
+                                onInstantMoneyBackChange={setInstantMoneyBack}
+                                paybackCurrencyBalanceId={paybackCurrencyBalanceId}
+                                onPaybackCurrencyBalanceIdChange={setPaybackCurrencyBalanceId}
+                                currencyOptions={currencyOptions}
                             />
                         </div>
                     )}

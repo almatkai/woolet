@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { eq, and, desc, inArray, sql } from 'drizzle-orm';
+import { eq, and, desc, inArray, sql, ne } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../lib/trpc';
 import {
@@ -46,6 +46,54 @@ export const splitBillRouter = router({
             });
 
             return participants;
+        }),
+
+    // Get all pending splits (people who owe the user money)
+    getPendingSplits: protectedProcedure
+        .input(z.object({
+            status: z.enum(['pending', 'partial', 'settled']).optional(),
+        }).optional())
+        .query(async ({ ctx, input }) => {
+            // Get all splits for transactions where the participant belongs to the user
+            const splits = await ctx.db.query.transactionSplits.findMany({
+                where: (table, { and, exists, eq, inArray }) => and(
+                    input?.status 
+                        ? eq(table.status, input.status)
+                        : inArray(table.status, ['pending', 'partial']),
+                    exists(
+                        ctx.db.select()
+                            .from(splitParticipants)
+                            .where(and(
+                                eq(splitParticipants.id, table.participantId),
+                                eq(splitParticipants.userId, ctx.userId!)
+                            ))
+                    )
+                ),
+                orderBy: [desc(transactionSplits.createdAt)],
+                with: {
+                    participant: true,
+                    transaction: {
+                        with: {
+                            currencyBalance: {
+                                with: {
+                                    account: {
+                                        with: {
+                                            bank: true,
+                                        },
+                                    },
+                                    currency: true,
+                                },
+                            },
+                            category: true,
+                        },
+                    },
+                    payments: {
+                        orderBy: [desc(splitPayments.paidAt)],
+                    },
+                },
+            });
+
+            return splits;
         }),
 
     // Create a new participant
@@ -384,7 +432,7 @@ export const splitBillRouter = router({
                     categoryId: splitCategory.id,
                     amount: String(input.amount),
                     type: 'income',
-                    date: new Date().toISOString().split('T')[0],
+                    date: input.date || new Date().toISOString().split('T')[0],
                     description: `Split payment from ${split.participant.name}`,
                 }).returning();
 
@@ -567,35 +615,41 @@ export const splitBillRouter = router({
                 return [];
             }
 
-            // Get all transactions with pending splits
-            const transactionsWithSplits = await ctx.db.query.transactions.findMany({
-                where: inArray(transactions.currencyBalanceId, allowedBalanceIds),
+            // First, get all pending splits directly
+            const pendingSplitsRaw = await ctx.db.query.transactionSplits.findMany({
+                where: and(
+                    ne(transactionSplits.status, 'settled')
+                ),
                 with: {
-                    splits: {
-                        where: sql`${transactionSplits.status} != 'settled'`,
+                    participant: true,
+                    payments: true,
+                    transaction: {
                         with: {
-                            participant: true,
-                            payments: true,
-                        },
-                    },
-                    currencyBalance: {
-                        with: {
-                            currency: true,
-                            account: {
+                            currencyBalance: {
                                 with: {
-                                    bank: true,
+                                    currency: true,
+                                    account: {
+                                        with: {
+                                            bank: true,
+                                        },
+                                    },
                                 },
                             },
+                            category: true,
                         },
                     },
-                    category: true,
                 },
-                orderBy: [desc(transactions.date)],
+                orderBy: [desc(transactionSplits.createdAt)],
                 limit: input?.limit || 50,
             });
 
-            // Filter to only transactions with pending splits
-            return transactionsWithSplits.filter(t => t.splits.length > 0);
+            // Filter to only splits from user's accounts
+            const filteredSplits = pendingSplitsRaw.filter(split => 
+                split.transaction && 
+                allowedBalanceIds.includes(split.transaction.currencyBalanceId)
+            );
+
+            return filteredSplits;
         }),
 
     // Get summary of who owes you

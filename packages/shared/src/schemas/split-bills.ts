@@ -54,13 +54,18 @@ export const quickSplitSchema = z.object({
     participantIds: z.array(z.string().uuid()).min(1),
     // If true, split equally
     equalSplit: z.boolean().default(true),
-    // Custom amounts per participant (used when equalSplit is false)
+    // Custom settings per participant
     amounts: z.array(z.object({
         participantId: z.string().uuid(),
         amount: z.number().positive(),
+        paybackCurrencyBalanceId: z.string().uuid().optional(),
     })).optional(),
     // Whether to include yourself in the split calculation
     includeSelf: z.boolean().default(true),
+    // Whether the money was returned instantly
+    instantMoneyBack: z.boolean().default(false).optional(),
+    // Default account receiving payback (if not specified per-participant)
+    paybackCurrencyBalanceId: z.string().uuid().optional(),
 });
 
 // Update a single split
@@ -81,6 +86,7 @@ export const recordSplitPaymentSchema = z.object({
     receivedToCurrencyBalanceId: z.string().uuid().optional(),
     // Whether to create an income transaction for this payment
     createIncomeTransaction: z.boolean().default(false),
+    date: z.string().optional(), // ISO date (YYYY-MM-DD)
     note: z.string().optional(),
 });
 
@@ -91,6 +97,7 @@ export const settleSplitSchema = z.object({
     receivedToCurrencyBalanceId: z.string().uuid().optional(),
     // Whether to create an income transaction
     createIncomeTransaction: z.boolean().default(false),
+    date: z.string().optional(), // ISO date
     note: z.string().optional(),
 });
 
