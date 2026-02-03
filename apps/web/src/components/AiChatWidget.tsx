@@ -394,6 +394,20 @@ export function AiChatSidebarItem() {
             r: 0.5 * safePupilDilate,
         };
 
+        const safeLeftPupil = {
+            ...leftPupil,
+            r: Number.isFinite(leftPupil.r) ? leftPupil.r : 0.5,
+        };
+
+        const safeRightPupil = {
+            ...rightPupil,
+            r: Number.isFinite(rightPupil.r) ? rightPupil.r : 0.5,
+        };
+
+        const sparkleR = 0.7;
+        const extraSparkleR = 0.4;
+        const blushR = 1.4;
+
         return (
             <motion.div
                 className={cn("relative", className)}
@@ -482,12 +496,12 @@ export function AiChatSidebarItem() {
                     {/* Left Pupil with dilation */}
                     {safeLeftEyeScale > 0.3 && (
                         <motion.circle
-                            cx={leftPupil.cx}
-                            cy={leftPupil.cy}
-                            r={leftPupil.r}
+                            cx={safeLeftPupil.cx}
+                            cy={safeLeftPupil.cy}
+                            r={safeLeftPupil.r}
                             fill="black"
-                            initial={leftPupil}
-                            animate={leftPupil}
+                            initial={safeLeftPupil}
+                            animate={safeLeftPupil}
                             transition={{ duration: 0.06, type: "spring", stiffness: 400 }}
                         />
                     )}
@@ -506,12 +520,12 @@ export function AiChatSidebarItem() {
                     {/* Right Pupil with dilation */}
                     {safeRightEyeScale > 0.3 && (
                         <motion.circle
-                            cx={rightPupil.cx}
-                            cy={rightPupil.cy}
-                            r={rightPupil.r}
+                            cx={safeRightPupil.cx}
+                            cy={safeRightPupil.cy}
+                            r={safeRightPupil.r}
                             fill="black"
-                            initial={rightPupil}
-                            animate={rightPupil}
+                            initial={safeRightPupil}
+                            animate={safeRightPupil}
                             transition={{ duration: 0.06, type: "spring", stiffness: 400 }}
                         />
                     )}
@@ -522,26 +536,28 @@ export function AiChatSidebarItem() {
                             <motion.circle 
                                 cx={9 + safeEyeOffsetX} 
                                 cy={13} 
-                                r={0.7} 
+                                r={sparkleR} 
                                 fill="white" 
                                 opacity="0.95"
-                                initial={{ r: 0.7 }}
-                                animate={{ r: [0.7, 0.9, 0.7] }}
+                                initial={{ scale: 1 }}
+                                animate={{ scale: [1, 1.25, 1] }}
                                 transition={{ duration: 1.5, repeat: Infinity }}
+                                style={{ transformOrigin: 'center' }}
                             />
                             <motion.circle 
                                 cx={16 + safeEyeOffsetX} 
                                 cy={13} 
-                                r={0.7} 
+                                r={sparkleR} 
                                 fill="white" 
                                 opacity="0.95"
-                                initial={{ r: 0.7 }}
-                                animate={{ r: [0.7, 0.9, 0.7] }}
+                                initial={{ scale: 1 }}
+                                animate={{ scale: [1, 1.25, 1] }}
                                 transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
+                                style={{ transformOrigin: 'center' }}
                             />
                             {/* Extra sparkle */}
-                            <circle cx={7.5 + safeEyeOffsetX} cy="12.5" r="0.4" fill="white" opacity="0.7" />
-                            <circle cx={17.5 + safeEyeOffsetX} cy="12.5" r="0.4" fill="white" opacity="0.7" />
+                            <circle cx={7.5 + safeEyeOffsetX} cy="12.5" r={extraSparkleR} fill="white" opacity="0.7" />
+                            <circle cx={17.5 + safeEyeOffsetX} cy="12.5" r={extraSparkleR} fill="white" opacity="0.7" />
                         </>
                     )}
 
@@ -569,20 +585,24 @@ export function AiChatSidebarItem() {
                             <motion.circle 
                                 cx="5" 
                                 cy="15.5" 
-                                r="1.4" 
+                                r={blushR} 
                                 fill="currentColor" 
                                 opacity="0.2"
-                                animate={{ r: [1.4, 1.6, 1.4] }}
+                                initial={{ scale: 1 }}
+                                animate={{ scale: [1, 1.15, 1] }}
                                 transition={{ duration: 2, repeat: Infinity }}
+                                style={{ transformOrigin: 'center' }}
                             />
                             <motion.circle 
                                 cx="19" 
                                 cy="15.5" 
-                                r="1.4" 
+                                r={blushR} 
                                 fill="currentColor" 
                                 opacity="0.2"
-                                animate={{ r: [1.4, 1.6, 1.4] }}
+                                initial={{ scale: 1 }}
+                                animate={{ scale: [1, 1.15, 1] }}
                                 transition={{ duration: 2, repeat: Infinity, delay: 0.3 }}
+                                style={{ transformOrigin: 'center' }}
                             />
                         </>
                     )}
