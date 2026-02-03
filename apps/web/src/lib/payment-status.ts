@@ -1,9 +1,48 @@
 
-export type MortgageStatusLogic = 'monthly' | 'period';
+export type PaymentStatusLogic = 'monthly' | 'period';
+export type PaymentStatusType = 'credit' | 'mortgage' | 'subscription';
 
 export interface PaymentStatusOptions {
-    logic: MortgageStatusLogic;
+    logic: PaymentStatusLogic;
     period: number;
+}
+
+export interface PaymentStatusSettings {
+    paymentStatusLogic?: PaymentStatusLogic | null;
+    paymentStatusPeriod?: string | null;
+    creditStatusLogic?: PaymentStatusLogic | null;
+    creditStatusPeriod?: string | null;
+    mortgageStatusLogic?: PaymentStatusLogic | null;
+    mortgageStatusPeriod?: string | null;
+    subscriptionStatusLogic?: PaymentStatusLogic | null;
+    subscriptionStatusPeriod?: string | null;
+}
+
+export function getPaymentStatusOptions(
+    settings: PaymentStatusSettings | undefined,
+    type: PaymentStatusType
+): PaymentStatusOptions {
+    const globalLogic = (settings?.paymentStatusLogic as PaymentStatusLogic) || 'monthly';
+    const globalPeriod = parseInt(settings?.paymentStatusPeriod || '15', 10);
+
+    const overrideLogic =
+        type === 'credit'
+            ? settings?.creditStatusLogic
+            : type === 'mortgage'
+                ? settings?.mortgageStatusLogic
+                : settings?.subscriptionStatusLogic;
+
+    const overridePeriod =
+        type === 'credit'
+            ? settings?.creditStatusPeriod
+            : type === 'mortgage'
+                ? settings?.mortgageStatusPeriod
+                : settings?.subscriptionStatusPeriod;
+
+    return {
+        logic: (overrideLogic as PaymentStatusLogic) || globalLogic,
+        period: parseInt(overridePeriod || String(globalPeriod), 10),
+    };
 }
 
 export function getTargetMonthStr(

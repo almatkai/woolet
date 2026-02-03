@@ -76,6 +76,8 @@ interface AddTransactionSheetProps {
     trigger?: ReactNode | null;
     onSaveAsShortcut?: (data: ShortcutData) => void;
     selectedShortcut?: ShortcutData | null;
+    favoriteShortcuts?: any[];
+    onOpenShortcut?: (shortcut: any) => void;
 }
 
 export function AddTransactionSheet({
@@ -89,6 +91,8 @@ export function AddTransactionSheet({
     trigger,
     onSaveAsShortcut,
     selectedShortcut,
+    favoriteShortcuts = [],
+    onOpenShortcut,
 }: AddTransactionSheetProps = {}) {
     const [internalOpen, setInternalOpen] = useState(false);
     const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
@@ -281,6 +285,28 @@ export function AddTransactionSheet({
                         Record your income, expense, or transfer.
                     </SheetDescription>
                 </SheetHeader>
+                {favoriteShortcuts.length > 0 && (
+                    <div className="px-1 py-4">
+                        <div className="mb-3">
+                            <p className="text-sm font-semibold">Starred Shortcuts</p>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                            {favoriteShortcuts.map((shortcut) => (
+                                <button
+                                    key={shortcut.id}
+                                    onClick={() => onOpenShortcut?.(shortcut)}
+                                    className={`h-12 w-12 rounded-full flex items-center justify-center text-lg transition-all border ${selectedShortcut?.id === shortcut.id
+                                        ? 'bg-primary border-primary text-primary-foreground scale-110 shadow-lg'
+                                        : 'bg-muted hover:bg-muted/80 border-border/50 hover:border-border'
+                                        }`}
+                                    title={shortcut.name}
+                                >
+                                    {shortcut.icon || '💰'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 <div className="flex-1 overflow-y-auto px-1">
                     <form onSubmit={handleSubmit(onSubmit, (errors) => {
                         const errorMessages = Object.values(errors).map(e => e?.message).filter(Boolean);

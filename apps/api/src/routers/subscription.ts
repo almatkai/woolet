@@ -415,8 +415,8 @@ export const subscriptionRouter = router({
                 .where(eq(userSettings.userId, ctx.userId!))
                 .limit(1);
             
-            const logic = settings?.mortgageStatusLogic || 'monthly';
-            const period = parseInt(settings?.mortgageStatusPeriod || '15');
+            const logic = settings?.mortgageStatusLogic || settings?.paymentStatusLogic || 'monthly';
+            const period = parseInt(settings?.mortgageStatusPeriod || settings?.paymentStatusPeriod || '15');
 
             const upcoming: Array<{
                 subscription: any;

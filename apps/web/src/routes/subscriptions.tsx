@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { AddSubscriptionSheet } from '@/components/AddSubscriptionSheet';
 import { SubscriptionPaymentSheet } from '@/components/SubscriptionPaymentSheet';
 
-import { getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
+import { getPaymentStatusOptions, getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
 
 export const Route = (createFileRoute as any)('/subscriptions')({
     component: SubscriptionsPage,
@@ -485,9 +485,12 @@ export function SubscriptionsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {allItems.map((sub: Subscription) => {
                                 // Check if paid based on settings logic
-                                const logic = (settings?.mortgageStatusLogic as any) || 'monthly';
-                                const period = parseInt(settings?.mortgageStatusPeriod || '15');
-                                
+                                const settingsType = sub.type === 'credit'
+                                    ? 'credit'
+                                    : sub.type === 'mortgage'
+                                        ? 'mortgage'
+                                        : 'subscription';
+                                const { logic, period } = getPaymentStatusOptions(settings, settingsType);
                                 const targetMonthStr = getTargetMonthStr(sub.billingDay, { logic, period });
                                 const isPaidThisMonth = isPaidForTargetMonth(sub.payments as any, targetMonthStr, sub.type === 'mortgage');
 

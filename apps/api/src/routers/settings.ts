@@ -22,8 +22,14 @@ export const settingsRouter = router({
         .values({
           userId,
           defaultCurrency: 'USD',
-          mortgageStatusLogic: 'monthly',
-          mortgageStatusPeriod: '15',
+          paymentStatusLogic: 'monthly',
+          paymentStatusPeriod: '15',
+          mortgageStatusLogic: null,
+          mortgageStatusPeriod: null,
+          creditStatusLogic: null,
+          creditStatusPeriod: null,
+          subscriptionStatusLogic: null,
+          subscriptionStatusPeriod: null,
         })
         .returning();
       return newSettings;
@@ -36,12 +42,32 @@ export const settingsRouter = router({
     .input(
       z.object({
         defaultCurrency: z.string().optional(),
-        mortgageStatusLogic: z.string().optional(),
-        mortgageStatusPeriod: z.string().optional(),
+        paymentStatusLogic: z.string().optional(),
+        paymentStatusPeriod: z.string().optional(),
+        creditStatusLogic: z.string().nullable().optional(),
+        creditStatusPeriod: z.string().nullable().optional(),
+        mortgageStatusLogic: z.string().nullable().optional(),
+        mortgageStatusPeriod: z.string().nullable().optional(),
+        subscriptionStatusLogic: z.string().nullable().optional(),
+        subscriptionStatusPeriod: z.string().nullable().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.userId;
+
+      const updateData: Record<string, any> = {
+        updatedAt: new Date(),
+      };
+
+      if (input.defaultCurrency !== undefined) updateData.defaultCurrency = input.defaultCurrency;
+      if (input.paymentStatusLogic !== undefined) updateData.paymentStatusLogic = input.paymentStatusLogic;
+      if (input.paymentStatusPeriod !== undefined) updateData.paymentStatusPeriod = input.paymentStatusPeriod;
+      if (input.creditStatusLogic !== undefined) updateData.creditStatusLogic = input.creditStatusLogic;
+      if (input.creditStatusPeriod !== undefined) updateData.creditStatusPeriod = input.creditStatusPeriod;
+      if (input.mortgageStatusLogic !== undefined) updateData.mortgageStatusLogic = input.mortgageStatusLogic;
+      if (input.mortgageStatusPeriod !== undefined) updateData.mortgageStatusPeriod = input.mortgageStatusPeriod;
+      if (input.subscriptionStatusLogic !== undefined) updateData.subscriptionStatusLogic = input.subscriptionStatusLogic;
+      if (input.subscriptionStatusPeriod !== undefined) updateData.subscriptionStatusPeriod = input.subscriptionStatusPeriod;
 
       // Update or insert settings
       const [updated] = await db
@@ -49,18 +75,19 @@ export const settingsRouter = router({
         .values({
           userId,
           defaultCurrency: input.defaultCurrency || 'USD',
-          mortgageStatusLogic: input.mortgageStatusLogic || 'monthly',
-          mortgageStatusPeriod: input.mortgageStatusPeriod || '15',
+          paymentStatusLogic: input.paymentStatusLogic || 'monthly',
+          paymentStatusPeriod: input.paymentStatusPeriod || '15',
+          creditStatusLogic: input.creditStatusLogic ?? null,
+          creditStatusPeriod: input.creditStatusPeriod ?? null,
+          mortgageStatusLogic: input.mortgageStatusLogic ?? null,
+          mortgageStatusPeriod: input.mortgageStatusPeriod ?? null,
+          subscriptionStatusLogic: input.subscriptionStatusLogic ?? null,
+          subscriptionStatusPeriod: input.subscriptionStatusPeriod ?? null,
           updatedAt: new Date(),
         })
         .onConflictDoUpdate({
           target: userSettings.userId,
-          set: {
-            ...(input.defaultCurrency ? { defaultCurrency: input.defaultCurrency } : {}),
-            ...(input.mortgageStatusLogic ? { mortgageStatusLogic: input.mortgageStatusLogic } : {}),
-            ...(input.mortgageStatusPeriod ? { mortgageStatusPeriod: input.mortgageStatusPeriod } : {}),
-            updatedAt: new Date(),
-          },
+          set: updateData,
         })
         .returning();
 

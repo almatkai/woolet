@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { MortgagePaymentSheet } from '@/components/MortgagePaymentSheet';
-import { getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
+import { getPaymentStatusOptions, getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
 
 export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: number } }) {
     const { data: mortgages, isLoading } = trpc.mortgage.list.useQuery();
@@ -23,8 +23,7 @@ export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: nu
     const isCompact = (gridParams?.h ?? 0) <= 1;
     
     // Logic settings
-    const logic = (settings?.mortgageStatusLogic as any) || 'monthly';
-    const period = parseInt(settings?.mortgageStatusPeriod || '15');
+    const { logic, period } = getPaymentStatusOptions(settings, 'mortgage');
     
     // Check if all mortgages are paid for this target month
     const allPaidThisMonth = activeMortgages.every((m: any) => {

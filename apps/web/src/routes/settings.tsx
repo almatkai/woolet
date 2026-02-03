@@ -21,7 +21,7 @@ import {
     Upload,
     FileJson,
     Loader2,
-    Home
+    ListChecks
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -74,6 +74,15 @@ export function SettingsPage() {
             toast.error(error.message || 'Failed to delete data');
         }
     });
+
+    const globalStatusLogic = settings?.paymentStatusLogic || 'monthly';
+    const globalStatusPeriod = settings?.paymentStatusPeriod || '15';
+    const creditStatusLogic = settings?.creditStatusLogic ?? 'global';
+    const creditStatusPeriod = settings?.creditStatusPeriod ?? 'global';
+    const mortgageStatusLogic = settings?.mortgageStatusLogic ?? 'global';
+    const mortgageStatusPeriod = settings?.mortgageStatusPeriod ?? 'global';
+    const subscriptionStatusLogic = settings?.subscriptionStatusLogic ?? 'global';
+    const subscriptionStatusPeriod = settings?.subscriptionStatusPeriod ?? 'global';
 
     const exportData = async () => {
         setIsExporting(true);
@@ -235,14 +244,14 @@ export function SettingsPage() {
                         <div className="flex items-center justify-between">
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">
-                                    <Home className="size-4 text-orange-500" />
-                                    <Label className="text-base font-semibold">Mortgage Status Logic</Label>
+                                    <ListChecks className="size-4 text-sky-500" />
+                                    <Label className="text-base font-semibold">Payment Status Rules</Label>
                                 </div>
-                                <p className="text-sm text-muted-foreground">How payment status is determined</p>
+                                <p className="text-sm text-muted-foreground">How paid/unpaid is calculated</p>
                             </div>
                             <Select 
-                                value={settings?.mortgageStatusLogic || 'monthly'} 
-                                onValueChange={(val) => updateSettings.mutate({ mortgageStatusLogic: val })}
+                                value={globalStatusLogic} 
+                                onValueChange={(val) => updateSettings.mutate({ paymentStatusLogic: val })}
                             >
                                 <SelectTrigger className="w-[180px] bg-background border-border">
                                     <SelectValue placeholder="Select logic" />
@@ -254,7 +263,7 @@ export function SettingsPage() {
                             </Select>
                         </div>
 
-                        {settings?.mortgageStatusLogic === 'period' && (
+                        {globalStatusLogic === 'period' && (
                             <div className="flex items-center justify-between pt-4 border-t border-border/50">
                                 <div className="space-y-1">
                                     <Label className="text-sm font-medium">Due Warning Threshold</Label>
@@ -262,8 +271,8 @@ export function SettingsPage() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Select 
-                                        value={settings?.mortgageStatusPeriod || '15'} 
-                                        onValueChange={(val) => updateSettings.mutate({ mortgageStatusPeriod: val })}
+                                        value={globalStatusPeriod} 
+                                        onValueChange={(val) => updateSettings.mutate({ paymentStatusPeriod: val })}
                                     >
                                         <SelectTrigger className="w-[100px] bg-background border-border">
                                             <SelectValue />
@@ -281,6 +290,134 @@ export function SettingsPage() {
                                 </div>
                             </div>
                         )}
+
+                        <div className="pt-4 border-t border-border/50">
+                            <div className="text-sm font-semibold">Per-type overrides</div>
+                            <div className="mt-3 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-1">
+                                        <Label className="text-sm font-medium">Credits</Label>
+                                        <p className="text-xs text-muted-foreground">Use global or override</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Select 
+                                            value={creditStatusLogic}
+                                            onValueChange={(val) => updateSettings.mutate({ creditStatusLogic: val === 'global' ? null : val })}
+                                        >
+                                            <SelectTrigger className="w-[180px] bg-background border-border">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="global">Use Global</SelectItem>
+                                                <SelectItem value="monthly">Each Month (Reset 1st)</SelectItem>
+                                                <SelectItem value="period">Time Period (Threshold)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <Select 
+                                            value={creditStatusLogic === 'period' ? creditStatusPeriod : 'global'}
+                                            onValueChange={(val) => updateSettings.mutate({ creditStatusPeriod: val === 'global' ? null : val })}
+                                            disabled={creditStatusLogic !== 'period'}
+                                        >
+                                            <SelectTrigger className="w-[100px] bg-background border-border">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="global">Use Global</SelectItem>
+                                                <SelectItem value="3">3 Days</SelectItem>
+                                                <SelectItem value="7">7 Days</SelectItem>
+                                                <SelectItem value="10">10 Days</SelectItem>
+                                                <SelectItem value="14">14 Days</SelectItem>
+                                                <SelectItem value="15">15 Days</SelectItem>
+                                                <SelectItem value="21">21 Days</SelectItem>
+                                                <SelectItem value="30">30 Days</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-1">
+                                        <Label className="text-sm font-medium">Mortgages</Label>
+                                        <p className="text-xs text-muted-foreground">Use global or override</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Select 
+                                            value={mortgageStatusLogic}
+                                            onValueChange={(val) => updateSettings.mutate({ mortgageStatusLogic: val === 'global' ? null : val })}
+                                        >
+                                            <SelectTrigger className="w-[180px] bg-background border-border">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="global">Use Global</SelectItem>
+                                                <SelectItem value="monthly">Each Month (Reset 1st)</SelectItem>
+                                                <SelectItem value="period">Time Period (Threshold)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <Select 
+                                            value={mortgageStatusLogic === 'period' ? mortgageStatusPeriod : 'global'}
+                                            onValueChange={(val) => updateSettings.mutate({ mortgageStatusPeriod: val === 'global' ? null : val })}
+                                            disabled={mortgageStatusLogic !== 'period'}
+                                        >
+                                            <SelectTrigger className="w-[100px] bg-background border-border">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="global">Use Global</SelectItem>
+                                                <SelectItem value="3">3 Days</SelectItem>
+                                                <SelectItem value="7">7 Days</SelectItem>
+                                                <SelectItem value="10">10 Days</SelectItem>
+                                                <SelectItem value="14">14 Days</SelectItem>
+                                                <SelectItem value="15">15 Days</SelectItem>
+                                                <SelectItem value="21">21 Days</SelectItem>
+                                                <SelectItem value="30">30 Days</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-1">
+                                        <Label className="text-sm font-medium">Subscriptions</Label>
+                                        <p className="text-xs text-muted-foreground">Use global or override</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Select 
+                                            value={subscriptionStatusLogic}
+                                            onValueChange={(val) => updateSettings.mutate({ subscriptionStatusLogic: val === 'global' ? null : val })}
+                                        >
+                                            <SelectTrigger className="w-[180px] bg-background border-border">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="global">Use Global</SelectItem>
+                                                <SelectItem value="monthly">Each Month (Reset 1st)</SelectItem>
+                                                <SelectItem value="period">Time Period (Threshold)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <Select 
+                                            value={subscriptionStatusLogic === 'period' ? subscriptionStatusPeriod : 'global'}
+                                            onValueChange={(val) => updateSettings.mutate({ subscriptionStatusPeriod: val === 'global' ? null : val })}
+                                            disabled={subscriptionStatusLogic !== 'period'}
+                                        >
+                                            <SelectTrigger className="w-[100px] bg-background border-border">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="global">Use Global</SelectItem>
+                                                <SelectItem value="3">3 Days</SelectItem>
+                                                <SelectItem value="7">7 Days</SelectItem>
+                                                <SelectItem value="10">10 Days</SelectItem>
+                                                <SelectItem value="14">14 Days</SelectItem>
+                                                <SelectItem value="15">15 Days</SelectItem>
+                                                <SelectItem value="21">21 Days</SelectItem>
+                                                <SelectItem value="30">30 Days</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

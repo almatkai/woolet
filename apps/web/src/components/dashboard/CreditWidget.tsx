@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
-import { getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
+import { getPaymentStatusOptions, getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
 
 export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: number } }) {
     const { data: credits, isLoading } = trpc.credit.list.useQuery();
@@ -20,8 +20,7 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
     const isLargerThan2x2 = (gridW > 2 || gridH > 2) && !(gridW === 2 && gridH === 1);
     
     // Logic settings
-    const logic = (settings?.mortgageStatusLogic as any) || 'monthly';
-    const period = parseInt(settings?.mortgageStatusPeriod || '15');
+    const { logic, period } = getPaymentStatusOptions(settings, 'credit');
     
     // Calculate this month's total payment and check status
     const monthlyPayment = activeCredits.reduce((sum: number, c: any) => sum + Number(c.monthlyPayment), 0);

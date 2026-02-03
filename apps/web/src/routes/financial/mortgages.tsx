@@ -46,7 +46,7 @@ interface Mortgage {
     }>;
 }
 
-import { getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
+import { getPaymentStatusOptions, getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
 
 export default function MortgagesPage() {
     const [showAddMortgage, setShowAddMortgage] = useState(false);
@@ -160,8 +160,7 @@ export default function MortgagesPage() {
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {mortgages.map((mortgage: Mortgage) => {
-                        const logic = (settings?.mortgageStatusLogic as any) || 'monthly';
-                        const period = parseInt(settings?.mortgageStatusPeriod || '15');
+                        const { logic, period } = getPaymentStatusOptions(settings, 'mortgage');
                         
                         const targetMonthStr = getTargetMonthStr(mortgage.paymentDay, { logic, period });
                         const isPaidThisMonth = isPaidForTargetMonth(mortgage.payments, targetMonthStr, true);
