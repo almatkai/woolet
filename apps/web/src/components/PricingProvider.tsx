@@ -21,25 +21,9 @@ export function PricingProvider({ children }: PricingProviderProps) {
     const activePlanId = subscription?.subscriptionItems?.[0]?.plan?.id || null;
     const planName = subscription?.subscriptionItems?.[0]?.plan?.name || null;
     
-    // Debug logging - expand subscriptionItems details
-    console.log('[PricingProvider] Debug:', {
-        isLoading,
-        subscription,
-        subscriptionItems: subscription?.subscriptionItems,
-        firstItem: subscription?.subscriptionItems?.[0],
-        plan: subscription?.subscriptionItems?.[0]?.plan,
-        planName,
-        activePlanId,
-        nextPayment: subscription?.nextPayment,
-        status: subscription?.status,
-        eligibleForFreeTrial: subscription?.eligibleForFreeTrial
-    });
-    
     // Check if user is on a paid plan
     // A user is considered paid if they have a plan AND it's not the "Free" plan
     const isPaid = !!activePlanId && planName?.toLowerCase() !== 'free';
-
-    console.log('[PricingProvider] isPaid result:', isPaid);
 
     return (
         <PricingContext.Provider value={{ isOpen, openPricing, closePricing, activePlanId, isPaid, isLoading }}>

@@ -2,67 +2,68 @@ import { z } from 'zod';
 import { protectedProcedure, router } from '../lib/trpc';
 import { db } from '../db';
 import { userSettings } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 export const settingsRouter = router({
   getUserSettings: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.userId;
 
     // Get or create user settings
-    let settings = await db.query.userSettings.findFirst({
-      where: eq(userSettings.userId, userId),
-    });
+    const [existingSettings] = await db
+      .select()
+      .from(userSettings)
+      .where(eq(userSettings.userId, userId))
+      .limit(1);
 
     // Create default settings if not exists
-    if (!settings) {
+    if (!existingSettings) {
       const [newSettings] = await db
         .insert(userSettings)
         .values({
           userId,
           defaultCurrency: 'USD',
+          mortgageStatusLogic: 'monthly',
+          mortgageStatusPeriod: '15',
         })
         .returning();
-      settings = newSettings;
+      return newSettings;
     }
 
-    return settings;
+    return existingSettings;
   }),
 
   updateUserSettings: protectedProcedure
     .input(
       z.object({
         defaultCurrency: z.string().optional(),
+        mortgageStatusLogic: z.string().optional(),
+        mortgageStatusPeriod: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.userId;
 
-      // Get existing settings
-      const existing = await db.query.userSettings.findFirst({
-        where: eq(userSettings.userId, userId),
-      });
-
-      if (existing) {
-        // Update existing settings
-        const [updated] = await db
-          .update(userSettings)
-          .set({
-            ...input,
+      // Update or insert settings
+      const [updated] = await db
+        .insert(userSettings)
+        .values({
+          userId,
+          defaultCurrency: input.defaultCurrency || 'USD',
+          mortgageStatusLogic: input.mortgageStatusLogic || 'monthly',
+          mortgageStatusPeriod: input.mortgageStatusPeriod || '15',
+          updatedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: userSettings.userId,
+          set: {
+            ...(input.defaultCurrency ? { defaultCurrency: input.defaultCurrency } : {}),
+            ...(input.mortgageStatusLogic ? { mortgageStatusLogic: input.mortgageStatusLogic } : {}),
+            ...(input.mortgageStatusPeriod ? { mortgageStatusPeriod: input.mortgageStatusPeriod } : {}),
             updatedAt: new Date(),
-          })
-          .where(eq(userSettings.userId, userId))
-          .returning();
-        return updated;
-      } else {
-        // Create new settings
-        const [created] = await db
-          .insert(userSettings)
-          .values({
-            userId,
-            defaultCurrency: input.defaultCurrency || 'USD',
-          })
-          .returning();
-        return created;
-      }
+          },
+        })
+        .returning();
+
+      return updated;
     }),
 });

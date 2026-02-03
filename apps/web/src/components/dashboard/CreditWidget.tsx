@@ -6,9 +6,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
+import { getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
 
 export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: number } }) {
     const { data: credits, isLoading } = trpc.credit.list.useQuery();
+    const { data: settings } = trpc.settings.getUserSettings.useQuery();
     const activeCredits = (credits || []).filter((c: any) => c.status === 'active');
     const gridW = gridParams?.w ?? 0;
     const gridH = gridParams?.h ?? 0;
@@ -17,16 +19,18 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
     const is2x2 = gridW === 2 && gridH === 2;
     const isLargerThan2x2 = (gridW > 2 || gridH > 2) && !(gridW === 2 && gridH === 1);
     
-    // Get current month in YYYY-MM format
-    const currentMonth = new Date().toISOString().slice(0, 7);
+    // Logic settings
+    const logic = (settings?.mortgageStatusLogic as any) || 'monthly';
+    const period = parseInt(settings?.mortgageStatusPeriod || '15');
     
     // Calculate this month's total payment and check status
     const monthlyPayment = activeCredits.reduce((sum: number, c: any) => sum + Number(c.monthlyPayment), 0);
     
-    // Check if all credits are paid for this month
-    const allPaidThisMonth = activeCredits.every((c: any) => 
-        c.payments?.some((p: any) => p.monthYear === currentMonth)
-    );
+    // Check if all credits are paid for this target month
+    const allPaidThisMonth = activeCredits.every((c: any) => {
+        const targetMonthStr = getTargetMonthStr(c.billingDay, { logic, period });
+        return isPaidForTargetMonth(c.payments, targetMonthStr, true);
+    });
     
     const is1x3 = gridW === 1 && gridH === 3;
     const is1x1 = gridW === 1 && gridH === 1;
@@ -99,7 +103,8 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                             <p className="dashboard-widget__meta text-[10px]">{is2x2 ? `All Credits (${activeCredits.length})` : 'Top Credits (4)'}</p>
                             <div className="space-y-1">
                                 {displayCredits.map((credit: any) => {
-                                    const isPaidThisMonth = credit.payments?.some((p: any) => p.monthYear === currentMonth);
+                                    const targetMonthStr = getTargetMonthStr(credit.billingDay, { logic, period });
+                                    const isPaidThisMonth = isPaidForTargetMonth(credit.payments, targetMonthStr, true);
                                     return (
                                         <div key={credit.id} className="dashboard-widget__item flex items-center justify-between p-1.5 rounded-md bg-muted/30 text-[11px]">
                                             <div className="flex items-center gap-1.5 max-w-[60%]">
@@ -140,7 +145,8 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                             <p className="dashboard-widget__meta">Active Credits ({activeCredits.length})</p>
                             <div className="space-y-1.5">
                                 {activeCredits.map((credit: any) => {
-                                    const isPaidThisMonth = credit.payments?.some((p: any) => p.monthYear === currentMonth);
+                                    const targetMonthStr = getTargetMonthStr(credit.billingDay, { logic, period });
+                                    const isPaidThisMonth = isPaidForTargetMonth(credit.payments, targetMonthStr, true);
                                     return (
                                         <div key={credit.id} className="dashboard-widget__item flex items-center justify-between p-2 rounded-md bg-muted/30">
                                             <div className="flex items-center gap-2 max-w-[60%]">
@@ -164,7 +170,8 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                     <div className="space-y-1">
                         <div className="space-y-0.5">
                             {activeCredits.slice(0, 3).map((credit: any) => {
-                                const isPaidThisMonth = credit.payments?.some((p: any) => p.monthYear === currentMonth);
+                                const targetMonthStr = getTargetMonthStr(credit.billingDay, { logic, period });
+                                const isPaidThisMonth = isPaidForTargetMonth(credit.payments, targetMonthStr, true);
                                 return (
                                     <div key={credit.id} className="dashboard-widget__item flex items-center justify-between p-1 rounded-md bg-muted/30">
                                         <div className="flex items-center gap-2 max-w-[60%]">

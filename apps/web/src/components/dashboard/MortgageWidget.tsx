@@ -8,9 +8,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { MortgagePaymentSheet } from '@/components/MortgagePaymentSheet';
+import { getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
 
 export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: number } }) {
     const { data: mortgages, isLoading } = trpc.mortgage.list.useQuery();
+    const { data: settings } = trpc.settings.getUserSettings.useQuery();
     const [payingMortgage, setPayingMortgage] = useState<any>(null);
     
     const activeMortgages = (mortgages || []).filter((m: any) => m.status === 'active');
@@ -20,13 +22,15 @@ export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: nu
     const totalMonthly = activeMortgages.reduce((sum: number, m: any) => sum + Number(m.monthlyPayment), 0);
     const isCompact = (gridParams?.h ?? 0) <= 1;
     
-    // Get current month in YYYY-MM format
-    const currentMonth = new Date().toISOString().slice(0, 7);
+    // Logic settings
+    const logic = (settings?.mortgageStatusLogic as any) || 'monthly';
+    const period = parseInt(settings?.mortgageStatusPeriod || '15');
     
-    // Check if all mortgages are paid for this month
-    const allPaidThisMonth = activeMortgages.every((m: any) => 
-        m.payments?.some((p: any) => p.monthYear === currentMonth)
-    );
+    // Check if all mortgages are paid for this target month
+    const allPaidThisMonth = activeMortgages.every((m: any) => {
+        const targetMonthStr = getTargetMonthStr(m.paymentDay, { logic, period });
+        return isPaidForTargetMonth(m.payments, targetMonthStr, true);
+    });
 
     if (isCompact) {
         return (
@@ -92,7 +96,8 @@ export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: nu
                                 <p className="dashboard-widget__meta">Active ({activeMortgages.length})</p>
                                 <div className="space-y-1.5">
                                     {activeMortgages.slice(0, maxItems).map((mortgage: any) => {
-                                        const isPaidThisMonth = mortgage.payments?.some((p: any) => p.monthYear === currentMonth);
+                                        const targetMonthStr = getTargetMonthStr(mortgage.paymentDay, { logic, period });
+                                        const isPaidThisMonth = isPaidForTargetMonth(mortgage.payments, targetMonthStr, true);
                                         return (
                                             <div 
                                                 key={mortgage.id} 

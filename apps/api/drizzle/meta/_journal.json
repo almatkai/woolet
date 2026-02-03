@@ -120,6 +120,13 @@
       "when": 1770130713456,
       "tag": "0016_slim_supernaut",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1770158537315,
+      "tag": "0017_heavy_ben_parker",
+      "breakpoints": true
     }
   ]
 }

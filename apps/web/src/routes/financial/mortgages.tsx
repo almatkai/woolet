@@ -3,7 +3,7 @@ import { trpc } from '@/lib/trpc';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Home, Trash2, Edit, DollarSign, Calendar, Percent, MapPin, Wallet, Check, X } from 'lucide-react';
+import { Plus, Home, Trash2, Edit, DollarSign, Calendar, Percent, MapPin, Wallet, CheckCircle2, Circle } from 'lucide-react';
 import { toast } from 'sonner';
 import { AddMortgageSheet } from '@/components/AddMortgageSheet';
 import { MortgagePaymentSheet } from '@/components/MortgagePaymentSheet';
@@ -20,6 +20,7 @@ import {
 
 interface Mortgage {
     id: string;
+    accountId: string;
     propertyName: string;
     propertyAddress: string | null;
     principalAmount: string;
@@ -45,12 +46,15 @@ interface Mortgage {
     }>;
 }
 
+import { getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
+
 export default function MortgagesPage() {
     const [showAddMortgage, setShowAddMortgage] = useState(false);
     const [editingMortgage, setEditingMortgage] = useState<Mortgage | null>(null);
     const [payingMortgage, setPayingMortgage] = useState<Mortgage | null>(null);
     const [deletingMortgage, setDeletingMortgage] = useState<Mortgage | null>(null);
 
+    const { data: settings } = trpc.settings.getUserSettings.useQuery();
     const { data: mortgages, isLoading } = trpc.mortgage.list.useQuery();
     const utils = trpc.useUtils();
 
@@ -66,9 +70,6 @@ export default function MortgagesPage() {
     const totalPrincipal = mortgages?.reduce((sum: number, m: any) => sum + Number(m.principalAmount), 0) || 0;
     const totalRemaining = mortgages?.reduce((sum: number, m: any) => sum + Number(m.remainingBalance), 0) || 0;
     const totalMonthly = mortgages?.reduce((sum: number, m: any) => sum + Number(m.monthlyPayment), 0) || 0;
-
-    // Get current month for payment status
-    const currentMonth = new Date().toISOString().slice(0, 7);
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -159,7 +160,12 @@ export default function MortgagesPage() {
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {mortgages.map((mortgage: Mortgage) => {
-                        const isPaidThisMonth = mortgage.payments?.some((p: any) => p.monthYear === currentMonth);
+                        const logic = (settings?.mortgageStatusLogic as any) || 'monthly';
+                        const period = parseInt(settings?.mortgageStatusPeriod || '15');
+                        
+                        const targetMonthStr = getTargetMonthStr(mortgage.paymentDay, { logic, period });
+                        const isPaidThisMonth = isPaidForTargetMonth(mortgage.payments, targetMonthStr, true);
+                        
                         return (
                         <Card key={mortgage.id} className="relative overflow-hidden">
                             <div
@@ -181,11 +187,14 @@ export default function MortgagesPage() {
                                         )}
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Badge variant={isPaidThisMonth ? "default" : "destructive"} className="flex items-center gap-1">
+                                        <Badge 
+                                            variant={isPaidThisMonth ? "secondary" : "destructive"} 
+                                            className={isPaidThisMonth ? "bg-green-500/20 text-green-500 flex items-center gap-1" : "flex items-center gap-1"}
+                                        >
                                             {isPaidThisMonth ? (
-                                                <><Check className="h-3 w-3" /> Paid</>
+                                                <><CheckCircle2 className="h-3 w-3" /> Paid</>
                                             ) : (
-                                                <><X className="h-3 w-3" /> Unpaid</>
+                                                <><Circle className="h-3 w-3" /> Unpaid</>
                                             )}
                                         </Badge>
                                         {getStatusBadge(mortgage.status)}

@@ -152,22 +152,59 @@ export const mortgageRouter = router({
     update: protectedProcedure
         .input(z.object({
             id: z.string().uuid(),
+            accountId: z.string().uuid().optional(),
             propertyName: z.string().min(1).optional(),
             propertyAddress: z.string().optional(),
+            principalAmount: z.number().positive().optional(),
+            interestRate: z.number().min(0).max(100).optional(),
             monthlyPayment: z.number().positive().optional(),
             remainingBalance: z.number().min(0).optional(),
+            currency: z.string().length(3).optional(),
+            startDate: z.string().optional(),
+            endDate: z.string().optional(),
+            termYears: z.number().int().positive().optional(),
             paymentDay: z.number().int().min(1).max(31).optional(),
             status: z.enum(['active', 'paid_off', 'defaulted']).optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             const updateData: Record<string, any> = {};
 
+            if (input.accountId !== undefined) updateData.accountId = input.accountId;
             if (input.propertyName !== undefined) updateData.propertyName = input.propertyName;
             if (input.propertyAddress !== undefined) updateData.propertyAddress = input.propertyAddress;
+            if (input.principalAmount !== undefined) updateData.principalAmount = input.principalAmount.toString();
+            if (input.interestRate !== undefined) updateData.interestRate = input.interestRate.toString();
             if (input.monthlyPayment !== undefined) updateData.monthlyPayment = input.monthlyPayment.toString();
             if (input.remainingBalance !== undefined) updateData.remainingBalance = input.remainingBalance.toString();
+            if (input.currency !== undefined) updateData.currency = input.currency;
+            if (input.startDate !== undefined) updateData.startDate = input.startDate;
+            if (input.endDate !== undefined) updateData.endDate = input.endDate;
+            if (input.termYears !== undefined) updateData.termYears = input.termYears;
             if (input.paymentDay !== undefined) updateData.paymentDay = input.paymentDay;
             if (input.status !== undefined) updateData.status = input.status;
+
+            // Recalculate endDate if startDate or termYears changed and endDate wasn't explicitly provided
+            if ((input.startDate !== undefined || input.termYears !== undefined) && input.endDate === undefined) {
+                // We need the current values if they aren't in the input
+                let currentStartDate = input.startDate;
+                let currentTermYears = input.termYears;
+
+                if (currentStartDate === undefined || currentTermYears === undefined) {
+                    const existing = await ctx.db.query.mortgages.findFirst({
+                        where: eq(mortgages.id, input.id)
+                    });
+                    if (existing) {
+                        currentStartDate = currentStartDate ?? existing.startDate;
+                        currentTermYears = currentTermYears ?? existing.termYears;
+                    }
+                }
+
+                if (currentStartDate && currentTermYears !== undefined) {
+                    const start = new Date(currentStartDate);
+                    const end = new Date(start.getFullYear() + currentTermYears, start.getMonth(), start.getDate());
+                    updateData.endDate = end.toISOString().split('T')[0];
+                }
+            }
 
             await ctx.db.update(mortgages)
                 .set(updateData)
@@ -188,6 +225,7 @@ export const mortgageRouter = router({
         .input(z.object({
             mortgageId: z.string().uuid(),
             months: z.array(z.string().regex(/^\d{4}-\d{2}$/)).min(1),
+            amountPerMonth: z.number().positive().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             const mortgage = await ctx.db.query.mortgages.findFirst({
@@ -218,17 +256,19 @@ export const mortgageRouter = router({
                 throw new TRPCError({ code: 'BAD_REQUEST', message: 'All selected months are already paid' });
             }
 
+            const monthlyPayment = input.amountPerMonth || Number(mortgage.monthlyPayment);
+
             // Create payment records WITHOUT deducting money
             const paymentRecords = monthsToMark.map(month => ({
                 mortgageId: mortgage.id,
                 monthYear: month,
-                amount: mortgage.monthlyPayment,
+                amount: monthlyPayment.toString(),
             }));
 
             await ctx.db.insert(mortgagePayments).values(paymentRecords);
 
             // Update remaining balance
-            const totalAmount = Number(mortgage.monthlyPayment) * monthsToMark.length;
+            const totalAmount = monthlyPayment * monthsToMark.length;
             const newRemainingBalance = Math.max(0, Number(mortgage.remainingBalance) - totalAmount);
             const newStatus = newRemainingBalance === 0 ? 'paid_off' : mortgage.status;
 
@@ -252,6 +292,7 @@ export const mortgageRouter = router({
         .input(z.object({
             mortgageId: z.string().uuid(),
             months: z.array(z.string().regex(/^\d{4}-\d{2}$/)).min(1),
+            amountPerMonth: z.number().positive().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             const mortgage = await ctx.db.query.mortgages.findFirst({
@@ -288,7 +329,7 @@ export const mortgageRouter = router({
             }
 
             // Calculate total amount
-            const monthlyPayment = Number(mortgage.monthlyPayment);
+            const monthlyPayment = input.amountPerMonth || Number(mortgage.monthlyPayment);
             const totalAmount = monthlyPayment * monthsToPayFor.length;
 
             // Find the currency balance for this mortgage's currency

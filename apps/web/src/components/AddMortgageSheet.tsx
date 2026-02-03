@@ -46,6 +46,7 @@ interface AddMortgageSheetProps {
     onOpenChange?: (open: boolean) => void;
     editingMortgage?: {
         id: string;
+        accountId: string;
         propertyName: string;
         propertyAddress: string | null;
         principalAmount: string;
@@ -102,6 +103,7 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
 
     useEffect(() => {
         if (editingMortgage) {
+            setValue('accountId', editingMortgage.accountId);
             setValue('propertyName', editingMortgage.propertyName);
             setValue('propertyAddress', editingMortgage.propertyAddress || '');
             setValue('principalAmount', editingMortgage.principalAmount);
@@ -113,8 +115,12 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
             setValue('termYears', editingMortgage.termYears.toString());
             setValue('paymentDay', editingMortgage.paymentDay?.toString() || '1');
             setValue('status', editingMortgage.status as 'active' | 'paid_off' | 'defaulted');
+            setManualOverridePayment(true);
+            setManualOverrideBalance(true);
         } else {
             reset();
+            setManualOverridePayment(false);
+            setManualOverrideBalance(false);
         }
     }, [editingMortgage, setValue, reset]);
 
@@ -122,10 +128,16 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
         if (editingMortgage) {
             updateMortgage.mutate({
                 id: editingMortgage.id,
+                accountId: data.accountId,
                 propertyName: data.propertyName,
                 propertyAddress: data.propertyAddress,
+                principalAmount: Number(data.principalAmount),
+                interestRate: Number(data.interestRate),
                 monthlyPayment: Number(data.monthlyPayment),
                 remainingBalance: Number(data.remainingBalance),
+                currency: data.currency,
+                startDate: data.startDate,
+                termYears: Number(data.termYears),
                 paymentDay: data.paymentDay ? Number(data.paymentDay) : undefined,
                 status: data.status,
             });
@@ -184,9 +196,8 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
         }
     }, [principalAmount, downPaymentMode]);
 
-    // Auto-calculate monthly payment using mortgage formula: M = P * [r(1+r)^n] / [(1+r)^n - 1]
     useEffect(() => {
-        if (editingMortgage || manualOverridePayment || !principalAmount || !interestRate || !termYears) return;
+        if (manualOverridePayment || !principalAmount || !interestRate || !termYears) return;
 
         const totalPrice = Number(principalAmount);
         const downPayment = Number(initialPayment) || 0;
@@ -204,11 +215,11 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
             const monthlyPayment = P * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
             setValue('monthlyPayment', monthlyPayment.toFixed(2));
         }
-    }, [principalAmount, initialPayment, interestRate, termYears, editingMortgage, manualOverridePayment, setValue]);
+    }, [principalAmount, initialPayment, interestRate, termYears, manualOverridePayment, setValue]);
 
     // Auto-calculate remaining balance based on payments made
     useEffect(() => {
-        if (editingMortgage || manualOverrideBalance || !principalAmount || !interestRate || !termYears || !startDate) return;
+        if (manualOverrideBalance || !principalAmount || !interestRate || !termYears || !startDate) return;
 
         const totalPrice = Number(principalAmount);
         const downPayment = Number(initialPayment) || 0;
@@ -233,7 +244,7 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
             const remaining = P * (numerator / denominator);
             setValue('remainingBalance', Math.max(0, remaining).toFixed(2));
         }
-    }, [principalAmount, initialPayment, interestRate, termYears, startDate, editingMortgage, manualOverrideBalance, setValue]);
+    }, [principalAmount, initialPayment, interestRate, termYears, startDate, manualOverrideBalance, setValue]);
 
     return (
         <Sheet open={open} onOpenChange={setOpen}>
@@ -257,41 +268,40 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
                         <Input {...register('propertyAddress')} placeholder="e.g., 123 Main St, Almaty" />
                     </div>
 
-                    {!editingMortgage && (
-                        <div className="p-4 rounded-xl bg-muted/30 border space-y-3 transition-all duration-200">
-                            <div className="flex items-center justify-between">
-                                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Linked Account</Label>
-                                {selectedAccount && (
-                                    <span className="text-xs font-medium px-2 py-0.5 rounded bg-background border animate-in fade-in zoom-in duration-300">
-                                        Balance: {selectedAccount.balance.toLocaleString()} {selectedAccount.currencyCode}
-                                    </span>
-                                )}
-                            </div>
-                            <Select
-                                onValueChange={(v) => {
-                                    const opt = accountOptions.find((o: any) => o.id === v);
-                                    if (opt) {
-                                        setValue('accountId', opt.accountId);
-                                        setValue('currency', opt.currencyCode);
-                                    }
-                                }}
-                            >
-                                <SelectTrigger className="h-14 bg-background">
-                                    <SelectValue placeholder="Select account" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {accountOptions.map((opt: any) => (
-                                        <SelectItem key={opt.id} value={opt.id}>
-                                            <div className="flex flex-col items-start py-1">
-                                                <span className="font-medium text-sm">{opt.label}</span>
-                                                <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                    <div className="p-4 rounded-xl bg-muted/30 border space-y-3 transition-all duration-200">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Linked Account</Label>
+                            {selectedAccount && (
+                                <span className="text-xs font-medium px-2 py-0.5 rounded bg-background border animate-in fade-in zoom-in duration-300">
+                                    Balance: {selectedAccount.balance.toLocaleString()} {selectedAccount.currencyCode}
+                                </span>
+                            )}
                         </div>
-                    )}
+                        <Select
+                            value={accountOptions.find(o => o.accountId === watch('accountId') && o.currencyCode === watch('currency'))?.id}
+                            onValueChange={(v) => {
+                                const opt = accountOptions.find((o: any) => o.id === v);
+                                if (opt) {
+                                    setValue('accountId', opt.accountId);
+                                    setValue('currency', opt.currencyCode);
+                                }
+                            }}
+                        >
+                            <SelectTrigger className="h-14 bg-background">
+                                <SelectValue placeholder="Select account" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {accountOptions.map((opt: any) => (
+                                    <SelectItem key={opt.id} value={opt.id}>
+                                        <div className="flex flex-col items-start py-1">
+                                            <span className="font-medium text-sm">{opt.label}</span>
+                                            <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
@@ -301,50 +311,47 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
                                 step="0.01"
                                 {...register('principalAmount')}
                                 placeholder="50000000"
-                                disabled={!!editingMortgage}
                             />
                         </div>
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <Label>Initial Payment (Down Payment)</Label>
-                                {!editingMortgage && (
-                                    <div className="flex items-center rounded-md border bg-muted p-0.5">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setDownPaymentMode('amount');
-                                            }}
-                                            className={`px-2 py-0.5 text-xs font-medium rounded-sm transition-all ${
-                                                downPaymentMode === 'amount'
-                                                    ? 'bg-background text-foreground shadow-sm'
-                                                    : 'text-muted-foreground hover:text-foreground'
-                                            }`}
-                                        >
-                                            Amount
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setDownPaymentMode('percent');
-                                                const p = Number(principalAmount) || 0;
-                                                const i = Number(initialPayment) || 0;
-                                                if (p > 0) {
-                                                    // Remove trailing zeros for cleaner display
-                                                    setPercentValue(parseFloat(((i / p) * 100).toFixed(2)).toString());
-                                                } else {
-                                                    setPercentValue('');
-                                                }
-                                            }}
-                                            className={`px-2 py-0.5 text-xs font-medium rounded-sm transition-all ${
-                                                downPaymentMode === 'percent'
-                                                    ? 'bg-background text-foreground shadow-sm'
-                                                    : 'text-muted-foreground hover:text-foreground'
-                                            }`}
-                                        >
-                                            %
-                                        </button>
-                                    </div>
-                                )}
+                                <div className="flex items-center rounded-md border bg-muted p-0.5">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setDownPaymentMode('amount');
+                                        }}
+                                        className={`px-2 py-0.5 text-xs font-medium rounded-sm transition-all ${
+                                            downPaymentMode === 'amount'
+                                                ? 'bg-background text-foreground shadow-sm'
+                                                : 'text-muted-foreground hover:text-foreground'
+                                        }`}
+                                    >
+                                        Amount
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setDownPaymentMode('percent');
+                                            const p = Number(principalAmount) || 0;
+                                            const i = Number(initialPayment) || 0;
+                                            if (p > 0) {
+                                                // Remove trailing zeros for cleaner display
+                                                setPercentValue(parseFloat(((i / p) * 100).toFixed(2)).toString());
+                                            } else {
+                                                setPercentValue('');
+                                            }
+                                        }}
+                                        className={`px-2 py-0.5 text-xs font-medium rounded-sm transition-all ${
+                                            downPaymentMode === 'percent'
+                                                ? 'bg-background text-foreground shadow-sm'
+                                                : 'text-muted-foreground hover:text-foreground'
+                                        }`}
+                                    >
+                                        %
+                                    </button>
+                                </div>
                             </div>
 
                             {downPaymentMode === 'amount' ? (
@@ -353,7 +360,6 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
                                     step="0.01"
                                     {...register('initialPayment')}
                                     placeholder="10000000"
-                                    disabled={!!editingMortgage}
                                 />
                             ) : (
                                 <Input
@@ -368,7 +374,6 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
                                         setValue('initialPayment', val.toFixed(2));
                                     }}
                                     placeholder="20"
-                                    disabled={!!editingMortgage}
                                 />
                             )}
                             <p className="text-xs text-muted-foreground">
@@ -387,7 +392,6 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
                             step="0.01"
                             {...register('interestRate')}
                             placeholder="7.5"
-                            disabled={!!editingMortgage}
                         />
                     </div>
 
@@ -395,50 +399,46 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <Label>Monthly Payment *</Label>
-                                {!editingMortgage && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setManualOverridePayment(!manualOverridePayment)}
-                                        className="text-xs text-primary hover:underline"
-                                    >
-                                        {manualOverridePayment ? 'Auto-calculate' : 'Manual override'}
-                                    </button>
-                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => setManualOverridePayment(!manualOverridePayment)}
+                                    className="text-xs text-primary hover:underline"
+                                >
+                                    {manualOverridePayment ? 'Auto-calculate' : 'Manual override'}
+                                </button>
                             </div>
                             <Input
                                 type="number"
                                 step="0.01"
                                 {...register('monthlyPayment')}
                                 placeholder="300000"
-                                disabled={!editingMortgage && !manualOverridePayment}
-                                className={!editingMortgage && !manualOverridePayment ? 'bg-muted/50' : ''}
+                                disabled={!manualOverridePayment}
+                                className={!manualOverridePayment ? 'bg-muted/50' : ''}
                             />
-                            {!editingMortgage && !manualOverridePayment && (
+                            {!manualOverridePayment && (
                                 <p className="text-xs text-muted-foreground">Auto-calculated using mortgage formula</p>
                             )}
                         </div>
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <Label>Remaining Balance *</Label>
-                                {!editingMortgage && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setManualOverrideBalance(!manualOverrideBalance)}
-                                        className="text-xs text-primary hover:underline"
-                                    >
-                                        {manualOverrideBalance ? 'Auto-calculate' : 'Manual override'}
-                                    </button>
-                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => setManualOverrideBalance(!manualOverrideBalance)}
+                                    className="text-xs text-primary hover:underline"
+                                >
+                                    {manualOverrideBalance ? 'Auto-calculate' : 'Manual override'}
+                                </button>
                             </div>
                             <Input
                                 type="number"
                                 step="0.01"
                                 {...register('remainingBalance')}
                                 placeholder="45000000"
-                                disabled={!editingMortgage && !manualOverrideBalance}
-                                className={!editingMortgage && !manualOverrideBalance ? 'bg-muted/50' : ''}
+                                disabled={!manualOverrideBalance}
+                                className={!manualOverrideBalance ? 'bg-muted/50' : ''}
                             />
-                            {!editingMortgage && !manualOverrideBalance && (
+                            {!manualOverrideBalance && (
                                 <p className="text-xs text-muted-foreground">Auto-calculated based on payments made</p>
                             )}
                         </div>
@@ -451,7 +451,6 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
                                 type="number"
                                 {...register('termYears')}
                                 placeholder="20"
-                                disabled={!!editingMortgage}
                             />
                         </div>
                         <div className="space-y-2">
@@ -459,7 +458,6 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
                             <CurrencySelect
                                 value={watch('currency')}
                                 onValueChange={(v) => setValue('currency', v)}
-                                disabled={!!editingMortgage}
                             />
                         </div>
                     </div>
@@ -467,7 +465,7 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Start Date *</Label>
-                            <Input type="date" {...register('startDate')} disabled={!!editingMortgage} />
+                            <Input type="date" {...register('startDate')} />
                         </div>
                         <div className="space-y-2">
                             <Label>Payment Day (1-31)</Label>

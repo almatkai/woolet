@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { trpc } from '@/lib/trpc';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -14,7 +15,7 @@ import {
     SheetFooter,
 } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Home, Wallet, Calendar, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Home, Wallet, Calendar, AlertCircle, CheckCircle2, Edit2 } from 'lucide-react';
 
 interface MortgagePaymentSheetProps {
     open: boolean;
@@ -84,6 +85,8 @@ function getCurrentMonth(): string {
 export function MortgagePaymentSheet({ open, onOpenChange, mortgage }: MortgagePaymentSheetProps) {
     const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
     const [skipPayment, setSkipPayment] = useState(false);
+    const [isEditingAmount, setIsEditingAmount] = useState(false);
+    const [customAmount, setCustomAmount] = useState<string>('');
     const utils = trpc.useUtils();
 
     const markAsPaid = trpc.mortgage.markAsPaid.useMutation();
@@ -93,10 +96,19 @@ export function MortgagePaymentSheet({ open, onOpenChange, mortgage }: MortgageP
             utils.bank.getHierarchy.invalidate();
             toast.success(`Payment successful! Paid ${data.paidMonths.length} month(s)`);
             setSelectedMonths([]);
+            setCustomAmount('');
+            setIsEditingAmount(false);
             onOpenChange(false);
         },
         onError: (error: { message?: string }) => toast.error(error.message || 'Payment failed'),
     });
+
+    // Reset custom amount when mortgage changes
+    useEffect(() => {
+        if (mortgage) {
+            setCustomAmount(mortgage.monthlyPayment);
+        }
+    }, [mortgage?.id]);
 
     // Calculate all months for this mortgage
     const allMonths = useMemo(() => {
@@ -125,7 +137,7 @@ export function MortgagePaymentSheet({ open, onOpenChange, mortgage }: MortgageP
     }, [mortgage]);
 
     // Calculate total payment
-    const monthlyPayment = mortgage ? Number(mortgage.monthlyPayment) : 0;
+    const monthlyPayment = (customAmount && !isNaN(Number(customAmount))) ? Number(customAmount) : (mortgage ? Number(mortgage.monthlyPayment) : 0);
     const totalPayment = selectedMonths.length * monthlyPayment;
     const hasInsufficientBalance = totalPayment > accountBalance;
 
@@ -159,6 +171,7 @@ export function MortgagePaymentSheet({ open, onOpenChange, mortgage }: MortgageP
                 await markAsPaid.mutateAsync({
                     mortgageId: mortgage.id,
                     months: selectedMonths,
+                    amountPerMonth: monthlyPayment !== Number(mortgage.monthlyPayment) ? monthlyPayment : undefined,
                 });
                 utils.mortgage.list.invalidate();
                 utils.bank.getHierarchy.invalidate();
@@ -167,6 +180,7 @@ export function MortgagePaymentSheet({ open, onOpenChange, mortgage }: MortgageP
                 await makePayment.mutateAsync({
                     mortgageId: mortgage.id,
                     months: selectedMonths,
+                    amountPerMonth: monthlyPayment !== Number(mortgage.monthlyPayment) ? monthlyPayment : undefined,
                 });
             }
 
@@ -206,10 +220,38 @@ export function MortgagePaymentSheet({ open, onOpenChange, mortgage }: MortgageP
                     {/* Payment Info */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="p-3 rounded-lg bg-muted/50">
-                            <div className="text-xs text-muted-foreground mb-1">Monthly Payment</div>
-                            <div className="font-semibold">
-                                {mortgage.currency} {Number(mortgage.monthlyPayment).toLocaleString()}
+                            <div className="text-xs text-muted-foreground mb-1 flex items-center justify-between">
+                                <span>Monthly Payment</span>
+                                <button
+                                    onClick={() => setIsEditingAmount(!isEditingAmount)}
+                                    className="text-primary hover:text-primary/80 transition-colors"
+                                >
+                                    <Edit2 className="h-3 w-3" />
+                                </button>
                             </div>
+                            {isEditingAmount ? (
+                                <Input
+                                    type="number"
+                                    value={customAmount}
+                                    onChange={(e) => setCustomAmount(e.target.value)}
+                                    className="h-7 text-sm py-0 bg-background"
+                                    autoFocus
+                                    onBlur={() => {
+                                        if (!customAmount) setCustomAmount(mortgage.monthlyPayment);
+                                        setIsEditingAmount(false);
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') setIsEditingAmount(false);
+                                    }}
+                                />
+                            ) : (
+                                <div 
+                                    className="font-semibold cursor-pointer hover:text-primary transition-colors flex items-center justify-between"
+                                    onClick={() => setIsEditingAmount(true)}
+                                >
+                                    <span>{mortgage.currency} {Number(monthlyPayment).toLocaleString()}</span>
+                                </div>
+                            )}
                         </div>
                         <div className="p-3 rounded-lg bg-muted/50">
                             <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">

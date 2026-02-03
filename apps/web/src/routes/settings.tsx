@@ -20,7 +20,8 @@ import {
     Download,
     Upload,
     FileJson,
-    Loader2
+    Loader2,
+    Home
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -46,12 +47,23 @@ import {
 export function SettingsPage() {
     const { theme, setTheme } = useTheme();
     const { data: user } = trpc.user.me.useQuery();
+    const { data: settings } = trpc.settings.getUserSettings.useQuery();
     const [isExporting, setIsExporting] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const navigate = useNavigate();
 
     const utils = trpc.useUtils();
+
+    const updateSettings = trpc.settings.updateUserSettings.useMutation({
+        onSuccess: () => {
+            toast.success('Settings updated');
+            utils.settings.getUserSettings.invalidate();
+        },
+        onError: (error) => {
+            toast.error(error.message || 'Failed to update settings');
+        }
+    });
 
     const deleteDataMutation = trpc.user.deleteAllData.useMutation({
         onSuccess: () => {
@@ -203,7 +215,10 @@ export function SettingsPage() {
                             </div>
                             <p className="text-sm text-muted-foreground">Currency exchange rates will be shown relative to this currency</p>
                         </div>
-                        <Select defaultValue="KZT">
+                        <Select 
+                            value={settings?.defaultCurrency || 'USD'} 
+                            onValueChange={(val) => updateSettings.mutate({ defaultCurrency: val })}
+                        >
                             <SelectTrigger className="w-[120px] bg-background border-border">
                                 <SelectValue placeholder="Currency" />
                             </SelectTrigger>
@@ -211,8 +226,61 @@ export function SettingsPage() {
                                 <SelectItem value="KZT">🇰🇿 KZT</SelectItem>
                                 <SelectItem value="USD">🇺🇸 USD</SelectItem>
                                 <SelectItem value="EUR">🇪🇺 EUR</SelectItem>
+                                <SelectItem value="GBP">🇬🇧 GBP</SelectItem>
                             </SelectContent>
                         </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-4 p-4 rounded-2xl bg-background/50 border border-border/50">
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <Home className="size-4 text-orange-500" />
+                                    <Label className="text-base font-semibold">Mortgage Status Logic</Label>
+                                </div>
+                                <p className="text-sm text-muted-foreground">How payment status is determined</p>
+                            </div>
+                            <Select 
+                                value={settings?.mortgageStatusLogic || 'monthly'} 
+                                onValueChange={(val) => updateSettings.mutate({ mortgageStatusLogic: val })}
+                            >
+                                <SelectTrigger className="w-[180px] bg-background border-border">
+                                    <SelectValue placeholder="Select logic" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="monthly">Each Month (Reset 1st)</SelectItem>
+                                    <SelectItem value="period">Time Period (Threshold)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {settings?.mortgageStatusLogic === 'period' && (
+                            <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                                <div className="space-y-1">
+                                    <Label className="text-sm font-medium">Due Warning Threshold</Label>
+                                    <p className="text-xs text-muted-foreground">Show "Unpaid" if due date is within these many days</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Select 
+                                        value={settings?.mortgageStatusPeriod || '15'} 
+                                        onValueChange={(val) => updateSettings.mutate({ mortgageStatusPeriod: val })}
+                                    >
+                                        <SelectTrigger className="w-[100px] bg-background border-border">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="3">3 Days</SelectItem>
+                                            <SelectItem value="7">7 Days</SelectItem>
+                                            <SelectItem value="10">10 Days</SelectItem>
+                                            <SelectItem value="14">14 Days</SelectItem>
+                                            <SelectItem value="15">15 Days</SelectItem>
+                                            <SelectItem value="21">21 Days</SelectItem>
+                                            <SelectItem value="30">30 Days</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </CardContent>
             </Card>

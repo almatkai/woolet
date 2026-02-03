@@ -21,6 +21,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { AddSubscriptionSheet } from '@/components/AddSubscriptionSheet';
 import { SubscriptionPaymentSheet } from '@/components/SubscriptionPaymentSheet';
 
+import { getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
+
 export const Route = (createFileRoute as any)('/subscriptions')({
     component: SubscriptionsPage,
 });
@@ -45,6 +47,7 @@ interface Subscription {
         id: string;
         amount: string;
         paidAt: string;
+        monthYear?: string; // For mortgages
         currencyBalance?: {
             account?: { name: string };
         };
@@ -60,6 +63,7 @@ interface UpcomingItem {
 export function SubscriptionsPage() {
     const [view, setView] = useState<'timeline' | 'calendar'>('timeline');
     const [showAddSubscription, setShowAddSubscription] = useState(false);
+    const { data: settings } = trpc.settings.getUserSettings.useQuery();
 
     const [payingSubscription, setPayingSubscription] = useState<Subscription | null>(null);
     const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth() + 1);
@@ -150,6 +154,10 @@ export function SubscriptionsPage() {
 
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'];
+
+    // Get current month for payment status
+    const currentMonthStr = new Date().toISOString().slice(0, 7);
+    const currentDate = new Date();
 
     if (isLoadingSubscriptions) {
         return (
@@ -302,11 +310,16 @@ export function SubscriptionsPage() {
                                                                 Pay
                                                             </Button>
                                                         )}
-                                                        {item.isPaid && (
-                                                            <Badge variant="secondary" className="bg-green-500/20 text-green-600">
-                                                                Paid
-                                                            </Badge>
-                                                        )}
+                                                        <Badge
+                                                            variant={item.isPaid ? "secondary" : "destructive"}
+                                                            className={item.isPaid ? "bg-green-500/20 text-green-600 flex items-center gap-1" : "flex items-center gap-1"}
+                                                        >
+                                                            {item.isPaid ? (
+                                                                <><CheckCircle2 className="h-3 w-3" /> Paid</>
+                                                            ) : (
+                                                                <><Circle className="h-3 w-3" /> Due</>
+                                                            )}
+                                                        </Badge>
                                                     </div>
                                                 </div>
                                             </CardContent>
@@ -414,15 +427,12 @@ export function SubscriptionsPage() {
                                                                         <div>
                                                                             <p className="text-xs text-muted-foreground">Status</p>
                                                                             <div className="flex items-center gap-1.5">
-                                                                                {item.isPaid ? (
-                                                                                    <Badge variant="secondary" className="bg-green-500/20 text-green-600 h-5 px-1.5">
-                                                                                        Paid
-                                                                                    </Badge>
-                                                                                ) : (
-                                                                                    <Badge variant="secondary" className="bg-orange-500/20 text-orange-600 h-5 px-1.5">
-                                                                                        Due
-                                                                                    </Badge>
-                                                                                )}
+                                                                                <Badge
+                                                                                    variant={item.isPaid ? "secondary" : "destructive"}
+                                                                                    className={item.isPaid ? "bg-green-500/20 text-green-600 h-5 px-1.5" : "h-5 px-1.5"}
+                                                                                >
+                                                                                    {item.isPaid ? "Paid" : "Due"}
+                                                                                </Badge>
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -473,48 +483,71 @@ export function SubscriptionsPage() {
                         <p className="text-center text-muted-foreground py-4">No subscriptions yet</p>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {allItems.map((sub: Subscription) => (
-                                <Card key={sub.id} className="relative overflow-hidden hover:shadow-md transition-shadow">
-                                    <div
-                                        className="absolute top-0 left-0 right-0 h-1"
-                                        style={{ backgroundColor: sub.color }}
-                                    />
-                                    <CardContent className="p-4">
-                                        <div className="flex items-start justify-between mb-2">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-2xl">{sub.icon}</span>
-                                                <div>
-                                                    <h4 className="font-semibold">{sub.name}</h4>
-                                                    <Badge variant="secondary" className={getTypeColor(sub.type)}>
-                                                        {sub.type}
-                                                        {sub.isLinked && ' (linked)'}
+                            {allItems.map((sub: Subscription) => {
+                                // Check if paid based on settings logic
+                                const logic = (settings?.mortgageStatusLogic as any) || 'monthly';
+                                const period = parseInt(settings?.mortgageStatusPeriod || '15');
+                                
+                                const targetMonthStr = getTargetMonthStr(sub.billingDay, { logic, period });
+                                const isPaidThisMonth = isPaidForTargetMonth(sub.payments as any, targetMonthStr, sub.type === 'mortgage');
+
+                                return (
+                                    <Card key={sub.id} className="relative overflow-hidden hover:shadow-md transition-shadow">
+                                        <div
+                                            className="absolute top-0 left-0 right-0 h-1"
+                                            style={{ backgroundColor: sub.color }}
+                                        />
+                                        <CardContent className="p-4">
+                                            <div className="flex items-start justify-between mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-2xl">{sub.icon}</span>
+                                                    <div>
+                                                        <h4 className="font-semibold">{sub.name}</h4>
+                                                        <Badge variant="secondary" className={getTypeColor(sub.type)}>
+                                                            {sub.type}
+                                                            {sub.isLinked && ' (linked)'}
+                                                        </Badge>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col items-end gap-1">
+                                                    <Badge variant={sub.status === 'active' ? 'default' : 'secondary'}>
+                                                        {sub.status}
                                                     </Badge>
+                                                    {sub.status === 'active' && (
+                                                        <Badge
+                                                            variant={isPaidThisMonth ? "secondary" : "destructive"}
+                                                            className={isPaidThisMonth ? "bg-green-500/20 text-green-500 flex items-center gap-1 text-[10px] h-5" : "flex items-center gap-1 text-[10px] h-5"}
+                                                        >
+                                                            {isPaidThisMonth ? (
+                                                                <><CheckCircle2 className="h-3 w-3" /> Paid</>
+                                                            ) : (
+                                                                <><Circle className="h-3 w-3" /> Unpaid</>
+                                                            )}
+                                                        </Badge>
+                                                    )}
                                                 </div>
                                             </div>
-                                            <Badge variant={sub.status === 'active' ? 'default' : 'secondary'}>
-                                                {sub.status}
-                                            </Badge>
-                                        </div>
-                                        <div className="flex items-center justify-between text-sm">
-                                            <span className="text-muted-foreground">{sub.frequency}</span>
-                                            <span className="font-semibold">
-                                                {formatCurrency(sub.amount, sub.currency)}
-                                            </span>
-                                        </div>
-                                        {!sub.isLinked && sub.status === 'active' && (
-                                            <Button
-                                                variant="secondary"
-                                                size="sm"
-                                                className="w-full mt-3"
-                                                onClick={() => setPayingSubscription(sub)}
-                                            >
-                                                <Wallet className="h-4 w-4 mr-2" />
-                                                Make Payment
-                                            </Button>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            ))}
+                                            <div className="flex items-center justify-between text-sm">
+                                                <span className="text-muted-foreground">{sub.frequency}</span>
+                                                <span className="font-semibold">
+                                                    {formatCurrency(sub.amount, sub.currency)}
+                                                </span>
+                                            </div>
+                                            {!sub.isLinked && sub.status === 'active' && (
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    className="w-full mt-3"
+                                                    onClick={() => setPayingSubscription(sub)}
+                                                >
+                                                    <Wallet className="h-4 w-4 mr-2" />
+                                                    Make Payment
+                                                </Button>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })}
                         </div>
                     )}
                 </CardContent>

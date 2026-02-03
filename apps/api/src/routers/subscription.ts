@@ -11,7 +11,10 @@ import {
     banks,
     accounts,
     credits,
-    mortgages
+    mortgages,
+    userSettings,
+    creditPayments,
+    mortgagePayments
 } from '../db/schema';
 import { checkEntityLimit } from '../lib/limits';
 
@@ -110,7 +113,13 @@ export const subscriptionRouter = router({
                                 inArray(mortgages.accountId, accountIds),
                                 filters.status !== 'all' ? eq(mortgages.status, filters.status) : undefined
                             ),
-                            with: { account: true }
+                            with: {
+                                account: true,
+                                payments: {
+                                    orderBy: [desc(sql`month_year`)],
+                                    limit: 5
+                                }
+                            }
                         });
 
                         linkedItems.push(...userMortgages.map(m => ({
@@ -120,7 +129,7 @@ export const subscriptionRouter = router({
                             amount: m.monthlyPayment,
                             currency: m.currency,
                             frequency: 'monthly' as const,
-                            billingDay: new Date(m.startDate).getDate(),
+                            billingDay: m.paymentDay || new Date(m.startDate).getDate(),
                             startDate: m.startDate,
                             endDate: null,
                             status: m.status,
@@ -129,7 +138,7 @@ export const subscriptionRouter = router({
                             isLinked: true,
                             linkedEntityId: m.id,
                             linkedEntityType: 'mortgage',
-                            payments: [],
+                            payments: m.payments,
                             account: m.account,
                         })));
                     }
@@ -399,7 +408,23 @@ export const subscriptionRouter = router({
             const endDate = new Date();
             endDate.setDate(endDate.getDate() + days);
 
-            // Get active subscriptions
+            // Fetch user settings
+            const [settings] = await ctx.db
+                .select()
+                .from(userSettings)
+                .where(eq(userSettings.userId, ctx.userId!))
+                .limit(1);
+            
+            const logic = settings?.mortgageStatusLogic || 'monthly';
+            const period = parseInt(settings?.mortgageStatusPeriod || '15');
+
+            const upcoming: Array<{
+                subscription: any;
+                dueDate: Date;
+                isPaid: boolean;
+            }> = [];
+
+            // 1. Get active subscriptions
             const activeSubscriptions = await ctx.db.query.subscriptions.findMany({
                 where: and(
                     eq(subscriptions.userId, ctx.userId!),
@@ -413,23 +438,12 @@ export const subscriptionRouter = router({
                 }
             });
 
-            // Calculate upcoming payment dates
-            const upcoming: Array<{
-                subscription: typeof activeSubscriptions[0];
-                dueDate: Date;
-                isPaid: boolean;
-            }> = [];
-
             for (const sub of activeSubscriptions) {
                 const billingDay = sub.billingDay || 1;
                 let nextDue = new Date(today.getFullYear(), today.getMonth(), billingDay);
 
-                // If billing day already passed this month, move to next month
-                if (nextDue < today) {
-                    nextDue.setMonth(nextDue.getMonth() + 1);
-                }
+                if (nextDue < today) nextDue.setMonth(nextDue.getMonth() + 1);
 
-                // Check if already paid for this period
                 const lastPayment = sub.payments[0];
                 const isPaid = lastPayment &&
                     new Date(lastPayment.paidAt).getMonth() === nextDue.getMonth() &&
@@ -437,10 +451,110 @@ export const subscriptionRouter = router({
 
                 if (nextDue <= endDate) {
                     upcoming.push({
-                        subscription: sub,
+                        subscription: { ...sub, isLinked: false },
                         dueDate: nextDue,
                         isPaid: !!isPaid
                     });
+                }
+            }
+
+            // 2. Get active credits and mortgages (linked items)
+            const userBanks = await ctx.db.query.banks.findMany({
+                where: and(
+                    eq(banks.userId, ctx.userId!),
+                    eq(banks.isTest, ctx.user.testMode)
+                ),
+                with: { accounts: true }
+            });
+            const accountIds = userBanks.flatMap(b => b.accounts.map(a => a.id));
+
+            if (accountIds.length > 0) {
+                const userCredits = await ctx.db.query.credits.findMany({
+                    where: and(
+                        inArray(credits.accountId, accountIds),
+                        eq(credits.status, 'active')
+                    ),
+                    with: {
+                        payments: {
+                            orderBy: [desc(sql`paid_at`)],
+                            limit: 1
+                        }
+                    }
+                });
+
+                for (const credit of userCredits) {
+                    const billingDay = new Date(credit.startDate).getDate();
+                    let nextDue = new Date(today.getFullYear(), today.getMonth(), billingDay);
+                    if (nextDue < today) nextDue.setMonth(nextDue.getMonth() + 1);
+
+                    const lastPayment = credit.payments[0];
+                    const isPaid = lastPayment &&
+                        new Date(lastPayment.paidAt).getMonth() === nextDue.getMonth() &&
+                        new Date(lastPayment.paidAt).getFullYear() === nextDue.getFullYear();
+
+                    if (nextDue <= endDate) {
+                        upcoming.push({
+                            subscription: {
+                                id: credit.id,
+                                name: credit.name,
+                                type: 'credit',
+                                amount: credit.monthlyPayment,
+                                currency: credit.currency,
+                                frequency: 'monthly',
+                                status: credit.status,
+                                icon: '💳',
+                                color: '#ef4444',
+                                isLinked: true,
+                                linkedEntityId: credit.id,
+                                linkedEntityType: 'credit'
+                            },
+                            dueDate: nextDue,
+                            isPaid: !!isPaid
+                        });
+                    }
+                }
+
+                const userMortgages = await ctx.db.query.mortgages.findMany({
+                    where: and(
+                        inArray(mortgages.accountId, accountIds),
+                        eq(mortgages.status, 'active')
+                    ),
+                    with: {
+                        payments: {
+                            orderBy: [desc(sql`month_year`)],
+                            limit: 1
+                        }
+                    }
+                });
+
+                for (const mortgage of userMortgages) {
+                    const billingDay = mortgage.paymentDay || 1;
+                    let nextDue = new Date(today.getFullYear(), today.getMonth(), billingDay);
+                    if (nextDue < today) nextDue.setMonth(nextDue.getMonth() + 1);
+
+                    const monthYear = `${nextDue.getFullYear()}-${String(nextDue.getMonth() + 1).padStart(2, '0')}`;
+                    const isPaid = mortgage.payments.some(p => p.monthYear === monthYear);
+
+                    if (nextDue <= endDate) {
+                        upcoming.push({
+                            subscription: {
+                                id: mortgage.id,
+                                name: mortgage.propertyName,
+                                type: 'mortgage',
+                                amount: mortgage.monthlyPayment,
+                                currency: mortgage.currency,
+                                frequency: 'monthly',
+                                status: mortgage.status,
+                                icon: '🏠',
+                                color: '#10b981',
+                                isLinked: true,
+                                linkedEntityId: mortgage.id,
+                                linkedEntityType: 'mortgage'
+                            },
+                            dueDate: nextDue,
+                            isPaid: !!isPaid
+                        });
+                    }
                 }
             }
 
@@ -460,7 +574,13 @@ export const subscriptionRouter = router({
             const startOfMonth = new Date(input.year, input.month - 1, 1);
             const endOfMonth = new Date(input.year, input.month, 0);
 
-            // Get active subscriptions
+            // Build calendar data - group by billing day
+            const calendarData: Record<number, Array<{
+                subscription: any;
+                isPaid: boolean;
+            }>> = {};
+
+            // 1. Process regular subscriptions
             const activeSubscriptions = await ctx.db.query.subscriptions.findMany({
                 where: and(
                     eq(subscriptions.userId, ctx.userId!),
@@ -476,18 +596,9 @@ export const subscriptionRouter = router({
                 }
             });
 
-            // Build calendar data - group by billing day
-            const calendarData: Record<number, Array<{
-                subscription: typeof activeSubscriptions[0];
-                isPaid: boolean;
-            }>> = {};
-
             for (const sub of activeSubscriptions) {
                 const billingDay = Math.min(sub.billingDay || 1, endOfMonth.getDate());
-
-                if (!calendarData[billingDay]) {
-                    calendarData[billingDay] = [];
-                }
+                if (!calendarData[billingDay]) calendarData[billingDay] = [];
 
                 const isPaid = sub.payments.some(p =>
                     new Date(p.paidAt).getMonth() + 1 === input.month &&
@@ -495,17 +606,104 @@ export const subscriptionRouter = router({
                 );
 
                 calendarData[billingDay].push({
-                    subscription: sub,
+                    subscription: { ...sub, isLinked: false },
                     isPaid
                 });
+            }
+
+            // 2. Process credits and mortgages
+            const userBanks = await ctx.db.query.banks.findMany({
+                where: and(
+                    eq(banks.userId, ctx.userId!),
+                    eq(banks.isTest, ctx.user.testMode)
+                ),
+                with: { accounts: true }
+            });
+            const accountIds = userBanks.flatMap(b => b.accounts.map(a => a.id));
+
+            if (accountIds.length > 0) {
+                const userCredits = await ctx.db.query.credits.findMany({
+                    where: and(
+                        inArray(credits.accountId, accountIds),
+                        eq(credits.status, 'active')
+                    ),
+                    with: {
+                        payments: {
+                            where: and(
+                                gte(creditPayments.paidAt, startOfMonth),
+                                lte(creditPayments.paidAt, endOfMonth)
+                            )
+                        }
+                    }
+                });
+
+                for (const credit of userCredits) {
+                    const billingDay = Math.min(new Date(credit.startDate).getDate(), endOfMonth.getDate());
+                    if (!calendarData[billingDay]) calendarData[billingDay] = [];
+
+                    const isPaid = credit.payments.length > 0;
+                    calendarData[billingDay].push({
+                        subscription: {
+                            id: credit.id,
+                            name: credit.name,
+                            type: 'credit',
+                            amount: credit.monthlyPayment,
+                            currency: credit.currency,
+                            frequency: 'monthly',
+                            status: credit.status,
+                            icon: '💳',
+                            color: '#ef4444',
+                            isLinked: true,
+                            linkedEntityId: credit.id,
+                            linkedEntityType: 'credit'
+                        },
+                        isPaid
+                    });
+                }
+
+                const monthYear = `${input.year}-${String(input.month).padStart(2, '0')}`;
+                const userMortgages = await ctx.db.query.mortgages.findMany({
+                    where: and(
+                        inArray(mortgages.accountId, accountIds),
+                        eq(mortgages.status, 'active')
+                    ),
+                    with: {
+                        payments: {
+                            where: eq(mortgagePayments.monthYear, monthYear)
+                        }
+                    }
+                });
+
+                for (const mortgage of userMortgages) {
+                    const billingDay = Math.min(mortgage.paymentDay || 1, endOfMonth.getDate());
+                    if (!calendarData[billingDay]) calendarData[billingDay] = [];
+
+                    const isPaid = mortgage.payments.length > 0;
+                    calendarData[billingDay].push({
+                        subscription: {
+                            id: mortgage.id,
+                            name: mortgage.propertyName,
+                            type: 'mortgage',
+                            amount: mortgage.monthlyPayment,
+                            currency: mortgage.currency,
+                            frequency: 'monthly',
+                            status: mortgage.status,
+                            icon: '🏠',
+                            color: '#10b981',
+                            isLinked: true,
+                            linkedEntityId: mortgage.id,
+                            linkedEntityType: 'mortgage'
+                        },
+                        isPaid
+                    });
+                }
             }
 
             return {
                 year: input.year,
                 month: input.month,
                 daysInMonth: endOfMonth.getDate(),
-                data: calendarData,
-                subscriptions: activeSubscriptions
+                data: calendarData
             };
         }),
 });
