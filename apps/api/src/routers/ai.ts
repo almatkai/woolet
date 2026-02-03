@@ -1,9 +1,10 @@
 import { router, protectedProcedure } from '../lib/trpc';
 import { digestService } from '../services/ai/digest-service';
 import { anomalyService } from '../services/ai/anomaly-service';
+import { AiConfigService } from '../services/ai/ai-config-service';
 import { db } from '../db';
-import { transactions, portfolioHoldings, accounts, currencyBalances, chatSessions, chatMessages, banks } from '../db/schema';
-import { createChatCompletionWithFallback, MODEL_FLASH } from '../lib/ai';
+import { transactions, portfolioHoldings, accounts, currencyBalances, chatSessions, chatMessages, banks, marketDigests, aiConfig } from '../db/schema';
+import { createChatCompletionWithFallback, MODEL_FLASH, checkPromptGuard, getAiStatus } from '../lib/ai';
 import { desc, eq, and, gte, lte, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
@@ -89,6 +90,15 @@ export const aiRouter = router({
                 });
             }
 
+            // Check for prompt injection
+            const guard = await checkPromptGuard(input.specs);
+            if (!guard.isSafe) {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: "Looks like you are trying to prompt inject, huh? 🤨"
+                });
+            }
+
             const digestLength = getAiDigestLength(userTier) || 'complete';
             const digest = await digestService.regenerateDigest(ctx.userId!, digestLength, input.specs);
             const remainingRegenerations = await digestService.getRemainingCustomDigestCount(ctx.userId!);
@@ -152,6 +162,15 @@ export const aiRouter = router({
         .mutation(async ({ ctx, input }) => {
             const userId = ctx.userId!;
             let sessionId = input.sessionId;
+
+            // Check for prompt injection
+            const guard = await checkPromptGuard(input.message);
+            if (!guard.isSafe) {
+                return {
+                    response: "Looks like you are trying to prompt inject, huh? 🤨",
+                    sessionId: sessionId || "blocked"
+                };
+            }
 
             // 1. Create session if needed
             if (!sessionId) {
@@ -349,5 +368,44 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                 console.error("AI Error:", error);
                 throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message || 'AI Service Error' });
             }
+        }),
+
+    // Admin endpoints for managing AI configuration
+    getAiConfig: protectedProcedure
+        .query(async ({ ctx }) => {
+            // TODO: Add admin check
+            const config = await AiConfigService.getConfig();
+            return config;
+        }),
+
+    updateAiConfig: protectedProcedure
+        .input(z.object({
+            providerOrder: z.array(z.enum(['openrouter', 'openai', 'gemini', 'groq'])).optional(),
+            defaultProvider: z.enum(['openrouter', 'openai', 'gemini', 'groq']).optional(),
+            modelSettings: z.object({
+                openrouter: z.object({ model: z.string(), enabled: z.boolean() }).optional(),
+                openai: z.object({ model: z.string(), enabled: z.boolean() }).optional(),
+                gemini: z.object({ model: z.string(), enabled: z.boolean() }).optional(),
+                groq: z.object({ model: z.string(), enabled: z.boolean() }).optional(),
+            }).optional(),
+            fallbackEnabled: z.boolean().optional(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            // TODO: Add admin check
+            const updatedConfig = await AiConfigService.updateConfig(input);
+            return updatedConfig;
+        }),
+
+    resetAiConfig: protectedProcedure
+        .mutation(async ({ ctx }) => {
+            // TODO: Add admin check
+            const resetConfig = await AiConfigService.resetToDefault();
+            return resetConfig;
+        }),
+
+    getAiStatus: protectedProcedure
+        .query(async ({ ctx }) => {
+            // TODO: Add admin check
+            return await getAiStatus();
         }),
 });

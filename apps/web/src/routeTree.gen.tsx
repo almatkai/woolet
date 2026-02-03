@@ -1,4 +1,3 @@
-
 import { createRootRoute, createRoute, Outlet, useLocation } from '@tanstack/react-router';
 import { SignedIn, useAuth } from '@clerk/clerk-react';
 import { cn } from '@/lib/utils';
@@ -21,6 +20,7 @@ import { LoginPage } from './routes/login';
 import { RegisterPage } from './routes/register';
 import { SSOCallbackPage } from './routes/sso-callback';
 import { PricingPage } from './routes/pricing';
+import AdminRoute from './routes/admin';
 // AccountPage no longer used as a route - now shown in dialog
 import { SettingsPage } from './routes/settings';
 
@@ -39,6 +39,20 @@ function RootLayout() {
     const isAuthRoute = location.pathname.startsWith('/login')
         || location.pathname.startsWith('/register')
         || location.pathname.startsWith('/sso-callback');
+    const isAdminRoute = location.pathname.startsWith('/admin');
+
+    // Admin route should have minimal layout
+    if (isAdminRoute) {
+        return (
+            <>
+                <PostHogUserIdentifier />
+                <PostHogPageviewTracker />
+                <main className="p-0">
+                    <Outlet />
+                </main>
+            </>
+        );
+    }
 
     return (
         <>
@@ -191,6 +205,12 @@ export const pricingRoute = createRoute({
     component: PricingPage,
 });
 
+export const adminRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin',
+    component: AdminRoute,
+});
+
 // Route tree
 export const routeTree = rootRoute.addChildren([
     indexRoute,
@@ -209,4 +229,5 @@ export const routeTree = rootRoute.addChildren([
     registerRoute,
     ssoCallbackRoute,
     pricingRoute,
+    adminRoute,
 ]);

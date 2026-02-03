@@ -27,3 +27,5 @@ export * from './widgetMetadata';
 export * from './userSettings';
 export * from './split-bills';
 export * from './market-digests';
+export * from './ai-config';
+export * from './ai-usage';

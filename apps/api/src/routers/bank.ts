@@ -3,48 +3,14 @@ import { eq, desc, and, count } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../lib/trpc';
 import { banks, accounts, currencyBalances } from '../db/schema';
+import { 
+    TIER_LIMITS, 
+    getSubscriptionConfig, 
+    formatLimit,
+    SubscriptionTier 
+} from '@woolet/shared';
 
-// Pricing tiers and limits
-export const TIER_LIMITS = {
-    free: { 
-        banks: 2, 
-        accountsPerBank: 2, 
-        currenciesPerAccount: 2,
-        transactionHistoryDays: 90,
-        totalStocks: 5,
-        aiQuestionsPerDay: 0, // 3 total lifetime, tracked separately
-        aiQuestionsLifetime: 3,
-        hasAiMarketDigest: false,
-        aiDigestRegeneratePerDay: 0,
-        hasCurrencyWidget: false,
-    },
-    pro: { 
-        banks: Infinity, 
-        accountsPerBank: Infinity, 
-        currenciesPerAccount: 5,
-        transactionHistoryDays: Infinity,
-        totalStocks: 20,
-        aiQuestionsPerDay: 5,
-        aiQuestionsLifetime: Infinity,
-        hasAiMarketDigest: true,
-        aiDigestLength: 'short', // 200-300 words
-        aiDigestRegeneratePerDay: 0,
-        hasCurrencyWidget: true,
-    },
-    premium: { 
-        banks: Infinity, 
-        accountsPerBank: Infinity, 
-        currenciesPerAccount: Infinity,
-        transactionHistoryDays: Infinity,
-        totalStocks: 1000,
-        aiQuestionsPerDay: 20,
-        aiQuestionsLifetime: Infinity,
-        hasAiMarketDigest: true,
-        aiDigestLength: 'complete', // 1000+ words
-        aiDigestRegeneratePerDay: 5,
-        hasCurrencyWidget: true,
-    }
-} as const;
+export { TIER_LIMITS };
 
 export const bankRouter = router({
     list: protectedProcedure
@@ -164,8 +130,9 @@ export const bankRouter = router({
     // Get current limits and usage with feature flags
     getLimitsAndUsage: protectedProcedure
         .query(async ({ ctx }) => {
-            const userTier = ctx.user.subscriptionTier || 'free';
-            const limits = TIER_LIMITS[userTier as keyof typeof TIER_LIMITS];
+            const userTier = (ctx.user.subscriptionTier || 'free') as SubscriptionTier;
+            const config = getSubscriptionConfig(userTier);
+            const legacyLimits = TIER_LIMITS[userTier as keyof typeof TIER_LIMITS];
             
             const [bankCount] = await ctx.db.select({ count: count() })
                 .from(banks)
@@ -176,19 +143,23 @@ export const bankRouter = router({
 
             return {
                 tier: userTier,
+                // New structured config
+                display: config.display,
+                features: config.features,
+                credits: config.credits,
+                dataLimits: config.limits,
+                // Legacy format for backward compatibility
                 limits: {
-                    banks: limits.banks === Infinity ? 'unlimited' : limits.banks,
-                    accountsPerBank: limits.accountsPerBank === Infinity ? 'unlimited' : limits.accountsPerBank,
-                    currenciesPerAccount: limits.currenciesPerAccount === Infinity ? 'unlimited' : limits.currenciesPerAccount,
-                    totalStocks: limits.totalStocks,
-                    aiQuestionsPerDay: limits.aiQuestionsPerDay,
-                    aiQuestionsLifetime: limits.aiQuestionsLifetime === Infinity ? 'unlimited' : limits.aiQuestionsLifetime,
-                    aiDigestRegeneratePerDay: limits.aiDigestRegeneratePerDay,
-                },
-                features: {
-                    hasCurrencyWidget: limits.hasCurrencyWidget,
-                    hasAiMarketDigest: limits.hasAiMarketDigest,
-                    aiDigestLength: 'aiDigestLength' in limits ? limits.aiDigestLength : null,
+                    banks: formatLimit(config.limits.maxBanks),
+                    accountsPerBank: formatLimit(config.limits.maxAccountsPerBank),
+                    currenciesPerAccount: formatLimit(config.limits.maxCurrenciesPerAccount),
+                    transactionHistoryDays: formatLimit(config.limits.transactionHistoryDays),
+                    totalStocks: config.limits.maxStocks,
+                    aiQuestionsPerDay: config.credits.aiChat.limit,
+                    aiQuestionsLifetime: config.credits.aiChat.lifetimeLimit 
+                        ? config.credits.aiChat.lifetimeLimit 
+                        : 'unlimited',
+                    aiDigestRegeneratePerDay: config.credits.aiDigestRegeneration.limit,
                 },
                 usage: {
                     banks: bankCount.count,

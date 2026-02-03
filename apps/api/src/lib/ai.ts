@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Groq from 'groq-sdk';
+import { AiConfigService } from '../services/ai/ai-config-service';
 
 type AiProvider = 'openrouter' | 'openai' | 'gemini' | 'groq';
 
@@ -12,10 +13,11 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const OPENROUTER_SITE_URL = process.env.OPENROUTER_SITE_URL;
 const OPENROUTER_APP_NAME = process.env.OPENROUTER_APP_NAME;
 
-const OPENROUTER_CHAT_MODEL = process.env.OPENROUTER_CHAT_MODEL || 'openrouter/auto';
-const OPENAI_CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
-const GROQ_CHAT_MODEL = process.env.GROQ_CHAT_MODEL || 'llama-3.3-70b-versatile';
+// Default values (used if DB config is not available)
+const DEFAULT_OPENROUTER_CHAT_MODEL = process.env.OPENROUTER_CHAT_MODEL || 'openrouter/auto';
+const DEFAULT_OPENAI_CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini';
+const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const DEFAULT_GROQ_CHAT_MODEL = process.env.GROQ_CHAT_MODEL || 'llama-3.1-8b-instant';
 
 const DEFAULT_PROVIDER_ORDER: AiProvider[] = (process.env.AI_PROVIDER_ORDER || 'openrouter,groq,openai,gemini')
     .split(',')
@@ -31,12 +33,26 @@ function isEnabled(provider: AiProvider): boolean {
     return false;
 }
 
-function enabledProviders(order: AiProvider[] = DEFAULT_PROVIDER_ORDER): AiProvider[] {
+function enabledProviders(order: AiProvider[] = DEFAULT_PROVIDER_ORDER, config?: {
+    modelSettings?: {
+        openrouter?: { enabled?: boolean };
+        openai?: { enabled?: boolean };
+        gemini?: { enabled?: boolean };
+        groq?: { enabled?: boolean };
+    };
+}): AiProvider[] {
     const seen = new Set<AiProvider>();
     const providers: AiProvider[] = order.length ? order : ['openrouter', 'groq', 'openai', 'gemini'];
     return providers.filter((p: AiProvider) => {
         if (seen.has(p)) return false;
         seen.add(p);
+        
+        // Check if provider is disabled in config
+        const isProviderDisabled = config?.modelSettings?.[p]?.enabled === false;
+        if (isProviderDisabled) {
+            return false;
+        }
+        
         return isEnabled(p);
     });
 }
@@ -88,8 +104,8 @@ export const groq = new Groq({
 export const gemini = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 
 // Backwards compatible defaults (previously used as OpenRouter model IDs)
-export const MODEL_FLASH = OPENROUTER_CHAT_MODEL;
-export const MODEL_PRO = OPENROUTER_CHAT_MODEL;
+export const MODEL_FLASH = DEFAULT_OPENROUTER_CHAT_MODEL;
+export const MODEL_PRO = DEFAULT_OPENROUTER_CHAT_MODEL;
 
 export async function createChatCompletionWithFallback(
     params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
@@ -97,11 +113,17 @@ export async function createChatCompletionWithFallback(
         providerOrder?: AiProvider[];
         models?: { openrouter?: string; openai?: string; groq?: string };
         purpose?: string;
+        config?: any;
     }
 ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
-    const providers = enabledProviders(opts?.providerOrder).filter(
+    // Load config if not provided
+    const aiConfig = opts?.config || await AiConfigService.getConfig();
+    
+    const providers = enabledProviders(opts?.providerOrder || aiConfig.providerOrder, aiConfig).filter(
         (p): p is 'openrouter' | 'openai' | 'groq' => p === 'openrouter' || p === 'openai' || p === 'groq'
     );
+
+    console.log(`[AI] Initializing chat completion (Purpose: ${opts?.purpose || 'none'}). Providers to attempt: ${providers.join(', ')}`);
 
     const errors: Array<{ provider: string; error: unknown }> = [];
 
@@ -110,18 +132,21 @@ export async function createChatCompletionWithFallback(
             const client = provider === 'openrouter' ? openrouter : (provider === 'openai' ? openai : (groq as any));
             const model =
                 provider === 'openrouter'
-                    ? (opts?.models?.openrouter || OPENROUTER_CHAT_MODEL)
+                    ? (opts?.models?.openrouter || aiConfig.modelSettings?.openrouter?.model || DEFAULT_OPENROUTER_CHAT_MODEL)
                     : provider === 'openai'
-                    ? (opts?.models?.openai || OPENAI_CHAT_MODEL)
-                    : (opts?.models?.groq || GROQ_CHAT_MODEL);
+                    ? (opts?.models?.openai || aiConfig.modelSettings?.openai?.model || DEFAULT_OPENAI_CHAT_MODEL)
+                    : (opts?.models?.groq || aiConfig.modelSettings?.groq?.model || DEFAULT_GROQ_CHAT_MODEL);
+
+            console.log(`[AI] Generating completion using ${provider.toUpperCase()} with model: ${model}${opts?.purpose ? ` (Purpose: ${opts.purpose})` : ''}`);
 
             return await client.chat.completions.create({
                 ...params,
                 model,
             });
         } catch (error) {
+            console.error(`[AI] ${provider.toUpperCase()} failed: ${summarizeError(error)}`);
             errors.push({ provider, error });
-            if (!shouldFallback(error)) break;
+            if (!shouldFallback(error) || aiConfig.fallbackEnabled === false) break;
         }
     }
 
@@ -143,17 +168,36 @@ export async function generateTextWithFallback(
     opts?: {
         providerOrder?: AiProvider[];
         models?: { openrouter?: string; openai?: string; gemini?: string; groq?: string };
+        config?: {
+            modelSettings?: {
+                openrouter?: { model: string; enabled?: boolean };
+                openai?: { model: string; enabled?: boolean };
+                gemini?: { model: string; enabled?: boolean };
+                groq?: { model: string; enabled?: boolean };
+            };
+            providerOrder?: AiProvider[];
+            fallbackEnabled?: boolean;
+        };
     }
 ): Promise<{ text: string; provider: AiProvider; model: string }>
 {
-    const providers = enabledProviders(opts?.providerOrder);
+    // Load config if not provided
+    const aiConfig = opts?.config || await AiConfigService.getConfig();
+    
+    const providers = enabledProviders(opts?.providerOrder || aiConfig.providerOrder, aiConfig);
+
+    console.log(`[AI] Initializing text generation (Purpose: ${input?.purpose || 'none'}). Providers to attempt: ${providers.join(', ')}`);
+    
     const errors: Array<{ provider: AiProvider; error: unknown }> = [];
 
     for (const provider of providers) {
         try {
             if (provider === 'gemini') {
                 if (!gemini) throw new Error('Gemini client not configured');
-                const model = opts?.models?.gemini || GEMINI_MODEL;
+                const model = opts?.models?.gemini || aiConfig.modelSettings?.gemini?.model || DEFAULT_GEMINI_MODEL;
+                
+                console.log(`[AI] Generating text using GEMINI with model: ${model}${input.purpose ? ` (Purpose: ${input.purpose})` : ''}`);
+                
                 const modelClient = gemini.getGenerativeModel({ model });
                 const prompt = input.system
                     ? `System:\n${input.system}\n\nUser:\n${input.prompt}`
@@ -182,17 +226,19 @@ export async function generateTextWithFallback(
                         groq: opts?.models?.groq,
                     },
                     purpose: input.purpose,
+                    config: aiConfig,
                 }
             );
             const text = completion.choices[0]?.message?.content || '';
             const modelUsed = (completion as any)?.model || 
-                (provider === 'openrouter' ? OPENROUTER_CHAT_MODEL : 
-                 provider === 'openai' ? OPENAI_CHAT_MODEL : 
-                 GROQ_CHAT_MODEL);
+                (provider === 'openrouter' ? aiConfig.modelSettings?.openrouter?.model || DEFAULT_OPENROUTER_CHAT_MODEL : 
+                 provider === 'openai' ? aiConfig.modelSettings?.openai?.model || DEFAULT_OPENAI_CHAT_MODEL : 
+                 aiConfig.modelSettings?.groq?.model || DEFAULT_GROQ_CHAT_MODEL);
             return { text, provider, model: modelUsed };
         } catch (error) {
+            console.error(`[AI] ${provider.toUpperCase()} (Text) failed: ${summarizeError(error)}`);
             errors.push({ provider, error });
-            if (!shouldFallback(error)) break;
+            if (!shouldFallback(error) || aiConfig.fallbackEnabled === false) break;
         }
     }
 
@@ -204,20 +250,79 @@ export async function generateTextWithFallback(
     throw new Error(message);
 }
 
-export function getAiStatus() {
-    return {
-        enabled: {
-            openrouter: Boolean(OPENROUTER_API_KEY),
-            openai: Boolean(OPENAI_API_KEY),
-            gemini: Boolean(GEMINI_API_KEY),
-            groq: Boolean(GROQ_API_KEY),
-        },
-        models: {
-            openrouter: OPENROUTER_CHAT_MODEL,
-            openai: OPENAI_CHAT_MODEL,
-            gemini: GEMINI_MODEL,
-            groq: GROQ_CHAT_MODEL,
-        },
-        providerOrder: DEFAULT_PROVIDER_ORDER,
-    };
+export async function getAiStatus() {
+    try {
+        const config = await AiConfigService.getConfig();
+        return {
+            enabled: {
+                openrouter: Boolean(OPENROUTER_API_KEY) && config.modelSettings?.openrouter?.enabled !== false,
+                openai: Boolean(OPENAI_API_KEY) && config.modelSettings?.openai?.enabled !== false,
+                gemini: Boolean(GEMINI_API_KEY) && config.modelSettings?.gemini?.enabled !== false,
+                groq: Boolean(GROQ_API_KEY) && config.modelSettings?.groq?.enabled !== false,
+            },
+            models: {
+                openrouter: config.modelSettings?.openrouter?.model || DEFAULT_OPENROUTER_CHAT_MODEL,
+                openai: config.modelSettings?.openai?.model || DEFAULT_OPENAI_CHAT_MODEL,
+                gemini: config.modelSettings?.gemini?.model || DEFAULT_GEMINI_MODEL,
+                groq: config.modelSettings?.groq?.model || DEFAULT_GROQ_CHAT_MODEL,
+            },
+            providerOrder: config.providerOrder || DEFAULT_PROVIDER_ORDER,
+            defaultProvider: config.defaultProvider,
+            fallbackEnabled: config.fallbackEnabled,
+        };
+    } catch (error) {
+        console.error('Failed to fetch AI config:', error);
+        return {
+            enabled: {
+                openrouter: Boolean(OPENROUTER_API_KEY),
+                openai: Boolean(OPENAI_API_KEY),
+                gemini: Boolean(GEMINI_API_KEY),
+                groq: Boolean(GROQ_API_KEY),
+            },
+            models: {
+                openrouter: DEFAULT_OPENROUTER_CHAT_MODEL,
+                openai: DEFAULT_OPENAI_CHAT_MODEL,
+                gemini: DEFAULT_GEMINI_MODEL,
+                groq: DEFAULT_GROQ_CHAT_MODEL,
+            },
+            providerOrder: DEFAULT_PROVIDER_ORDER,
+            defaultProvider: 'openrouter',
+            fallbackEnabled: true,
+        };
+    }
+}
+
+export async function checkPromptGuard(content: string): Promise<{ isSafe: boolean; score: number }> {
+    if (!GROQ_API_KEY) {
+        return { isSafe: true, score: 0 };
+    }
+
+    try {
+        console.log(`[AI] Running Prompt Guard check using GROQ with model: meta-llama/llama-prompt-guard-2-86m`);
+        const completion = await groq.chat.completions.create({
+            model: "meta-llama/llama-prompt-guard-2-86m",
+            messages: [
+                {
+                    role: "user",
+                    content: content
+                }
+            ],
+            temperature: 1,
+            max_completion_tokens: 1,
+            top_p: 1,
+            stream: false,
+            stop: null
+        } as any);
+
+        const textResult = completion.choices[0].message.content || "0";
+        const score = parseFloat(textResult);
+
+        return {
+            isSafe: score <= 0.93,
+            score
+        };
+    } catch (error) {
+        console.error('Prompt guard check failed:', error);
+        return { isSafe: true, score: 0 };
+    }
 }

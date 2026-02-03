@@ -2,7 +2,7 @@ import { db } from '../db';
 import { aiUsage } from '../db/schema/ai-usage';
 import { eq, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
-import { TIER_LIMITS } from '../routers/bank';
+import { TIER_LIMITS, getCreditLimit, getSubscriptionConfig } from '@woolet/shared';
 
 type TierKey = keyof typeof TIER_LIMITS;
 
@@ -13,7 +13,8 @@ export class AIUsageService {
      */
     async checkAndIncrementUsage(userId: string, userTier: string): Promise<void> {
         const tier = (userTier || 'free') as TierKey;
-        const limits = TIER_LIMITS[tier];
+        const config = getSubscriptionConfig(tier);
+        const creditConfig = getCreditLimit(tier, 'aiChat');
 
         // Get or create usage record
         let usage = await db.query.aiUsage.findFirst({
@@ -39,18 +40,19 @@ export class AIUsageService {
         let currentDaily = needsReset ? 0 : usage.questionCountToday;
         let currentLifetime = usage.questionCountLifetime;
 
-        // Check limits based on tier
+        // Check limits based on tier using new config
         if (tier === 'free') {
             // Free tier: Check lifetime limit
-            if (currentLifetime >= limits.aiQuestionsLifetime) {
+            const lifetimeLimit = creditConfig.lifetimeLimit ?? 3;
+            if (currentLifetime >= lifetimeLimit) {
                 throw new TRPCError({
                     code: 'FORBIDDEN',
-                    message: `You've used all ${limits.aiQuestionsLifetime} free AI questions. Upgrade to Pro ($8/month) for 5 questions per day!`
+                    message: `You've used all ${lifetimeLimit} free AI questions. Upgrade to Pro ($8/month) for 5 questions per day!`
                 });
             }
         } else {
             // Pro/Premium: Check daily limit
-            const dailyLimit = limits.aiQuestionsPerDay;
+            const dailyLimit = creditConfig.limit;
             if (currentDaily >= dailyLimit) {
                 const nextTier = tier === 'pro' ? 'Premium ($20/month) for 20 questions/day' : 'maximum daily limit';
                 throw new TRPCError({
@@ -83,7 +85,7 @@ export class AIUsageService {
         remainingLifetime: number | 'unlimited';
     }> {
         const tier = (userTier || 'free') as TierKey;
-        const limits = TIER_LIMITS[tier];
+        const creditConfig = getCreditLimit(tier, 'aiChat');
 
         let usage = await db.query.aiUsage.findFirst({
             where: eq(aiUsage.userId, userId)
@@ -102,8 +104,8 @@ export class AIUsageService {
         const lastReset = usage.lastResetDate.toISOString().split('T')[0];
         const currentDaily = today === lastReset ? usage.questionCountToday : 0;
 
-        const dailyLimit = tier === 'free' ? 0 : limits.aiQuestionsPerDay;
-        const lifetimeLimit = limits.aiQuestionsLifetime;
+        const dailyLimit = tier === 'free' ? 0 : creditConfig.limit;
+        const lifetimeLimit = creditConfig.lifetimeLimit ?? Infinity;
 
         return {
             daily: currentDaily,
@@ -134,5 +136,4 @@ export class AIUsageService {
             .where(sql`last_reset_date < CURRENT_DATE`);
     }
 }
-
 export const aiUsageService = new AIUsageService();
