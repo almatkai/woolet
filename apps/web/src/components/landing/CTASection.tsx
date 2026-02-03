@@ -48,9 +48,9 @@ export function CTASection() {
                         <span>© {new Date().getFullYear()}</span>
                     </div>
                     <div className="flex items-center gap-6">
-                        <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
-                        <a href="#" className="hover:text-foreground transition-colors">Terms</a>
-                        <a href="#" className="hover:text-foreground transition-colors">Contact</a>
+                        <a href="/privacy" className="hover:text-foreground transition-colors">Privacy</a>
+                        <a href="/terms" className="hover:text-foreground transition-colors">Terms</a>
+                        <a href="/cookies" className="hover:text-foreground transition-colors">Cookies</a>
                     </div>
                 </div>
             </div>

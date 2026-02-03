@@ -6,7 +6,7 @@ describe("User Router", () => {
     test("me should return the current user", async () => {
         const mockUser = {
             id: "test-user-id",
-            email: "test@example.com",
+            email: "woolet.app@gmail.com",
             name: "Test User",
             defaultCurrency: "USD",
         };
@@ -34,7 +34,7 @@ describe("User Router", () => {
     test("update should update user details", async () => {
          const mockUser = {
             id: "test-user-id",
-            email: "test@example.com",
+            email: "woolet.app@gmail.com",
             name: "Old Name",
             defaultCurrency: "USD",
         };

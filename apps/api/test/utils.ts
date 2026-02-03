@@ -4,7 +4,7 @@ import type { Context } from '../src/lib/trpc';
 export const createMockContext = (overrides: Partial<Context> = {}): Context => {
     const defaultUser = {
         id: overrides.userId || 'test-user-id',
-        email: 'test@example.com',
+        email: 'woolet.app@gmail.com',
         name: 'Test User',
         defaultCurrency: 'USD',
         subscriptionTier: 'free',

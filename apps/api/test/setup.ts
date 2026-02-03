@@ -6,7 +6,7 @@ console.log("DEBUG: Loading test setup...");
 mock.module("../src/db", () => ({
     db: {
         query: {
-            users: { findFirst: mock(() => Promise.resolve({ id: 'test-user-id', email: 'test@example.com' })) },
+            users: { findFirst: mock(() => Promise.resolve({ id: 'test-user-id', email: 'woolet.app@gmail.com' })) },
             stocks: { findFirst: mock(() => Promise.resolve(null)) },
             portfolioHoldings: { findFirst: mock(() => Promise.resolve(null)) },
             investmentTransactions: { findFirst: mock(() => Promise.resolve(null)) },
