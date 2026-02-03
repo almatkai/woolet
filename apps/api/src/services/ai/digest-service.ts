@@ -1,4 +1,4 @@
-import { desc, eq, and, gte, count } from 'drizzle-orm';
+import { desc, asc, eq, and, gte, count } from 'drizzle-orm';
 import crypto from 'crypto';
 import { db } from '../../db';
 import { stockPrices, portfolioHoldings, marketDigests } from '../../db/schema';
@@ -96,9 +96,9 @@ export class DigestService {
         }
     }
 
-    async getDailyDigest(userId: string, digestLength: 'short' | 'complete'): Promise<string> {
-        const digestDate = this.getTodayDate();
-        const cacheKey = CACHE_KEYS.marketDigestDaily(userId, digestDate);
+    async getDailyDigest(userId: string, digestLength: 'short' | 'complete', digestDate?: string): Promise<string> {
+        const targetDate = digestDate || this.getTodayDate();
+        const cacheKey = CACHE_KEYS.marketDigestDaily(userId, targetDate);
         const lockKey = `${cacheKey}:lock`;
 
         try {
@@ -113,7 +113,7 @@ export class DigestService {
             const existing = await db.query.marketDigests.findFirst({
                 where: and(
                     eq(marketDigests.userId, userId),
-                    eq(marketDigests.digestDate, digestDate),
+                    eq(marketDigests.digestDate, targetDate),
                     eq(marketDigests.kind, DAILY_KIND)
                 )
             });
@@ -134,7 +134,7 @@ export class DigestService {
                 await cache.set(cacheKey, PENDING_DIGEST, DAILY_DIGEST_LOCK_TTL_SECONDS);
                 
                 // Start generation in background (don't await - let it complete async)
-                this.generateAndStoreDailyDigest(userId, digestLength, digestDate, cacheKey, lockKey)
+                this.generateAndStoreDailyDigest(userId, digestLength, targetDate, cacheKey, lockKey)
                     .catch((error) => {
                         console.error(`[DigestService] ❌ Background LLM generation failed for user ${userId}:`, error);
                         // Clear the pending state on failure
@@ -155,7 +155,7 @@ export class DigestService {
                     GlitchTip.captureMessage('Digest generation lock expired without result', {
                         level: 'warning',
                         tags: { service: 'digest-generation' },
-                        extra: { userId, digestDate },
+                        extra: { userId, digestDate: targetDate },
                     });
                     
                     throw new TRPCError({
@@ -171,7 +171,7 @@ export class DigestService {
             
             GlitchTip.captureException(error, {
                 tags: { service: 'digest-service', method: 'getDailyDigest' },
-                extra: { userId, digestLength },
+                extra: { userId, digestLength, digestDate: targetDate },
             });
             
             throw new TRPCError({
@@ -181,27 +181,27 @@ export class DigestService {
         }
     }
 
-    async regenerateDigest(userId: string, digestLength: 'short' | 'complete', specs: string): Promise<string> {
-        const digestDate = this.getTodayDate();
+    async cacheDigestForDate(userId: string, digestDate: string, digest: string): Promise<void> {
+        const cacheKey = CACHE_KEYS.marketDigestDaily(userId, digestDate);
+        await cache.set(cacheKey, digest, this.getSecondsUntilEndOfDay());
+    }
+
+    async regenerateDigest(userId: string, digestLength: 'short' | 'complete', specs: string, digestDateInput?: string): Promise<string> {
+        const todayUtc = this.getTodayDate();
+        const todayLocal = new Date().toLocaleDateString('en-CA');
+        const digestDate = digestDateInput && (digestDateInput === todayUtc || digestDateInput === todayLocal)
+            ? digestDateInput
+            : todayUtc;
         const trimmedSpecs = specs.trim();
 
-        console.log(`[DigestService] Regenerate request from user ${userId} with specs: ${trimmedSpecs.substring(0, 50)}...`);
+        console.log(`[DigestService] Follow-up request from user ${userId} with question: ${trimmedSpecs.substring(0, 50)}...`);
 
 
-        if (trimmedSpecs.length < 5) {
+        if (trimmedSpecs.length < 3) {
             throw new TRPCError({
                 code: 'BAD_REQUEST',
-                message: 'Please add a bit more detail for your custom digest.'
+                message: 'Please ask a valid question.'
             });
-        }
-
-        const specsHash = this.getSpecsHash(trimmedSpecs);
-        const cacheKey = CACHE_KEYS.marketDigestCustom(userId, digestDate, specsHash);
-
-        const cached = await cache.get<string>(cacheKey);
-        if (cached) {
-            console.log(`[DigestService] 💾 CACHE HIT for custom digest user ${userId} (${cached.length} chars)`);
-            return cached;
         }
 
         const [existingCount] = await db.select({ count: count() })
@@ -215,14 +215,59 @@ export class DigestService {
         if (Number(existingCount.count) >= MAX_CUSTOM_DIGESTS_PER_DAY) {
             throw new TRPCError({
                 code: 'FORBIDDEN',
-                message: `Daily digest regeneration limit reached (${MAX_CUSTOM_DIGESTS_PER_DAY}). Try again tomorrow.`
+                message: `Daily follow-up limit reached (${MAX_CUSTOM_DIGESTS_PER_DAY}). Try again tomorrow.`
             });
         }
 
         try {
-            console.log(`[DigestService] 🤖 Starting LLM generation for custom digest user ${userId}`);
+            // Get original digest for context
+            const dailyDigest = await db.query.marketDigests.findFirst({
+                where: and(
+                    eq(marketDigests.userId, userId),
+                    eq(marketDigests.digestDate, digestDate),
+                    eq(marketDigests.kind, 'daily')
+                )
+            });
+
+            // Get previous follow-ups for conversation history
+            const prevFollowUps = await db.query.marketDigests.findMany({
+                where: and(
+                    eq(marketDigests.userId, userId),
+                    eq(marketDigests.digestDate, digestDate),
+                    eq(marketDigests.kind, CUSTOM_KIND)
+                ),
+                orderBy: [asc(marketDigests.createdAt)]
+            });
+
+            console.log(`[DigestService] 🤖 Starting LLM response for follow-up user ${userId}`);
             const startTime = Date.now();
-            const digest = await this.generateDigestText(userId, digestLength, trimmedSpecs);
+            
+            // Construct follow-up prompt
+            const historyText = prevFollowUps.map(f => `User: ${f.specs}\nWoo: ${f.content}`).join('\n\n');
+            const prompt = `
+You are Woo, a smart financial assistant. 
+The user is reading their "Market Insight Digest" for ${digestDate}.
+Original Digest Content:
+---
+${dailyDigest?.content || 'No digest content yet.'}
+---
+
+${historyText ? `Previous Conversation:\n${historyText}\n\n` : ''}
+User Question: "${trimmedSpecs}"
+
+Rules:
+1. Answer the user's question concisely and helpfully based on the digest content or general market knowledge.
+2. Maintain a friendly and professional tone.
+3. Format the response in Markdown with emojis.
+4. Do NOT give financial advice.
+5. Keep it under 200 words.
+`;
+
+            const { text: answer } = await generateTextWithFallback({
+                purpose: 'digest-followup',
+                prompt,
+            });
+
             const duration = Date.now() - startTime;
 
             await db.insert(marketDigests).values({
@@ -230,15 +275,13 @@ export class DigestService {
                 digestDate,
                 kind: CUSTOM_KIND,
                 specs: trimmedSpecs,
-                specsHash,
-                content: digest,
+                content: answer,
             });
 
-            await cache.set(cacheKey, digest, this.getSecondsUntilEndOfDay());
-            console.log(`[DigestService] ✅ Custom digest generated via LLM in ${duration}ms for user ${userId} (${digest.length} chars)`);
-            return digest;
+            console.log(`[DigestService] ✅ Follow-up generated via LLM in ${duration}ms for user ${userId}`);
+            return answer;
         } catch (error) {
-            console.error(`[DigestService] ❌ Error regenerating digest for user ${userId}:`, error);
+            console.error(`[DigestService] ❌ Error generating follow-up for user ${userId}:`, error);
             
             GlitchTip.captureException(error, {
                 tags: {
@@ -253,13 +296,17 @@ export class DigestService {
             
             throw new TRPCError({
                 code: 'INTERNAL_SERVER_ERROR',
-                message: 'Failed to generate custom digest. Our team has been notified.',
+                message: 'Failed to generate response. Our team has been notified.',
             });
         }
     }
 
-    async getRemainingCustomDigestCount(userId: string): Promise<number> {
-        const digestDate = this.getTodayDate();
+    async getRemainingCustomDigestCount(userId: string, digestDateInput?: string): Promise<number> {
+        const todayUtc = this.getTodayDate();
+        const todayLocal = new Date().toLocaleDateString('en-CA');
+        const digestDate = digestDateInput && (digestDateInput === todayUtc || digestDateInput === todayLocal)
+            ? digestDateInput
+            : todayUtc;
         const [existingCount] = await db.select({ count: count() })
             .from(marketDigests)
             .where(and(

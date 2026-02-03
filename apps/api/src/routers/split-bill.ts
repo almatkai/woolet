@@ -96,6 +96,65 @@ export const splitBillRouter = router({
             return splits;
         }),
 
+    // Get summary of who owes how much
+    getOwedSummary: protectedProcedure
+        .query(async ({ ctx }) => {
+            const participants = await ctx.db.query.splitParticipants.findMany({
+                where: eq(splitParticipants.userId, ctx.userId!),
+            });
+
+            if (participants.length === 0) {
+                return { total: 0, byParticipant: [] };
+            }
+
+            const participantIds = participants.map(p => p.id);
+
+            const splits = await ctx.db.query.transactionSplits.findMany({
+                where: and(
+                    inArray(transactionSplits.participantId, participantIds),
+                    ne(transactionSplits.status, 'settled')
+                ),
+                with: {
+                    participant: true,
+                }
+            });
+
+            const summaryByParticipant: Record<string, {
+                participant: any;
+                totalOwed: number;
+                totalPaid: number;
+                remaining: number;
+            }> = {};
+
+            let totalOwedToUser = 0;
+
+            for (const split of splits) {
+                const pId = split.participantId;
+                const owed = Number(split.owedAmount);
+                const paid = Number(split.paidAmount);
+                const remaining = owed - paid;
+
+                if (!summaryByParticipant[pId]) {
+                    summaryByParticipant[pId] = {
+                        participant: split.participant,
+                        totalOwed: 0,
+                        totalPaid: 0,
+                        remaining: 0,
+                    };
+                }
+
+                summaryByParticipant[pId].totalOwed += owed;
+                summaryByParticipant[pId].totalPaid += paid;
+                summaryByParticipant[pId].remaining += remaining;
+                totalOwedToUser += remaining;
+            }
+
+            return {
+                total: totalOwedToUser,
+                byParticipant: Object.values(summaryByParticipant).sort((a, b) => b.remaining - a.remaining),
+            };
+        }),
+
     // Create a new participant
     createParticipant: protectedProcedure
         .input(createSplitParticipantSchema)

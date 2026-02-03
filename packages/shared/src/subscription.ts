@@ -218,7 +218,7 @@ export const PREMIUM_CONFIG: SubscriptionConfig = {
         aiDigestLength: 'complete',
         highlights: [
             'Everything in Pro',
-            '20 AI questions per day',
+            '25 AI questions per day',
             'AI Market Insights (full)',
             '5 custom digest regenerations/day',
             '1000 stocks in portfolio',
@@ -242,7 +242,7 @@ export const PREMIUM_CONFIG: SubscriptionConfig = {
         hasCustomCategories: true,
     },
     credits: {
-        aiChat: { limit: 20, period: 'daily' },
+        aiChat: { limit: 25, period: 'daily' },
         aiDigestRegeneration: { limit: 5, period: 'daily' },
         stockAlerts: { limit: 10, period: 'monthly' },
         dataExports: { limit: Infinity, period: 'monthly' },

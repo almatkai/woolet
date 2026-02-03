@@ -2,30 +2,37 @@ import { router, protectedProcedure } from '../lib/trpc';
 import { digestService } from '../services/ai/digest-service';
 import { anomalyService } from '../services/ai/anomaly-service';
 import { AiConfigService } from '../services/ai/ai-config-service';
+import { AiUsageService } from '../services/ai/ai-usage-service';
 import { db } from '../db';
 import { transactions, portfolioHoldings, accounts, currencyBalances, chatSessions, chatMessages, banks, marketDigests, aiConfig } from '../db/schema';
 import { createChatCompletionWithFallback, MODEL_FLASH, checkPromptGuard, getAiStatus } from '../lib/ai';
-import { desc, eq, and, gte, lte, inArray } from 'drizzle-orm';
+import { desc, asc, eq, and, gte, lte, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { TIER_LIMITS } from './bank';
 import { getAiDigestLength } from '../lib/checkLimit';
+import { getCreditLimit } from '@woolet/shared';
 import { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions';
 
 export const aiRouter = router({
     getDailyDigest: protectedProcedure
-        .query(async ({ ctx }) => {
+        .input(z.object({ date: z.string().optional() }).optional())
+        .query(async ({ ctx, input }) => {
             const userTier = ctx.user.subscriptionTier || 'free';
             const limits = TIER_LIMITS[userTier as keyof typeof TIER_LIMITS];
+            const todayUtc = new Date().toISOString().split('T')[0];
+            const todayLocal = new Date().toLocaleDateString('en-CA');
+            const targetDate = input?.date || todayUtc;
+            const isToday = targetDate === todayUtc || targetDate === todayLocal;
 
-            console.log(`[AI Router] getDailyDigest request from user ${ctx.userId} - Tier: ${userTier}, hasAccess: ${limits.hasAiMarketDigest}`);
+            console.log(`[AI Router] getDailyDigest request from user ${ctx.userId} - Date: ${targetDate}, Tier: ${userTier}, hasAccess: ${limits.hasAiMarketDigest}`);
 
             if (!limits.hasAiMarketDigest) {
                 return {
                     locked: true,
                     userTier,
                     digest: null,
-                    digestDate: new Date().toISOString().split('T')[0],
+                    digestDate: targetDate,
                     canRegenerate: false,
                     remainingRegenerations: 0,
                     regenerationLimit: 0,
@@ -33,22 +40,63 @@ export const aiRouter = router({
                 };
             }
 
-            const digestLength = getAiDigestLength(userTier) || 'short';
-            const digest = await digestService.getDailyDigest(ctx.userId!, digestLength);
-            const canRegenerate = userTier === 'premium';
+            let digest: string | null | undefined;
+            if (isToday) {
+                const digestLength = getAiDigestLength(userTier) || 'short';
+                digest = await digestService.getDailyDigest(ctx.userId!, digestLength, targetDate);
+            } else {
+                const entry = await db.query.marketDigests.findFirst({
+                    where: and(
+                        eq(marketDigests.userId, ctx.userId!),
+                        eq(marketDigests.kind, 'daily'),
+                        eq(marketDigests.digestDate, targetDate)
+                    )
+                });
+                digest = entry?.content;
+                if (digest) {
+                    await digestService.cacheDigestForDate(ctx.userId!, targetDate, digest);
+                }
+            }
+
+            // Fetch follow-ups for this date
+            const followUps = await db.query.marketDigests.findMany({
+                where: and(
+                    eq(marketDigests.userId, ctx.userId!),
+                    eq(marketDigests.digestDate, targetDate),
+                    eq(marketDigests.kind, 'custom')
+                ),
+                orderBy: [asc(marketDigests.createdAt)]
+            });
+
+            const canRegenerate = userTier === 'premium' && isToday;
             const remainingRegenerations = canRegenerate
-                ? await digestService.getRemainingCustomDigestCount(ctx.userId!)
+                ? await digestService.getRemainingCustomDigestCount(ctx.userId!, targetDate)
                 : 0;
 
             return {
                 locked: false,
                 userTier,
                 digest,
-                digestDate: new Date().toISOString().split('T')[0],
+                followUps,
+                digestDate: targetDate,
                 canRegenerate,
                 remainingRegenerations,
-                regenerationLimit: 5,
+                regenerationLimit: (limits as any).aiDigestRegeneratePerDay || 0,
             };
+        }),
+
+    getAvailableDigestDates: protectedProcedure
+        .query(async ({ ctx }) => {
+            const entries = await db.query.marketDigests.findMany({
+                where: and(
+                    eq(marketDigests.userId, ctx.userId!),
+                    eq(marketDigests.kind, 'daily')
+                ),
+                columns: {
+                    digestDate: true,
+                }
+            });
+            return entries.map(e => e.digestDate);
         }),
 
     getDigestHistory: protectedProcedure
@@ -79,6 +127,7 @@ export const aiRouter = router({
     regenerateDigest: protectedProcedure
         .input(z.object({
             specs: z.string().min(5).max(500),
+            date: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             const userTier = ctx.user.subscriptionTier || 'free';
@@ -100,8 +149,8 @@ export const aiRouter = router({
             }
 
             const digestLength = getAiDigestLength(userTier) || 'complete';
-            const digest = await digestService.regenerateDigest(ctx.userId!, digestLength, input.specs);
-            const remainingRegenerations = await digestService.getRemainingCustomDigestCount(ctx.userId!);
+            const digest = await digestService.regenerateDigest(ctx.userId!, digestLength, input.specs, input.date);
+            const remainingRegenerations = await digestService.getRemainingCustomDigestCount(ctx.userId!, input.date);
 
             return {
                 digest,
@@ -115,6 +164,35 @@ export const aiRouter = router({
             return await anomalyService.detectSpendingAnomalies(ctx.userId!);
         }),
 
+    getChatUsage: protectedProcedure
+        .query(async ({ ctx }) => {
+            const userId = ctx.userId!;
+            const usage = await AiUsageService.getUsage(userId);
+            const userTier = ctx.user.subscriptionTier || 'free';
+            const creditConfig = getCreditLimit(userTier, 'aiChat');
+            
+            const tierTitle = userTier === 'premium' 
+                ? 'Woo Assistant' 
+                : userTier === 'pro' 
+                    ? 'Woo Assistant (Limited)' 
+                    : 'Woo Assistant (Trial)';
+
+            return {
+                usageToday: usage.questionCountToday,
+                usageLifetime: usage.questionCountLifetime,
+                limit: creditConfig.limit,
+                lifetimeLimit: creditConfig.lifetimeLimit,
+                tierTitle,
+                isLimited: userTier === 'pro',
+                isFull: userTier === 'premium',
+                remaining: creditConfig.limit > 0 
+                    ? Math.max(0, creditConfig.limit - usage.questionCountToday)
+                    : creditConfig.lifetimeLimit 
+                        ? Math.max(0, creditConfig.lifetimeLimit - usage.questionCountLifetime)
+                        : 0
+            };
+        }),
+
     listSessions: protectedProcedure
         .query(async ({ ctx }) => {
             return await db.query.chatSessions.findMany({
@@ -126,7 +204,7 @@ export const aiRouter = router({
 
     getSession: protectedProcedure
         .input(z.object({ sessionId: z.string().uuid() }))
-        .query(async ({ ctx, input }) => {
+        .mutation(async ({ ctx, input }) => {
             const session = await db.query.chatSessions.findFirst({
                 where: and(
                     eq(chatSessions.id, input.sessionId),
@@ -161,6 +239,32 @@ export const aiRouter = router({
         }))
         .mutation(async ({ ctx, input }) => {
             const userId = ctx.userId!;
+            const userTier = ctx.user.subscriptionTier || 'free';
+            const creditConfig = getCreditLimit(userTier, 'aiChat');
+            const usage = await AiUsageService.getUsage(userId);
+
+            // Check limits
+            if (creditConfig.limit > 0) {
+                if (usage.questionCountToday >= creditConfig.limit) {
+                    throw new TRPCError({
+                        code: 'FORBIDDEN',
+                        message: `You've reached your daily limit of ${creditConfig.limit} questions. Upgrade for more!`
+                    });
+                }
+            } else if (creditConfig.lifetimeLimit) {
+                if (usage.questionCountLifetime >= creditConfig.lifetimeLimit) {
+                    throw new TRPCError({
+                        code: 'FORBIDDEN',
+                        message: `You've used all ${creditConfig.lifetimeLimit} free trial questions. Upgrade to continue chatting with Woo!`
+                    });
+                }
+            } else {
+                throw new TRPCError({
+                    code: 'FORBIDDEN',
+                    message: 'AI Chat is not available for your current tier.'
+                });
+            }
+
             let sessionId = input.sessionId;
 
             // Check for prompt injection
@@ -171,6 +275,9 @@ export const aiRouter = router({
                     sessionId: sessionId || "blocked"
                 };
             }
+
+            // ... rest of the function ...
+            // I'll need to increment usage later in the function.
 
             // 1. Create session if needed
             if (!sessionId) {
@@ -259,6 +366,22 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                             required: ["startDate", "endDate"]
                         }
                     }
+                },
+                {
+                    type: "function",
+                    function: {
+                        name: "get_account_balance",
+                        description: "Get the current balance across all bank accounts and currencies. Useful when user asks 'How much money do I have?' or 'What is my balance?'",
+                        parameters: {
+                            type: "object",
+                            properties: {
+                                dummy: {
+                                    type: "string",
+                                    description: "Not used"
+                                }
+                            }
+                        }
+                    }
                 }
             ];
 
@@ -345,6 +468,38 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                                     tool_call_id: toolCall.id,
                                     content: JSON.stringify(toolResult)
                                 });
+                            } else if (toolCall.function.name === "get_account_balance") {
+                                // 1. Get user's banks with accounts and balances
+                                const userBalances = await db.query.banks.findMany({
+                                    where: eq(banks.userId, userId),
+                                    with: {
+                                        accounts: {
+                                            with: {
+                                                currencyBalances: true
+                                            }
+                                        }
+                                    }
+                                });
+
+                                const toolResult = {
+                                    banks: userBalances.map(b => ({
+                                        name: b.name,
+                                        accounts: b.accounts.map(a => ({
+                                            name: a.name,
+                                            type: a.type,
+                                            balances: a.currencyBalances.map(cb => ({
+                                                amount: cb.balance,
+                                                currency: cb.currencyCode
+                                            }))
+                                        }))
+                                    }))
+                                };
+
+                                messages.push({
+                                    role: "tool",
+                                    tool_call_id: toolCall.id,
+                                    content: JSON.stringify(toolResult)
+                                });
                             }
                         }
                         // Continue loop to get fresh response after tool outputs
@@ -361,6 +516,9 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                     role: 'model',
                     content: finalResponseText || "(No response)"
                 });
+
+                // Increment usage
+                await AiUsageService.incrementUsage(userId);
 
                 return { response: finalResponseText, sessionId };
 

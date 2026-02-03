@@ -139,10 +139,16 @@ export async function createChatCompletionWithFallback(
 
             console.log(`[AI] Generating completion using ${provider.toUpperCase()} with model: ${model}${opts?.purpose ? ` (Purpose: ${opts.purpose})` : ''}`);
 
-            return await client.chat.completions.create({
+            const requestParams = {
                 ...params,
                 model,
-            });
+            };
+
+            if (provider === 'groq' && requestParams.tools) {
+                console.log(`[AI] Groq Request Tools:`, JSON.stringify(requestParams.tools, null, 2));
+            }
+
+            return await client.chat.completions.create(requestParams);
         } catch (error) {
             console.error(`[AI] ${provider.toUpperCase()} failed: ${summarizeError(error)}`);
             errors.push({ provider, error });

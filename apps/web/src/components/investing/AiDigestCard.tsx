@@ -1,9 +1,9 @@
 import { trpc } from '@/lib/trpc';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Brain, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, X, Crown, ArrowRight, Rocket } from 'lucide-react';
+import { Brain, ChevronDown, ChevronUp, X, Crown, ArrowRight, Rocket, Calendar as CalendarIcon, Send } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import posthog from 'posthog-js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { useUser } from '@clerk/clerk-react';
 import { usePricing } from '@/components/PricingContext';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isSameDay } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 const STOCK_COLORS = [
     'text-red-600 dark:text-red-400',
@@ -48,18 +50,21 @@ export function AiDigestCard() {
     const { openPricing } = usePricing();
     const [isOpen, setIsOpen] = useState(true);
     const [customSpecs, setCustomSpecs] = useState('');
-    const [activeDigest, setActiveDigest] = useState<string | null>(null);
-    const [remainingRegenerations, setRemainingRegenerations] = useState<number | null>(null);
-    const [showLockedCard, setShowLockedCard] = useState(true);
+    const [showLockedCard, setShowLockedCard] = useState<boolean | null>(null);
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+    const [optimisticFollowUps, setOptimisticFollowUps] = useState<Array<{ id: string; specs: string; date: string }>>([]);
+    const [chatError, setChatError] = useState<string | null>(null);
+    const chatEndRef = useRef<HTMLDivElement>(null);
 
     // Load dismissed state from localStorage on mount
     useEffect(() => {
         if (user?.id) {
             const storageKey = `${LOCKED_CARD_STORAGE_KEY}_${user.id}`;
             const dismissed = localStorage.getItem(storageKey);
-            if (dismissed === 'true') {
-                setShowLockedCard(false);
-            }
+            setShowLockedCard(dismissed !== 'true');
+        } else {
+            setShowLockedCard(true);
         }
     }, [user?.id]);
 
@@ -74,64 +79,81 @@ export function AiDigestCard() {
     const { data: limitsData, isLoading: limitsLoading } = trpc.bank.getLimitsAndUsage.useQuery();
     const hasDigestAccessFrontend = !!limitsData?.features?.hasAiMarketDigest;
 
-    const { data, isLoading, error } = trpc.ai.getDailyDigest.useQuery(undefined, {
-        staleTime: 1000 * 60 * 60, // Cache for 1 hour
-        refetchOnWindowFocus: false,
-        refetchInterval: (result: any) => {
-            // If pending, poll every 5 seconds
-            if (result?.digest === '__PENDING__') return 5000;
-            return false;
-        },
-        enabled: !limitsLoading, // Always check backend for double verification
-        retry: 3,
+    const { data: availableDates } = trpc.ai.getAvailableDigestDates.useQuery(undefined, {
+        enabled: !limitsLoading && hasDigestAccessFrontend,
     });
 
-    const { data: historyData, refetch: refetchHistory } = trpc.ai.getDigestHistory.useQuery(undefined, {
-        enabled: !limitsLoading && hasDigestAccessFrontend,
-        staleTime: 1000 * 60 * 5,
-    });
-    
-    const [historyIndex, setHistoryIndex] = useState(0);
+    const isDateAvailable = (date: Date) => {
+        if (!availableDates) return isSameDay(date, new Date());
+        return isSameDay(date, new Date()) || availableDates.some(d => isSameDay(parseISO(d), date));
+    };
+
+    const { data, isLoading, error, refetch: refetchDigest } = trpc.ai.getDailyDigest.useQuery(
+        { date: format(selectedDate, 'yyyy-MM-dd') },
+        {
+            staleTime: 1000 * 60 * 60, // Cache for 1 hour
+            refetchOnWindowFocus: false,
+            refetchInterval: (result: any) => {
+                // If pending, poll every 5 seconds
+                if (result?.digest === '__PENDING__') return 5000;
+                return false;
+            },
+            enabled: !limitsLoading, // Always check backend for double verification
+            retry: 3,
+        }
+    );
 
     const regenerateMutation = trpc.ai.regenerateDigest.useMutation({
-        onSuccess: (result: { digest: string; remainingRegenerations: number }) => {
-            setActiveDigest(result.digest);
-            setRemainingRegenerations(result.remainingRegenerations);
-            setHistoryIndex(0);
-            refetchHistory();
+        onMutate: (variables) => {
+            const tempId = `temp-${Date.now()}`;
+            setOptimisticFollowUps((prev) => [
+                ...prev,
+                {
+                    id: tempId,
+                    specs: variables.specs,
+                    date: variables.date || format(selectedDate, 'yyyy-MM-dd'),
+                },
+            ]);
+        },
+        onSuccess: () => {
+            setCustomSpecs('');
+            setChatError(null);
+            setOptimisticFollowUps((prev) => prev.filter((fu) => fu.date !== format(selectedDate, 'yyyy-MM-dd')));
+            refetchDigest(); // This will fetch the new follow-ups
             posthog.capture('ai_digest_regenerated');
         },
         onError: (err: { message?: string }) => {
-            toast.error(err.message || 'Could not regenerate digest');
+            setOptimisticFollowUps((prev) => prev.filter((fu) => fu.date !== format(selectedDate, 'yyyy-MM-dd')));
+            const message = err.message || 'Could not send question';
+            if (message.toLowerCase().includes('limit')) {
+                setChatError('Sorry, you’ve run out of questions for today.');
+            }
+            toast.error(message);
         }
     });
 
-    useEffect(() => {
-        if (data?.digest && !data?.locked && historyIndex === 0) {
-            setActiveDigest(data.digest);
-            setRemainingRegenerations(data.remainingRegenerations);
-            posthog.capture('ai_digest_loaded');
-        }
-    }, [data, hasDigestAccessFrontend, historyIndex]);
-
-    useEffect(() => {
-        if (historyData && historyData.length > 0) {
-            const entry = historyData[historyIndex];
-            if (entry) {
-                setActiveDigest(entry.content);
-            }
-        }
-    }, [historyIndex, historyData]);
-
     const quickQuestions = [
-        'Which holdings are outperforming based on recent news and price action?*',
-        'Which holdings are under pressure or trending down this week?*',
-        'What are the biggest risk headlines affecting my portfolio today?*',
-        'Summarize macro events impacting my sectors and ETFs.*',
-        'Which tickers show elevated short interest headlines or bearish sentiment?*',
+        'How does this impact my portfolio?*',
+        'Any risks I should watch for?*',
+        'Summary for my biggest holdings?*',
+        'Macro events impacting semiconductors?*',
     ];
 
-    if (limitsLoading || isLoading) {
+    const isToday = isSameDay(selectedDate, new Date());
+    const selectedDateKey = format(selectedDate, 'yyyy-MM-dd');
+    const optimisticForDate = optimisticFollowUps.filter((fu) => fu.date === selectedDateKey);
+    const followUpItems = [
+        ...(data?.followUps || []).map((fu: any) => ({ ...fu, pending: false })),
+        ...optimisticForDate.map((fu) => ({ ...fu, content: null, pending: true })),
+    ];
+
+    useEffect(() => {
+        if (chatEndRef.current) {
+            chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+    }, [followUpItems.length]);
+
+    if (limitsLoading || isLoading || showLockedCard === null) {
         return (
             <Card className="col-span-1 md:col-span-2 lg:col-span-3">
                 <CardHeader>
@@ -231,8 +253,7 @@ export function AiDigestCard() {
     }
 
     const isTodayPending = data?.digest === '__PENDING__';
-    const hasTodayInHistory = historyData?.[0]?.digestDate === data?.digestDate;
-    const showPendingState = historyIndex === 0 && isTodayPending && !hasTodayInHistory;
+    const showPendingState = isToday && isTodayPending;
 
     if (error) {
         return (
@@ -269,47 +290,46 @@ export function AiDigestCard() {
                     </motion.div>
                     <div>
                         <CardTitle className="text-lg font-medium">Market Insight Digest 📊</CardTitle>
-                        {showPendingState ? (
-                            <p className="text-[10px] text-primary animate-pulse uppercase tracking-wider font-semibold">
-                                Generating Today's Insight...
-                            </p>
-                        ) : (
-                            historyData && historyData[historyIndex] && (
-                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                                    {format(parseISO(historyData[historyIndex].digestDate), 'MMMM d, yyyy')}
+                        <div className="flex items-center gap-2 mt-0.5">
+                            {showPendingState ? (
+                                <p className="text-[10px] text-primary animate-pulse uppercase tracking-wider font-semibold">
+                                    Generating Today's Insight...
                                 </p>
-                            )
-                        )}
+                            ) : (
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                                    {format(selectedDate, 'MMMM d, yyyy')}
+                                </p>
+                            )}
+                            
+                            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-4 w-4 rounded-full p-0 text-muted-foreground hover:text-primary"
+                                    >
+                                        <CalendarIcon className="h-3 w-3" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={selectedDate}
+                                        onSelect={(date) => {
+                                            if (date && isDateAvailable(date)) {
+                                                setSelectedDate(date);
+                                                setIsCalendarOpen(false);
+                                            }
+                                        }}
+                                        disabled={(date) => !isDateAvailable(date) || date > new Date()}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-1">
-                    {historyData && historyData.length > 1 && (
-                        <div className="flex items-center gap-1 mr-2 px-1 py-0.5 rounded-md bg-muted/50 border border-border/50">
-                            <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-6 w-6 rounded-sm hover:bg-background" 
-                                disabled={historyIndex >= historyData.length - 1}
-                                onClick={() => setHistoryIndex(prev => prev + 1)}
-                                title="Previous digest"
-                            >
-                                <ChevronLeft className="h-3 w-3" />
-                            </Button>
-                            <span className="text-[10px] font-medium min-w-[2.5rem] text-center">
-                                {historyIndex + 1} / {historyData.length}
-                            </span>
-                            <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-6 w-6 rounded-sm hover:bg-background" 
-                                disabled={historyIndex === 0}
-                                onClick={() => setHistoryIndex(prev => prev - 1)}
-                                title="Next digest"
-                            >
-                                <ChevronRight className="h-3 w-3" />
-                            </Button>
-                        </div>
-                    )}
                     <Button 
                         variant="ghost" 
                         size="sm" 
@@ -339,15 +359,16 @@ export function AiDigestCard() {
                                         Generating your personalized digest... This can take 1-2 minutes. We're analyzing your portfolio and gathering market insights.
                                     </p>
                                 </div>
-                            ) : (
+                            ) : data?.digest ? (
                                 <>
-                                    <div className="max-h-[450px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40 transition-colors">
-                                        <div className="prose prose-sm dark:prose-invert max-w-none text-zinc-900 dark:text-zinc-100">
-                                            {typeof activeDigest === 'string' && activeDigest.trim().length > 0 && (
+                                    <div className="max-h-[500px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40 transition-colors">
+                                        <div className="space-y-6">
+                                            {/* Original Digest */}
+                                            <div className="prose prose-sm dark:prose-invert max-w-none text-zinc-900 dark:text-zinc-100">
                                                 <ReactMarkdown
-                                                    children={activeDigest}
+                                                    children={data.digest}
                                                     components={{
-                                                        strong: ({ node, ...props }) => {
+                                                        strong: ({ ...props }) => {
                                                             const text = typeof props.children === 'string' 
                                                                 ? props.children 
                                                                 : Array.isArray(props.children) 
@@ -358,58 +379,130 @@ export function AiDigestCard() {
                                                         }
                                                     }}
                                                 />
+                                            </div>
+
+                                            {/* Follow-up Q&A Thread */}
+                                            {followUpItems.length > 0 && (
+                                                <div className="pt-4 border-t border-border/40 space-y-4">
+                                                    {followUpItems.map((fu: any) => (
+                                                        <div key={fu.id} className="space-y-3">
+                                                            <div className="flex justify-end">
+                                                                <div className="bg-primary/10 rounded-2xl rounded-tr-none px-4 py-2 max-w-[85%] border border-primary/20">
+                                                                    <p className="text-sm font-medium">{fu.specs}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex justify-start">
+                                                                <div className="bg-muted/50 rounded-2xl rounded-tl-none px-4 py-2 max-w-[85%] border border-border/50">
+                                                                    {fu.pending ? (
+                                                                        <div className="flex items-center gap-1 text-muted-foreground">
+                                                                            <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:-0.2s]" />
+                                                                            <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:-0.1s]" />
+                                                                            <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" />
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="prose prose-sm dark:prose-invert max-w-none text-zinc-900 dark:text-zinc-100">
+                                                                            <ReactMarkdown children={fu.content} />
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {chatError && (
+                                                        <div className="flex justify-start">
+                                                            <div className="bg-destructive/10 text-destructive rounded-2xl rounded-tl-none px-4 py-2 max-w-[85%] border border-destructive/20">
+                                                                <p className="text-sm font-medium">{chatError}</p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             )}
+                                            <div ref={chatEndRef} />
                                         </div>
                                     </div>
 
-                                    {historyIndex === 0 && data?.canRegenerate && (
+                                    {isToday && data?.canRegenerate && (
                                         <div className="mt-6 pt-6 border-t border-border/60">
-                                            <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
-                                                <div className="flex items-center justify-between">
-                                                    <p className="text-xs font-semibold text-muted-foreground">Customize digest (Premium)</p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {Math.max(0, remainingRegenerations ?? data.remainingRegenerations)}/{data.regenerationLimit} left today
+                                            <div className="rounded-2xl border border-border/60 bg-muted/30 p-4">
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <Crown className="h-3.5 w-3.5 text-amber-500" />
+                                                        <p className="text-xs font-semibold text-foreground">Follow-up Questions</p>
+                                                    </div>
+                                                    <p className="text-[10px] text-muted-foreground bg-background/50 px-2 py-0.5 rounded-full border border-border/50">
+                                                        {data.remainingRegenerations}/{data.regenerationLimit} left today
                                                     </p>
                                                 </div>
-                                                <div className="mt-2 flex flex-wrap gap-2">
+                                                
+                                                <div className="flex flex-wrap gap-2 mb-4">
                                                     {quickQuestions.map((question) => (
                                                         <Button
                                                             key={question}
                                                             type="button"
                                                             variant="outline"
                                                             size="sm"
-                                                            className="h-7 px-2 text-[11px]"
+                                                            className="h-7 px-2 text-[10px] rounded-full bg-background border-border/60 hover:bg-muted/50 hover:text-primary transition-colors"
                                                             onClick={() => setCustomSpecs(question.replace(/\*$/, '').trim())}
+                                                            disabled={regenerateMutation.isLoading}
                                                         >
-                                                            {question}
+                                                            {question.replace(/\*$/, '')}
                                                         </Button>
                                                     ))}
                                                 </div>
-                                                <Textarea
-                                                    value={customSpecs}
-                                                    onChange={(event) => setCustomSpecs(event.target.value)}
-                                                    placeholder="Add your focus or question (e.g., highlight semiconductor news or ETFs)..."
-                                                    className="mt-3 min-h-[70px] text-xs"
-                                                />
-                                                <div className="mt-2 flex items-center justify-between">
-                                                    <p className="text-[11px] text-muted-foreground">* News-based insights only, not recommendations.</p>
+
+                                                <div className="relative">
+                                                    <Textarea
+                                                        value={customSpecs}
+                                                        onChange={(event) => setCustomSpecs(event.target.value)}
+                                                        placeholder="Ask Woo about this digest..."
+                                                        className="min-h-[80px] text-sm rounded-xl pr-12 focus-visible:ring-1 focus-visible:ring-primary/30 resize-none bg-background/80"
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter' && !e.shiftKey && customSpecs.trim().length >= 3) {
+                                                                e.preventDefault();
+                                                                regenerateMutation.mutate({ specs: customSpecs, date: format(selectedDate, 'yyyy-MM-dd') });
+                                                            }
+                                                        }}
+                                                    />
                                                     <Button
                                                         type="button"
-                                                        size="sm"
+                                                        size="icon"
+                                                        className="absolute bottom-2 right-2 h-8 w-8 rounded-lg shadow-sm"
                                                         disabled={
                                                             regenerateMutation.isLoading ||
-                                                            (remainingRegenerations ?? data.remainingRegenerations) <= 0 ||
-                                                            customSpecs.trim().length < 5
+                                                            data.remainingRegenerations <= 0 ||
+                                                            customSpecs.trim().length < 3
                                                         }
-                                                        onClick={() => regenerateMutation.mutate({ specs: customSpecs })}
+                                                        onClick={() => regenerateMutation.mutate({ specs: customSpecs, date: format(selectedDate, 'yyyy-MM-dd') })}
                                                     >
-                                                        {regenerateMutation.isLoading ? 'Regenerating...' : 'Regenerate'}
+                                                        {regenerateMutation.isLoading ? (
+                                                            <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                        ) : (
+                                                            <Send className="h-4 w-4" />
+                                                        )}
                                                     </Button>
                                                 </div>
+                                                <p className="text-[10px] text-muted-foreground mt-2 italic text-center">
+                                                    * News-based insights only, not recommendations.
+                                                </p>
                                             </div>
                                         </div>
                                     )}
+
+                                    {!isToday && (
+                                        <div className="mt-4 pt-4 border-t border-border/40 flex justify-center">
+                                            <p className="text-xs text-muted-foreground italic bg-muted/30 px-3 py-1.5 rounded-full border border-border/50">
+                                                Go back to <span className="font-medium cursor-pointer text-primary hover:underline" onClick={() => setSelectedDate(new Date())}>Today</span> to ask follow-up questions.
+                                            </p>
+                                        </div>
+                                    )}
                                 </>
+                            ) : (
+                                <div className="py-8 text-center">
+                                    <div className="bg-muted/30 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3">
+                                        <Brain className="h-6 w-6 text-muted-foreground/50" />
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">No digest found for this date.</p>
+                                </div>
                             )}
                         </CardContent>
                     </motion.div>

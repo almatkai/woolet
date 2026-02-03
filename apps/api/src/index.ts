@@ -11,9 +11,15 @@ import { rateLimitMiddleware } from './middleware/rate-limit';
 import { startCurrencyRatesCron } from './jobs/currency-rates';
 import { logger } from './lib/logger';
 import { initErrorTracking, GlitchTip } from './lib/error-tracking';
+import { runMigrations } from './db/migrate';
 
 // Initialize Error Tracking (GlitchTip)
 initErrorTracking();
+
+// Run migrations on startup
+runMigrations().catch((err) => {
+    logger.error('Startup migration failed', err);
+});
 
 const app = new Hono();
 

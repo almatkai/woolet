@@ -63,6 +63,9 @@ export function AiChatSidebarItem() {
     }, [isOpen, hasSentMessage]);
 
     // Queries
+    const { data: usage } = trpc.ai.getChatUsage.useQuery(undefined, {
+        enabled: isOpen,
+    });
     const { data: sessions, isLoading: isHistoryLoading } = trpc.ai.listSessions.useQuery(undefined, {
         enabled: isOpen && view === 'history',
     });
@@ -75,10 +78,12 @@ export function AiChatSidebarItem() {
                 setCurrentSessionId(data.sessionId);
                 utils.ai.listSessions.invalidate();
             }
+            utils.ai.getChatUsage.invalidate();
         },
         onError: (error: any) => {
             console.error(error);
-            setMessages(prev => [...prev, { role: 'model', text: 'Sorry, I encountered an error. Try again!' }]);
+            const message = error.message || 'Sorry, I encountered an error. Try again!';
+            setMessages(prev => [...prev, { role: 'model', text: message }]);
         }
     });
 
@@ -663,7 +668,16 @@ export function AiChatSidebarItem() {
                                                         className="h-6 w-6 text-white"
                                                     />
                                                 </motion.div>
-                                                <CardTitle className="text-sm font-medium">Woo</CardTitle>
+                                                <div className="flex flex-col">
+                                                    <CardTitle className="text-sm font-medium leading-none">
+                                                        {usage?.tierTitle || 'Woo'}
+                                                    </CardTitle>
+                                                    {usage && (
+                                                        <span className="text-[10px] text-muted-foreground mt-0.5">
+                                                            {usage.remaining} / {usage.limit || usage.lifetimeLimit} {usage.limit > 0 ? 'left today' : 'questions left'}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 {view === 'chat' ? (
@@ -801,7 +815,12 @@ export function AiChatSidebarItem() {
                                                         onChange={e => setInputValue(e.target.value)}
                                                         className="flex-1 h-9"
                                                     />
-                                                    <Button type="submit" size="icon" className="h-9 w-9" disabled={chatMutation.isLoading}>
+                                                    <Button 
+                                                        type="submit" 
+                                                        size="icon" 
+                                                        className="h-9 w-9" 
+                                                        disabled={chatMutation.isLoading || (usage?.remaining === 0 && !chatMutation.isLoading)}
+                                                    >
                                                         <Send className="h-4 w-4" />
                                                     </Button>
                                                 </form>
