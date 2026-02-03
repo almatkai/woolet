@@ -1,5 +1,7 @@
 import { AuthLayout } from '../components/AuthLayout';
 import { CustomSignUpForm } from '../components/CustomSignUpForm';
+import { SignedIn, SignedOut } from '@clerk/clerk-react';
+import { Navigate } from '@tanstack/react-router';
 
 export function RegisterPage() {
     return (
@@ -7,7 +9,12 @@ export function RegisterPage() {
             title="Create Account"
             subtitle="Start managing your finances today"
         >
-            <CustomSignUpForm />
+            <SignedIn>
+                <Navigate to="/" />
+            </SignedIn>
+            <SignedOut>
+                <CustomSignUpForm />
+            </SignedOut>
         </AuthLayout>
     );
 }

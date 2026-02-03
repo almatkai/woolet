@@ -43,6 +43,101 @@ const t = initTRPC.context<Context>().create({
 export const router = t.router;
 export const publicProcedure = t.procedure;
 
+type ClerkClaims = Record<string, any>;
+
+type ClerkAuthLike = {
+    has?: (params: { plan?: string; feature?: string }) => boolean;
+    sessionClaims?: ClerkClaims;
+} | null | undefined;
+
+function normalizeFeatureList(raw: unknown): string[] {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.map(String);
+    if (typeof raw === 'string') return raw.split(',').map((s) => s.trim()).filter(Boolean);
+    if (typeof raw === 'object') {
+        return Object.entries(raw as Record<string, unknown>)
+            .filter(([, value]) => Boolean(value))
+            .map(([key]) => String(key));
+    }
+    return [];
+}
+
+function extractClerkFeatures(sessionClaims?: ClerkClaims): string[] {
+    if (!sessionClaims) return [];
+    const buckets = [
+        sessionClaims.features,
+        sessionClaims.publicMetadata?.features,
+        sessionClaims.privateMetadata?.features,
+        sessionClaims.unsafeMetadata?.features,
+        sessionClaims.org?.publicMetadata?.features,
+        sessionClaims.org?.privateMetadata?.features,
+        sessionClaims.org?.unsafeMetadata?.features,
+    ];
+    return buckets.flatMap(normalizeFeatureList).map((f) => f.toLowerCase());
+}
+
+function extractPlanName(sessionClaims?: ClerkClaims): string | null {
+    const name =
+        sessionClaims?.subscription?.plan?.name ||
+        sessionClaims?.subscription?.plan?.id ||
+        sessionClaims?.subscription?.items?.[0]?.plan?.name ||
+        sessionClaims?.subscription?.items?.[0]?.plan?.id ||
+        sessionClaims?.plan?.name ||
+        sessionClaims?.plan?.id ||
+        sessionClaims?.billing?.plan?.name ||
+        sessionClaims?.billing?.plan?.id ||
+        null;
+
+    return name ? String(name).toLowerCase() : null;
+}
+
+function extractTierOverride(sessionClaims?: ClerkClaims): string | null {
+    const tier =
+        sessionClaims?.subscriptionTier ||
+        sessionClaims?.publicMetadata?.subscriptionTier ||
+        sessionClaims?.privateMetadata?.subscriptionTier ||
+        sessionClaims?.unsafeMetadata?.subscriptionTier ||
+        sessionClaims?.org?.publicMetadata?.subscriptionTier ||
+        sessionClaims?.org?.privateMetadata?.subscriptionTier ||
+        sessionClaims?.org?.unsafeMetadata?.subscriptionTier ||
+        null;
+
+    return tier ? String(tier).toLowerCase() : null;
+}
+
+function resolveTierFromClaims(sessionClaims?: ClerkClaims): 'free' | 'pro' | 'premium' | null {
+    const features = extractClerkFeatures(sessionClaims);
+
+    if (features.includes('premium_market_insight_digest')) return 'premium';
+    if (features.includes('market_insight_digest')) return 'pro';
+
+    const tierOverride = extractTierOverride(sessionClaims);
+    if (tierOverride === 'premium') return 'premium';
+    if (tierOverride === 'pro') return 'pro';
+
+    const planName = extractPlanName(sessionClaims);
+    if (planName?.includes('premium')) return 'premium';
+    if (planName?.includes('pro')) return 'pro';
+
+    return null;
+}
+
+function resolveTierFromAuth(auth: ClerkAuthLike): 'free' | 'pro' | 'premium' | null {
+    if (!auth?.has) return null;
+
+    try {
+        if (auth.has({ feature: 'premium_market_insight_digest' })) return 'premium';
+        if (auth.has({ feature: 'market_insight_digest' })) return 'pro';
+
+        if (auth.has({ plan: 'premium' })) return 'premium';
+        if (auth.has({ plan: 'pro' })) return 'pro';
+    } catch (error) {
+        console.error('Failed to read Clerk entitlements:', error);
+    }
+
+    return null;
+}
+
 export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
     if (!ctx.userId) {
         throw new TRPCError({
@@ -92,6 +187,28 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
             code: 'INTERNAL_SERVER_ERROR',
             message: 'Failed to find or create user',
         });
+    }
+
+    const auth = getAuth(ctx.honoContext) as ClerkAuthLike;
+    const sessionClaims = auth?.sessionClaims as ClerkClaims | undefined;
+    const derivedTier = resolveTierFromAuth(auth) || resolveTierFromClaims(sessionClaims);
+
+    console.log(`[TRPC] User: ${ctx.userId}, DB Tier: ${user.subscriptionTier}, Derived Tier: ${derivedTier}`);
+    if (!derivedTier) {
+        console.log('[TRPC] Raw Claims:', JSON.stringify(sessionClaims, null, 2));
+    }
+
+    if (derivedTier && user.subscriptionTier !== derivedTier) {
+        try {
+            const [updatedUser] = await ctx.db
+                .update(users)
+                .set({ subscriptionTier: derivedTier, updatedAt: new Date() })
+                .where(eq(users.id, ctx.userId))
+                .returning();
+            if (updatedUser) user = updatedUser;
+        } catch (error) {
+            console.error('Failed to sync subscription tier:', error);
+        }
     }
 
     // Ensure default Cash bank/account exists for current mode

@@ -68,6 +68,8 @@ export const CACHE_KEYS = {
     benchmarkPrice: (benchmarkId: string, range: string) => `invest:benchmark:${benchmarkId}:${range}`,
     portfolioSummary: (userId: string) => `invest:portfolio:${userId}:summary`,
     portfolioChart: (userId: string, range: string) => `invest:portfolio:${userId}:chart:${range}`,
+    marketDigestDaily: (userId: string, date: string) => `invest:digest:daily:${userId}:${date}`,
+    marketDigestCustom: (userId: string, date: string, specsHash: string) => `invest:digest:custom:${userId}:${date}:${specsHash}`,
 };
 
 export const CACHE_TTL = {
@@ -84,4 +86,6 @@ export const CACHE_TTL = {
     stockPricesRaw: 60 * 60 * 24,   // 24 hours
     portfolioSummary: 60 * 15,      // 15 minutes
     portfolioChart: 60 * 60,        // 1 hour
+    marketDigestDaily: 60 * 60 * 24, // 24 hours
+    marketDigestCustom: 60 * 60 * 24, // 24 hours
 };

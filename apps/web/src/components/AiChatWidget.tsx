@@ -130,7 +130,12 @@ export function AiChatSidebarItem() {
         setView('chat');
     };
 
-    function MomoIcon({ className, isHovered, isPressed, isAngry }: { className?: string, isHovered?: boolean, isPressed?: boolean, isAngry?: boolean }) {
+    function MomoIcon({
+        className,
+        isHovered = false,
+        isPressed = false,
+        isAngry = false,
+    }: { className?: string, isHovered?: boolean, isPressed?: boolean, isAngry?: boolean }) {
         // Animation states
         const [leftEyeScale, setLeftEyeScale] = useState(1);
         const [rightEyeScale, setRightEyeScale] = useState(1);
@@ -340,17 +345,57 @@ export function AiChatSidebarItem() {
             }
         }, [isHovered]);
 
-        const mouthPath = smileAmount > 0
-            ? `M7 ${16.5 - smileAmount * 0.5} Q12 ${19.5 + smileAmount} 17 ${16.5 - smileAmount * 0.5}`
+        const safeSmile = Number.isFinite(smileAmount) ? smileAmount : 0;
+        const safeLeftEyeScale = Number.isFinite(leftEyeScale) ? leftEyeScale : 1;
+        const safeRightEyeScale = Number.isFinite(rightEyeScale) ? rightEyeScale : 1;
+        const safeEyeOffsetX = Number.isFinite(eyeOffsetX) ? eyeOffsetX : 0;
+        const safeEyeOffsetY = Number.isFinite(eyeOffsetY) ? eyeOffsetY : 0;
+        const safePupilDilate = Number.isFinite(pupilDilate) ? pupilDilate : 1;
+        const safeBreathScale = Number.isFinite(breathScale) ? breathScale : 1;
+        const safeHeadTilt = Number.isFinite(headTilt) ? headTilt : 0;
+        const safeHeadBob = Number.isFinite(headBob) ? headBob : 0;
+        const safeExcitement = Number.isFinite(excitement) ? excitement : 0;
+        const safeCuriosity = Number.isFinite(curiosity) ? curiosity : 0;
+        const safeLeftBrowRaise = Number.isFinite(leftBrowRaise) ? leftBrowRaise : 0;
+        const safeRightBrowRaise = Number.isFinite(rightBrowRaise) ? rightBrowRaise : 0;
+
+        const mouthPath = safeSmile > 0
+            ? `M7 ${16.5 - safeSmile * 0.5} Q12 ${19.5 + safeSmile} 17 ${16.5 - safeSmile * 0.5}`
             : "M8 17 Q12 18.5 16 17";
+
+        const leftEye = {
+            cx: 8.5 + safeEyeOffsetX,
+            cy: 14 + safeEyeOffsetY,
+            rx: Math.max(0, isHovered ? 1.5 : 1.3),
+            ry: Math.max(0, (isHovered ? 1.7 : 1.3) * safeLeftEyeScale),
+        };
+
+        const rightEye = {
+            cx: 15.5 + safeEyeOffsetX,
+            cy: 14 + safeEyeOffsetY,
+            rx: Math.max(0, isHovered ? 1.5 : 1.3),
+            ry: Math.max(0, (isHovered ? 1.7 : 1.3) * safeRightEyeScale),
+        };
+
+        const leftPupil = {
+            cx: 8.5 + safeEyeOffsetX * 1.5,
+            cy: 14 + safeEyeOffsetY,
+            r: 0.5 * safePupilDilate,
+        };
+
+        const rightPupil = {
+            cx: 15.5 + safeEyeOffsetX * 1.5,
+            cy: 14 + safeEyeOffsetY,
+            r: 0.5 * safePupilDilate,
+        };
 
         return (
             <motion.div
                 className={cn("relative", className)}
                 animate={{
-                    scale: isPressed ? 0.85 : isHovered ? 1.15 : breathScale,
-                    rotate: isPressed ? -8 : isHovered ? 8 + headTilt : headTilt,
-                    y: headBob + (excitement * -1),
+                    scale: isPressed ? 0.85 : isHovered ? 1.15 : safeBreathScale,
+                    rotate: isPressed ? -8 : isHovered ? 8 + safeHeadTilt : safeHeadTilt,
+                    y: safeHeadBob + (safeExcitement * -1),
                 }}
                 transition={{ 
                     type: "spring", 
@@ -391,9 +436,13 @@ export function AiChatSidebarItem() {
                         d={isAngry ? "M6 12.5 Q8.5 13.5 11 12.5" : "M6 11.5 Q8.5 10.5 11 11.5"}
                         strokeWidth="1.2"
                         fill="none"
+                        initial={{
+                            y: safeLeftBrowRaise + (safeCuriosity * (safeHeadTilt > 0 ? -1 : 0.5)),
+                            d: isAngry ? "M6 12.5 Q8.5 13.5 11 12.5" : "M6 11.5 Q8.5 10.5 11 11.5",
+                        }}
                         animate={{
-                            y: leftBrowRaise + (curiosity * (headTilt > 0 ? -1 : 0.5)),
-                            d: isAngry ? "M6 12.5 Q8.5 13.5 11 12.5" : "M6 11.5 Q8.5 10.5 11 11.5"
+                            y: safeLeftBrowRaise + (safeCuriosity * (safeHeadTilt > 0 ? -1 : 0.5)),
+                            d: isAngry ? "M6 12.5 Q8.5 13.5 11 12.5" : "M6 11.5 Q8.5 10.5 11 11.5",
                         }}
                         transition={{ duration: 0.12, type: "spring", stiffness: 300 }}
                     />
@@ -403,95 +452,91 @@ export function AiChatSidebarItem() {
                         d={isAngry ? "M13 12.5 Q15.5 13.5 18 12.5" : "M13 11.5 Q15.5 10.5 18 11.5"}
                         strokeWidth="1.2"
                         fill="none"
+                        initial={{
+                            y: safeRightBrowRaise + (safeCuriosity * (safeHeadTilt < 0 ? -1 : 0.5)),
+                            d: isAngry ? "M13 12.5 Q15.5 13.5 18 12.5" : "M13 11.5 Q15.5 10.5 18 11.5",
+                        }}
                         animate={{
-                            y: rightBrowRaise + (curiosity * (headTilt < 0 ? -1 : 0.5)),
-                            d: isAngry ? "M13 12.5 Q15.5 13.5 18 12.5" : "M13 11.5 Q15.5 10.5 18 11.5"
+                            y: safeRightBrowRaise + (safeCuriosity * (safeHeadTilt < 0 ? -1 : 0.5)),
+                            d: isAngry ? "M13 12.5 Q15.5 13.5 18 12.5" : "M13 11.5 Q15.5 10.5 18 11.5",
                         }}
                         transition={{ duration: 0.12, type: "spring", stiffness: 300 }}
                     />
 
                     {/* Left Eye with enhanced animation */}
                     <motion.ellipse
-                        cx={8.5 + (eyeOffsetX || 0)}
-                        cy={14 + (eyeOffsetY || 0)}
-                        rx="1.3"
-                        ry={1.3 * (leftEyeScale || 1)}
+                        cx={leftEye.cx}
+                        cy={leftEye.cy}
+                        rx={leftEye.rx}
+                        ry={leftEye.ry}
                         fill="currentColor"
-                        animate={{
-                            cx: 8.5 + (eyeOffsetX || 0),
-                            ry: isHovered ? 1.7 * (leftEyeScale || 1) : 1.3 * (leftEyeScale || 1),
-                            rx: isHovered ? 1.5 : 1.3,
-                        }}
-                        transition={{ duration: 0.06, type: "spring", stiffness: 400 }}
+                        initial={leftEye}
+                        animate={leftEye}
+                        transition={{ duration: 0.06, type: "tween", ease: "easeOut" }}
                     />
                     {/* Left Pupil with dilation */}
-                    {(leftEyeScale || 1) > 0.3 && (
+                    {safeLeftEyeScale > 0.3 && (
                         <motion.circle
-                            cx={8.5 + (eyeOffsetX || 0) * 1.5}
-                            cy={14 + (eyeOffsetY || 0)}
-                            r={0.5 * pupilDilate}
+                            cx={leftPupil.cx}
+                            cy={leftPupil.cy}
+                            r={leftPupil.r}
                             fill="black"
-                            animate={{ 
-                                cx: 8.5 + (eyeOffsetX || 0) * 1.5,
-                                r: 0.5 * pupilDilate,
-                            }}
+                            initial={leftPupil}
+                            animate={leftPupil}
                             transition={{ duration: 0.06, type: "spring", stiffness: 400 }}
                         />
                     )}
 
                     {/* Right Eye with enhanced animation */}
                     <motion.ellipse
-                        cx={15.5 + (eyeOffsetX || 0)}
-                        cy={14 + (eyeOffsetY || 0)}
-                        rx="1.3"
-                        ry={1.3 * (rightEyeScale || 1)}
+                        cx={rightEye.cx}
+                        cy={rightEye.cy}
+                        rx={rightEye.rx}
+                        ry={rightEye.ry}
                         fill="currentColor"
-                        animate={{
-                            cx: 15.5 + (eyeOffsetX || 0),
-                            ry: isHovered ? 1.7 * (rightEyeScale || 1) : 1.3 * (rightEyeScale || 1),
-                            rx: isHovered ? 1.5 : 1.3,
-                        }}
-                        transition={{ duration: 0.06, type: "spring", stiffness: 400 }}
+                        initial={rightEye}
+                        animate={rightEye}
+                        transition={{ duration: 0.06, type: "tween", ease: "easeOut" }}
                     />
                     {/* Right Pupil with dilation */}
-                    {(rightEyeScale || 1) > 0.3 && (
+                    {safeRightEyeScale > 0.3 && (
                         <motion.circle
-                            cx={15.5 + (eyeOffsetX || 0) * 1.5}
-                            cy={14 + (eyeOffsetY || 0)}
-                            r={0.5 * pupilDilate}
+                            cx={rightPupil.cx}
+                            cy={rightPupil.cy}
+                            r={rightPupil.r}
                             fill="black"
-                            animate={{ 
-                                cx: 15.5 + (eyeOffsetX || 0) * 1.5,
-                                r: 0.5 * pupilDilate,
-                            }}
+                            initial={rightPupil}
+                            animate={rightPupil}
                             transition={{ duration: 0.06, type: "spring", stiffness: 400 }}
                         />
                     )}
 
                     {/* Eye sparkles with more intensity on hover */}
-                    {isHovered && (leftEyeScale || 1) > 0.5 && (
+                    {isHovered && safeLeftEyeScale > 0.5 && (
                         <>
                             <motion.circle 
-                                cx={9 + (eyeOffsetX || 0)} 
-                                cy="13" 
-                                r="0.7" 
+                                cx={9 + safeEyeOffsetX} 
+                                cy={13} 
+                                r={0.7} 
                                 fill="white" 
                                 opacity="0.95"
+                                initial={{ r: 0.7 }}
                                 animate={{ r: [0.7, 0.9, 0.7] }}
                                 transition={{ duration: 1.5, repeat: Infinity }}
                             />
                             <motion.circle 
-                                cx={16 + (eyeOffsetX || 0)} 
-                                cy="13" 
-                                r="0.7" 
+                                cx={16 + safeEyeOffsetX} 
+                                cy={13} 
+                                r={0.7} 
                                 fill="white" 
                                 opacity="0.95"
+                                initial={{ r: 0.7 }}
                                 animate={{ r: [0.7, 0.9, 0.7] }}
                                 transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
                             />
                             {/* Extra sparkle */}
-                            <circle cx={7.5 + (eyeOffsetX || 0)} cy="12.5" r="0.4" fill="white" opacity="0.7" />
-                            <circle cx={17.5 + (eyeOffsetX || 0)} cy="12.5" r="0.4" fill="white" opacity="0.7" />
+                            <circle cx={7.5 + safeEyeOffsetX} cy="12.5" r="0.4" fill="white" opacity="0.7" />
+                            <circle cx={17.5 + safeEyeOffsetX} cy="12.5" r="0.4" fill="white" opacity="0.7" />
                         </>
                     )}
 
@@ -502,6 +547,10 @@ export function AiChatSidebarItem() {
                         d={isAngry ? "M9 18.5 Q12 16.5 15 18.5" : isPressed ? "M8 17 Q12 14 16 17" : isHovered ? "M6 15.5 Q12 21.5 18 15.5" : mouthPath}
                         strokeWidth="1.4"
                         fill="none"
+                        initial={{
+                            d: isAngry ? "M9 18.5 Q12 16.5 15 18.5" : isPressed ? "M8 17 Q12 14 16 17" : isHovered ? "M6 15.5 Q12 21.5 18 15.5" : mouthPath,
+                            strokeWidth: isHovered ? 1.8 : 1.4,
+                        }}
                         animate={{
                             d: isAngry ? "M9 18.5 Q12 16.5 15 18.5" : isPressed ? "M8 17 Q12 14 16 17" : isHovered ? "M6 15.5 Q12 21.5 18 15.5" : mouthPath,
                             strokeWidth: isHovered ? 1.8 : 1.4,

@@ -29,7 +29,6 @@ import { SettingsLayout } from './components/SettingsLayout';
 
 import { Bitcoin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { PricingProvider } from '@/components/PricingProvider';
 import { PostHogPageviewTracker, PostHogUserIdentifier } from './components/PostHogProvider';
 
 // Root layout with sidebar
@@ -37,31 +36,36 @@ function RootLayout() {
     const { isSignedIn } = useAuth();
     const location = useLocation();
     const isSettingsRoute = location.pathname.startsWith('/account') || location.pathname.startsWith('/settings');
+    const isAuthRoute = location.pathname.startsWith('/login')
+        || location.pathname.startsWith('/register')
+        || location.pathname.startsWith('/sso-callback');
 
     return (
-        <PricingProvider>
+        <>
             <PostHogUserIdentifier />
             <PostHogPageviewTracker />
             <SidebarProvider>
                 <SignedIn>
-                    <AppSidebar />
+                    {!isAuthRoute && <AppSidebar />}
                 </SignedIn>
-                <SidebarInset className={!isSignedIn ? "!m-0 !rounded-none !border-0 !shadow-none bg-background" : ""}>
+                <SidebarInset className={!isSignedIn || isAuthRoute ? "!m-0 !rounded-none !border-0 !shadow-none bg-background" : ""}>
                     <SignedIn>
-                        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-                            <SidebarTrigger className="-ml-1" />
-                            <Separator orientation="vertical" className="mr-2 h-4" />
-                            <div className="flex flex-1 items-center justify-between">
-                                <DateRangePicker />
-                            </div>
-                        </header>
+                        {!isAuthRoute && (
+                            <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+                                <SidebarTrigger className="-ml-1" />
+                                <Separator orientation="vertical" className="mr-2 h-4" />
+                                <div className="flex flex-1 items-center justify-between">
+                                    <DateRangePicker />
+                                </div>
+                            </header>
+                        )}
                     </SignedIn>
-                    <main className={cn("flex-1", isSignedIn && !isSettingsRoute ? "p-6" : "p-0")}>
+                    <main className={cn("flex-1", isSignedIn && !isSettingsRoute && !isAuthRoute ? "p-6" : "p-0")}>
                         <Outlet />
                     </main>
                 </SidebarInset>
             </SidebarProvider>
-        </PricingProvider>
+        </>
     );
 }
 

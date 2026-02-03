@@ -11,6 +11,7 @@ import './index.css';
 import superjson from 'superjson';
 import { ThemeProvider } from './components/theme-provider';
 import { PostHogProvider } from './components/PostHogProvider';
+import { PricingProvider } from './components/PricingProvider';
 import { initErrorTracking, GlitchTip } from './lib/error-tracking';
 
 // Clerk publishable key
@@ -103,14 +104,16 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                 <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
                     <trpc.Provider client={trpcClient} queryClient={queryClient}>
                         <QueryClientProvider client={queryClient}>
-                            <RouterProvider router={router} />
-                            <Toaster
-                                position="bottom-right"
-                                richColors
-                                closeButton
-                                duration={5000}
-                                offset={{ right: '24px', bottom: 'var(--toast-bottom-offset, 24px)' }}
-                            />
+                            <PricingProvider>
+                                <RouterProvider router={router} />
+                                <Toaster
+                                    position="bottom-right"
+                                    richColors
+                                    closeButton
+                                    duration={5000}
+                                    offset={{ right: '24px', bottom: 'var(--toast-bottom-offset, 24px)' }}
+                                />
+                            </PricingProvider>
                         </QueryClientProvider>
                     </trpc.Provider>
                 </ThemeProvider>

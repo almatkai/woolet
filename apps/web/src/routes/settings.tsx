@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { useNavigate } from '@tanstack/react-router';
 import {
     Moon,
+    MoonStar,
     Sun,
     Eclipse,
     FlaskConical,
@@ -141,13 +142,13 @@ export function SettingsPage() {
                             <span className="font-medium">Dark</span>
                         </button>
                         <button
-                            onClick={() => setTheme('system')}
-                            className={`flex flex-1 min-w-[120px] items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all ${theme === 'system'
+                            onClick={() => setTheme('super-dark')}
+                            className={`flex flex-1 min-w-[120px] items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all ${theme === 'super-dark'
                                     ? 'border-primary bg-primary/10 text-primary'
                                     : 'border-border/50 hover:border-border text-muted-foreground'
                                 }`}
                         >
-                            <Eclipse className="size-4" />
+                            <MoonStar className="size-4" />
                             <span className="font-medium">Super Dark</span>
                         </button>
                     </div>

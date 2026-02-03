@@ -7,12 +7,97 @@ import { createChatCompletionWithFallback, MODEL_FLASH } from '../lib/ai';
 import { desc, eq, and, gte, lte, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
+import { TIER_LIMITS } from './bank';
+import { getAiDigestLength } from '../lib/checkLimit';
 import { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions';
 
 export const aiRouter = router({
     getDailyDigest: protectedProcedure
         .query(async ({ ctx }) => {
-            return await digestService.generateDailyDigest(ctx.userId!);
+            const userTier = ctx.user.subscriptionTier || 'free';
+            const limits = TIER_LIMITS[userTier as keyof typeof TIER_LIMITS];
+
+            console.log(`[AI Router] getDailyDigest request from user ${ctx.userId} - Tier: ${userTier}, hasAccess: ${limits.hasAiMarketDigest}`);
+
+            if (!limits.hasAiMarketDigest) {
+                return {
+                    locked: true,
+                    userTier,
+                    digest: null,
+                    digestDate: new Date().toISOString().split('T')[0],
+                    canRegenerate: false,
+                    remainingRegenerations: 0,
+                    regenerationLimit: 0,
+                    message: 'Upgrade to Pro or Premium to unlock AI Market Insights',
+                };
+            }
+
+            const digestLength = getAiDigestLength(userTier) || 'short';
+            const digest = await digestService.getDailyDigest(ctx.userId!, digestLength);
+            const canRegenerate = userTier === 'premium';
+            const remainingRegenerations = canRegenerate
+                ? await digestService.getRemainingCustomDigestCount(ctx.userId!)
+                : 0;
+
+            return {
+                locked: false,
+                userTier,
+                digest,
+                digestDate: new Date().toISOString().split('T')[0],
+                canRegenerate,
+                remainingRegenerations,
+                regenerationLimit: 5,
+            };
+        }),
+
+    getDigestHistory: protectedProcedure
+        .query(async ({ ctx }) => {
+            const userTier = ctx.user.subscriptionTier || 'free';
+            const limits = TIER_LIMITS[userTier as keyof typeof TIER_LIMITS];
+
+            if (!limits.hasAiMarketDigest) {
+                return [];
+            }
+
+            const history = await db.query.marketDigests.findMany({
+                where: and(
+                    eq(marketDigests.userId, ctx.userId!),
+                    eq(marketDigests.kind, 'daily')
+                ),
+                orderBy: [desc(marketDigests.digestDate)],
+                limit: 10,
+                columns: {
+                    digestDate: true,
+                    content: true,
+                }
+            });
+
+            return history;
+        }),
+
+    regenerateDigest: protectedProcedure
+        .input(z.object({
+            specs: z.string().min(5).max(500),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const userTier = ctx.user.subscriptionTier || 'free';
+
+            if (userTier !== 'premium') {
+                throw new TRPCError({
+                    code: 'FORBIDDEN',
+                    message: 'Digest regeneration is a Premium feature. Upgrade to Premium to use it.'
+                });
+            }
+
+            const digestLength = getAiDigestLength(userTier) || 'complete';
+            const digest = await digestService.regenerateDigest(ctx.userId!, digestLength, input.specs);
+            const remainingRegenerations = await digestService.getRemainingCustomDigestCount(ctx.userId!);
+
+            return {
+                digest,
+                digestDate: new Date().toISOString().split('T')[0],
+                remainingRegenerations,
+            };
         }),
 
     getSpendingAnomalies: protectedProcedure

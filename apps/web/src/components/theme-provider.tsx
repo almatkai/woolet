@@ -34,7 +34,12 @@ export function ThemeProvider({
     const root = window.document.documentElement
 
     root.classList.remove("light", "dark", "super-dark")
-    root.classList.add(theme)
+    
+    if (theme === "super-dark") {
+      root.classList.add("dark", "super-dark")
+    } else {
+      root.classList.add(theme)
+    }
     
     posthog.register({ theme })
   }, [theme])

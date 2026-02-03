@@ -15,6 +15,7 @@ export const TIER_LIMITS = {
         aiQuestionsPerDay: 0, // 3 total lifetime, tracked separately
         aiQuestionsLifetime: 3,
         hasAiMarketDigest: false,
+        aiDigestRegeneratePerDay: 0,
         hasCurrencyWidget: false,
     },
     pro: { 
@@ -27,6 +28,7 @@ export const TIER_LIMITS = {
         aiQuestionsLifetime: Infinity,
         hasAiMarketDigest: true,
         aiDigestLength: 'short', // 200-300 words
+        aiDigestRegeneratePerDay: 0,
         hasCurrencyWidget: true,
     },
     premium: { 
@@ -39,6 +41,7 @@ export const TIER_LIMITS = {
         aiQuestionsLifetime: Infinity,
         hasAiMarketDigest: true,
         aiDigestLength: 'complete', // 1000+ words
+        aiDigestRegeneratePerDay: 5,
         hasCurrencyWidget: true,
     }
 } as const;
@@ -180,6 +183,7 @@ export const bankRouter = router({
                     totalStocks: limits.totalStocks,
                     aiQuestionsPerDay: limits.aiQuestionsPerDay,
                     aiQuestionsLifetime: limits.aiQuestionsLifetime === Infinity ? 'unlimited' : limits.aiQuestionsLifetime,
+                    aiDigestRegeneratePerDay: limits.aiDigestRegeneratePerDay,
                 },
                 features: {
                     hasCurrencyWidget: limits.hasCurrencyWidget,
