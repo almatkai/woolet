@@ -95,7 +95,9 @@ class CurrencyExchangeService {
         const usdToBase = await this.getUsdRate(baseCurrency);
         
         if (!usdToBase) {
-            throw new Error(`Currency ${baseCurrency} is not supported`);
+            // Return minimal rates if currency not found (user needs to add manual rate)
+            console.warn(`Currency ${baseCurrency} has no USD rate stored. Please add a manual rate.`);
+            return { [baseCurrency]: 1 };
         }
 
         // Calculate cross rates: BASE→X = (USD→X) / (USD→BASE)

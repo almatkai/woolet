@@ -263,7 +263,7 @@ export default function SettingsScreen() {
                     </TouchableOpacity>
                 </View>
 
-                <Text style={styles.versionText}>Woo-Let Mobile v1.0.0</Text>
+                <Text style={styles.versionText}>Woolet Mobile v1.0.0</Text>
             </ScrollView>
         </ScreenWrapper>
     );

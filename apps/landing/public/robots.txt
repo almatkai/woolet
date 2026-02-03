@@ -1,4 +1,4 @@
-# Woo-Let Landing Page Sitemap
+# Woolet Landing Page Sitemap
 User-agent: *
 Allow: /
 

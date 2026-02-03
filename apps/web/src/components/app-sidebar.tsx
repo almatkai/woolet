@@ -96,9 +96,9 @@ export function AppSidebar() {
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
                             <Link to="/" {...preloadProps}>
-                                <img src="/assets/woolet-icon.png" alt="Woo-Let " className="size-8 rounded-lg" />
+                                <img src="/assets/woolet-icon.png" alt="Woolet " className="size-8 rounded-lg" />
                                 <div className="flex flex-col gap-0.5 leading-none">
-                                    <span className="font-semibold">Woo-Let </span>
+                                    <span className="font-semibold">Woolet </span>
                                 </div>
                             </Link>
                         </SidebarMenuButton>

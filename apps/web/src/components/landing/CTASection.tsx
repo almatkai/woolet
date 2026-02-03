@@ -43,8 +43,8 @@ export function CTASection() {
             <div className="mt-20 pt-8 border-t border-border/50 max-w-4xl mx-auto">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
-                        <img src="/assets/woolet -icon.png" alt="Woo-Let" className="size-6 rounded" />
-                        <span className="font-semibold text-foreground">Woo-Let</span>
+                        <img src="/assets/woolet -icon.png" alt="Woolet" className="size-6 rounded" />
+                        <span className="font-semibold text-foreground">Woolet</span>
                         <span>© {new Date().getFullYear()}</span>
                     </div>
                     <div className="flex items-center gap-6">

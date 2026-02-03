@@ -1,4 +1,4 @@
-# Woo-Let  Agent Guidelines
+# Woolet  Agent Guidelines
 
 Hello! If you are a Gemini or any other AI agent working on this project, please follow these guidelines to maintain data integrity and project consistency.
 
@@ -31,4 +31,4 @@ Always verify your changes by:
 - If you add a currency selector anywhere in the app, **use the shared `CurrencySelect` component** (`apps/web/src/components/CurrencySelect.tsx`) so **subscriptions**, **accounts**, and transactions use the same currency list and display consistently.
 
 ---
-*Maintained by the Woo-Let  Team and AI Agents.*
+*Maintained by the Woolet  Team and AI Agents.*

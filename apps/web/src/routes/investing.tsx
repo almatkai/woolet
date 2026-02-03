@@ -196,7 +196,7 @@ export function InvestingPage() {
 
     useEffect(() => {
         if (summary) {
-            posthog.set_person_properties({ 
+            posthog.setPersonProperties({ 
                 investment_count: summary.holdings.length,
                 total_investment_value: summary.totalValue
             });

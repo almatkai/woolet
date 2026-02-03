@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the architecture for a **long-term investing module** integrated into the Woo-Let personal finance application. The design prioritizes **API efficiency**, **cost optimization**, and **simplicity** while providing meaningful portfolio tracking and performance analytics.
+This document outlines the architecture for a **long-term investing module** integrated into the Woolet personal finance application. The design prioritizes **API efficiency**, **cost optimization**, and **simplicity** while providing meaningful portfolio tracking and performance analytics.
 
 ---
 

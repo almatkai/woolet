@@ -22,7 +22,7 @@ export const Dashboard: React.FC = () => {
                 {/* Sidebar */}
                 <div style={{ transform: `translateX(${(entrance - 1) * 100}px)` }} className="w-64 bg-white rounded-3xl shadow-sm p-6 flex flex-col gap-4 border border-slate-100">
                     <div className="text-2xl font-bold text-blue-600 mb-8 flex items-center gap-2">
-                        <div className="w-8 h-8 bg-blue-600 rounded-lg"></div> Woo-Let
+                        <div className="w-8 h-8 bg-blue-600 rounded-lg"></div> Woolet
                     </div>
                     <div className="flex items-center gap-3 p-3 bg-blue-50 text-blue-600 rounded-xl font-medium cursor-pointer">
                         <LayoutDashboard size={20} /> Dashboard

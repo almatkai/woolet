@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { db } from '../db';
 import { users, banks, accounts, currencyBalances } from '../db/schema';
 import superjson from 'superjson';
+import { GlitchTip } from './error-tracking';
 
 export interface Context {
     db: typeof db;
@@ -30,6 +31,13 @@ export const createContext = async (opts: FetchCreateContextFnOptions, c: HonoCo
 
 const t = initTRPC.context<Context>().create({
     transformer: superjson,
+    errorFormatter({ shape, error }) {
+        // Report specific errors to GlitchTip
+        if (error.code === 'INTERNAL_SERVER_ERROR') {
+            GlitchTip.captureException(error);
+        }
+        return shape;
+    },
 });
 
 export const router = t.router;
@@ -42,6 +50,9 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
             message: 'You must be logged in to access this resource',
         });
     }
+
+    // Identify user in GlitchTip
+    GlitchTip.setUser({ id: ctx.userId });
 
     // Auto-sync user: ensure user exists in database
     let user = await ctx.db.query.users.findFirst({

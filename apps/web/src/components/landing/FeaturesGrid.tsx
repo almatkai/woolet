@@ -125,7 +125,7 @@ export function FeaturesGrid() {
                         Everything You Need to Master Your Money
                     </h2>
                     <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                        From daily expenses to long-term investments, Woo-Let gives you complete visibility
+                        From daily expenses to long-term investments, Woolet gives you complete visibility
                         and control over your financial life.
                     </p>
                 </div>

@@ -29,7 +29,7 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
                             <div className="absolute inset-0 bg-white/20 blur-3xl rounded-full scale-150 group-hover:bg-white/30 transition-all duration-500" />
                             <img
                                 src="/android-chrome-192x192.png"
-                                alt="Woo-Let"
+                                alt="Woolet"
                                 className="relative w-28 h-28 rounded-3xl shadow-2xl border border-white/10"
                             />
                         </div>
@@ -41,7 +41,7 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3 }}
                     >
-                        Woo-Let
+                        Woolet
                     </motion.h1>
 
                     <motion.p
@@ -90,10 +90,10 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
                     <div className="flex items-center gap-3">
                         <img
                             src="/android-chrome-192x192.png"
-                            alt="Woo-Let"
+                            alt="Woolet"
                             className="w-10 h-10 rounded-xl"
                         />
-                        <span className="text-xl font-bold text-white">Woo-Let</span>
+                        <span className="text-xl font-bold text-white">Woolet</span>
                     </div>
                 </div>
 

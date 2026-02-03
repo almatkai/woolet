@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { logger } from 'hono/logger';
+import { logger as honoLogger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
 import { trpcServer } from '@hono/trpc-server';
 import { clerkMiddleware } from '@hono/clerk-auth';
@@ -9,11 +9,18 @@ import { appRouter } from './routers';
 import { createContext } from './lib/trpc';
 import { rateLimitMiddleware } from './middleware/rate-limit';
 import { startCurrencyRatesCron } from './jobs/currency-rates';
+import { logger } from './lib/logger';
+import { initErrorTracking, GlitchTip } from './lib/error-tracking';
+
+// Initialize Error Tracking (GlitchTip)
+initErrorTracking();
 
 const app = new Hono();
 
 // Global middleware
-app.use('*', logger());
+app.use('*', honoLogger((str) => {
+    logger.info(str);
+}));
 app.use('*', secureHeaders());
 app.use('*', cors({
     origin: process.env.WEB_URL || 'http://localhost:3000',
@@ -30,7 +37,20 @@ app.use('/trpc/*', rateLimitMiddleware);
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 app.onError((err, c) => {
-    console.error('❌ Application Error:', err);
+    logger.error({
+        err,
+        path: c.req.path,
+        method: c.req.method,
+    }, '❌ Application Error');
+    
+    // Capture exception in GlitchTip
+    GlitchTip.captureException(err, {
+        extra: {
+            path: c.req.path,
+            method: c.req.method,
+        }
+    });
+    
     const isDev = process.env.NODE_ENV === 'development';
     return c.json({
         error: err.message,

@@ -54,7 +54,7 @@ export class AnomalyService {
             const catId = row.categoryId as string;
             const month = row.month as string;
             const amount = Number(row.total); // Expenses are usually negative in some systems or positive in others.
-            // In Woo-Let , expenses are usually stored as positive or negative?
+            // In Woolet , expenses are usually stored as positive or negative?
             // Looking at `repro_price.ts` or similar might hint, but usually 'amount' is magnitude for expense type.
             // Let's assume positive magnitude for now or use Math.abs
             const absAmount = Math.abs(amount);
@@ -92,7 +92,7 @@ export class AnomalyService {
 
         // Use AI to generate insights
         const prompt = `
-You are a financial analyst for Woo-Let .
+You are a financial analyst for Woolet .
 The user has some spending anomalies this month compared to their 3-month average.
 
 Anomalies:

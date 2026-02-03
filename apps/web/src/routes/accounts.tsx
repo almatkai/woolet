@@ -47,7 +47,7 @@ export function AccountsPage() {
     useEffect(() => {
         if (banks) {
             const totalAccounts = banks.reduce((acc, bank) => acc + bank.accounts.length, 0);
-            posthog.set_person_properties({ 
+            posthog.setPersonProperties({ 
                 bank_count: banks.length,
                 account_count: totalAccounts 
             });

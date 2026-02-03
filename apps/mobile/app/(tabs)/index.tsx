@@ -356,7 +356,7 @@ const SignInScreen = () => {
 
     return (
         <View style={styles.signInContainer}>
-            <Text style={styles.signInTitle}>Woo-Let</Text>
+            <Text style={styles.signInTitle}>Woolet</Text>
             <Text style={styles.signInSubtitle}>Manage your finances with ease</Text>
             <TouchableOpacity style={styles.signInButton} onPress={onPress}>
                 <Text style={styles.signInButtonText}>Sign in with Google</Text>

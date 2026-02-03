@@ -150,7 +150,7 @@ export function SpendingPage() {
     useEffect(() => {
         if (shortcuts.length > 0) {
             const favoriteCount = shortcuts.filter(s => s.isFavorite).length;
-            posthog.set_person_properties({ 
+            posthog.setPersonProperties({ 
                 total_shortcuts_count: shortcuts.length, 
                 favorite_shortcuts_count: favoriteCount 
             });

@@ -28,7 +28,7 @@ export const Intro: React.FC = () => {
                 </div>
             </div>
             <div style={{ opacity: textOpacity, transform: `translateY(${textY}px)` }} className="text-center">
-                <h1 className="text-8xl font-bold tracking-tight mb-4">Woo-Let</h1>
+                <h1 className="text-8xl font-bold tracking-tight mb-4">Woolet</h1>
                 <p className="text-3xl text-slate-400 font-medium tracking-wide">Your finance, simpler.</p>
             </div>
         </AbsoluteFill>

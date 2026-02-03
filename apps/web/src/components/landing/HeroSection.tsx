@@ -60,7 +60,7 @@ export function HeroSection() {
                 {/* Main Headline Effect */}
                 <div className="flex items-center justify-center mb-12 py-10">
                     <BlurText
-                        text="Woo-Let "
+                        text="Woolet "
                         className="text-7xl md:text-9xl font-bold text-foreground dark:text-white tracking-tighter"
                         delay={50}
                         animateBy="letters"

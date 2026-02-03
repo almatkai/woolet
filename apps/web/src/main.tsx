@@ -3,12 +3,15 @@ import ReactDOM from 'react-dom/client';
 import { ClerkProvider } from '@clerk/clerk-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createRouter } from '@tanstack/react-router';
-import { httpBatchLink } from '@trpc/client';
+import { httpBatchLink, loggerLink } from '@trpc/client';
 import { Toaster } from 'sonner';
 import { trpc } from './lib/trpc';
 import { routeTree } from './routeTree.gen';
 import './index.css';
 import superjson from 'superjson';
+import { ThemeProvider } from './components/theme-provider';
+import { PostHogProvider } from './components/PostHogProvider';
+import { initErrorTracking, GlitchTip } from './lib/error-tracking';
 
 // Clerk publishable key
 const VITE_CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -17,12 +20,23 @@ if (!VITE_CLERK_PUBLISHABLE_KEY) {
     console.warn('Missing VITE_CLERK_PUBLISHABLE_KEY - Using demo mode');
 }
 
+// Initialize Error Tracking (GlitchTip)
+initErrorTracking();
+
 // Create query client
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
             staleTime: 1000 * 60, // 1 minute
             retry: 1,
+            onError: (err: any) => {
+                GlitchTip.captureException(err);
+            },
+        },
+        mutations: {
+            onError: (err: any) => {
+                GlitchTip.captureException(err);
+            },
         },
     },
 });
@@ -31,6 +45,16 @@ const queryClient = new QueryClient({
 const trpcClient = trpc.createClient({
     transformer: superjson,
     links: [
+        loggerLink({
+            enabled: (opts) =>
+                process.env.NODE_ENV === 'development' ||
+                (opts.direction === 'down' && opts.result instanceof Error),
+            logger: (opts) => {
+                if (opts.direction === 'down' && opts.result instanceof Error) {
+                    GlitchTip.captureException(opts.result);
+                }
+            },
+        }),
         httpBatchLink({
             url: '/trpc',
             async headers() {
@@ -71,9 +95,6 @@ declare global {
         };
     }
 }
-
-import { ThemeProvider } from './components/theme-provider';
-import { PostHogProvider } from './components/PostHogProvider';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>

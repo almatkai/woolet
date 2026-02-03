@@ -70,7 +70,7 @@ export function StatsCounter() {
                         Built for Your Financial Success
                     </h2>
                     <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-                        Join thousands of users who trust Woo-Let to manage their finances.
+                        Join thousands of users who trust Woolet to manage their finances.
                     </p>
                 </div>
 

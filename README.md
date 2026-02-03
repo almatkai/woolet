@@ -1,6 +1,6 @@
-# Woo-Let 💰
+# Woolet 💰
 
-Woo-Let is a sophisticated personal finance and investment tracking application built with a modern full-stack TypeScript architecture. It helps users manage their bank accounts, track daily transactions, monitor debts and mortgages, and manage long-term investment portfolios with multi-currency support.
+Woolet is a sophisticated personal finance and investment tracking application built with a modern full-stack TypeScript architecture. It helps users manage their bank accounts, track daily transactions, monitor debts and mortgages, and manage long-term investment portfolios with multi-currency support.
 
 ## 🚀 Features
 

@@ -74,7 +74,7 @@ export class DigestService {
 
         // 3. Construct Prompt
         const prompt = `
-You are a smart financial assistant for the app "Woo-Let ".
+You are a smart financial assistant for the app "Woolet ".
 Analyze the following portfolio stocks and their recent news/price action.
 Generate a "Market Insight Digest" for the user.
 

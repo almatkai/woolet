@@ -4,6 +4,7 @@ import { PostHogProvider as PHProvider } from 'posthog-js/react';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { useLocation } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc';
+import { GlitchTip } from '@/lib/error-tracking';
 
 const POSTHOG_KEY = import.meta.env.VITE_PUBLIC_POSTHOG_KEY;
 const POSTHOG_HOST = import.meta.env.VITE_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com';
@@ -50,8 +51,16 @@ export function PostHogUserIdentifier() {
             }
 
             posthog.identify(user.id, properties);
+            
+            // Also identify in GlitchTip
+            GlitchTip.setUser({
+                id: user.id,
+                email: user.primaryEmailAddress?.emailAddress ?? undefined,
+                username: user.username ?? undefined,
+            });
         } else if (!user && posthog) {
             posthog.reset();
+            GlitchTip.setUser(null);
         }
     }, [user, me]);
 

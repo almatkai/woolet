@@ -1,4 +1,5 @@
 import { currencyExchangeService } from '../services/currency-exchange-service';
+import { GlitchTip } from '../lib/error-tracking';
 
 // List of all major currencies to fetch
 const ALL_CURRENCIES = [
@@ -27,6 +28,7 @@ export async function fetchAllCurrencyRates() {
         console.log(`✅ Currency rates fetch completed in ${duration}s`);
     } catch (error) {
         console.error('❌ Error fetching currency rates:', error);
+        GlitchTip.captureException(error, { extra: { job: 'fetchAllCurrencyRates' } });
         throw error;
     }
 }
