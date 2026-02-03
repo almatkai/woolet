@@ -160,6 +160,7 @@ export const bankRouter = router({
                         ? config.credits.aiChat.lifetimeLimit 
                         : 'unlimited',
                     aiDigestRegeneratePerDay: config.credits.aiDigestRegeneration.limit,
+                    aiDigestLength: config.display.aiDigestLength,
                 },
                 usage: {
                     banks: bankCount.count,

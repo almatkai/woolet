@@ -268,8 +268,8 @@ export const transactionRouter = router({
                         : input.split.participantIds.length;
                     const perPersonAmount = amount / totalParticipants;
 
-                    splitAmounts = input.split.participantIds.map(id => {
-                        const override = input.split.amounts?.find(a => a.participantId === id);
+                    splitAmounts = input.split!.participantIds.map(id => {
+                        const override = input.split!.amounts?.find(a => a.participantId === id);
                         return {
                             participantId: id,
                             amount: Math.round(perPersonAmount * 100) / 100,

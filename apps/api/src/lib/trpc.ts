@@ -11,11 +11,19 @@ export interface Context {
     db: typeof db;
     userId: string | null;
     honoContext: HonoContext;
+    user?: {
+        id: string;
+        email?: string;
+        name?: string;
+        defaultCurrency?: string;
+        subscriptionTier?: string;
+        testMode?: boolean;
+    };
 }
 
 import { FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch';
 
-export const createContext = async (opts: FetchCreateContextFnOptions, c: HonoContext): Promise<Context> => {
+export const createContext = async (opts: FetchCreateContextFnOptions, c: HonoContext): Promise<Record<string, unknown>> => {
     try {
         const auth = getAuth(c);
         return {

@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { aiUsage } from '../db/schema/ai-usage';
+import { aiUsage, type AIUsage } from '../db/schema/ai-usage';
 import { eq, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { TIER_LIMITS, getCreditLimit, getSubscriptionConfig } from '@woolet/shared';
@@ -27,14 +27,14 @@ export class AIUsageService {
                 userId,
                 questionCountToday: 0,
                 questionCountLifetime: 0,
-                lastResetDate: new Date(),
+                lastResetDate: new Date().toISOString(),
             }).returning();
             usage = newUsage;
         }
 
         // Check if we need to reset daily counter
         const today = new Date().toISOString().split('T')[0];
-        const lastReset = usage.lastResetDate.toISOString().split('T')[0];
+        const lastReset = usage.lastResetDate.split('T')[0];
         const needsReset = today !== lastReset;
 
         let currentDaily = needsReset ? 0 : usage.questionCountToday;
@@ -67,7 +67,7 @@ export class AIUsageService {
             .set({
                 questionCountToday: needsReset ? 1 : currentDaily + 1,
                 questionCountLifetime: currentLifetime + 1,
-                lastResetDate: needsReset ? new Date() : usage.lastResetDate,
+                lastResetDate: needsReset ? new Date().toISOString() : usage.lastResetDate,
                 updatedAt: new Date(),
             })
             .where(eq(aiUsage.userId, userId));
@@ -95,13 +95,13 @@ export class AIUsageService {
             usage = {
                 questionCountToday: 0,
                 questionCountLifetime: 0,
-                lastResetDate: new Date(),
-            } as any;
+                lastResetDate: new Date().toISOString(),
+            } as AIUsage;
         }
 
         // Check if daily needs reset
         const today = new Date().toISOString().split('T')[0];
-        const lastReset = usage.lastResetDate.toISOString().split('T')[0];
+        const lastReset = usage.lastResetDate!.split('T')[0];
         const currentDaily = today === lastReset ? usage.questionCountToday : 0;
 
         const dailyLimit = tier === 'free' ? 0 : creditConfig.limit;
@@ -130,7 +130,7 @@ export class AIUsageService {
         await db.update(aiUsage)
             .set({
                 questionCountToday: 0,
-                lastResetDate: new Date(),
+                lastResetDate: new Date().toISOString(),
                 updatedAt: new Date(),
             })
             .where(sql`last_reset_date < CURRENT_DATE`);

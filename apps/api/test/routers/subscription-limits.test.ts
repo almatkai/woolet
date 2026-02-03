@@ -216,9 +216,9 @@ describe("Subscription System - Bank Limits", () => {
             const result = await caller.getLimitsAndUsage();
             
             expect(result.tier).toBe("free");
-            expect(result.limits.banks).toBe(2);
-            expect(result.limits.accountsPerBank).toBe(2);
-            expect(result.limits.currenciesPerAccount).toBe(2);
+            expect(result.limits.banks).toBe("2");
+            expect(result.limits.accountsPerBank).toBe("2");
+            expect(result.limits.currenciesPerAccount).toBe("2");
             expect(result.limits.totalStocks).toBe(5);
             expect(result.limits.aiQuestionsPerDay).toBe(0);
             expect(result.limits.aiQuestionsLifetime).toBe(3);
@@ -261,13 +261,13 @@ describe("Subscription System - Bank Limits", () => {
             expect(result.tier).toBe("pro");
             expect(result.limits.banks).toBe("unlimited");
             expect(result.limits.accountsPerBank).toBe("unlimited");
-            expect(result.limits.currenciesPerAccount).toBe(5);
+            expect(result.limits.currenciesPerAccount).toBe("5");
             expect(result.limits.totalStocks).toBe(20);
             expect(result.limits.aiQuestionsPerDay).toBe(5);
             expect(result.limits.aiQuestionsLifetime).toBe("unlimited");
             expect(result.features.hasCurrencyWidget).toBe(true);
             expect(result.features.hasAiMarketDigest).toBe(true);
-            expect(result.features.aiDigestLength).toBe("short");
+            expect(result.limits.aiDigestLength).toBe("short");
             expect(result.usage.banks).toBe(15);
             expect(result.canUpgrade).toBe(true);
         });
@@ -310,7 +310,7 @@ describe("Subscription System - Bank Limits", () => {
             expect(result.limits.aiQuestionsPerDay).toBe(20);
             expect(result.features.hasCurrencyWidget).toBe(true);
             expect(result.features.hasAiMarketDigest).toBe(true);
-            expect(result.features.aiDigestLength).toBe("complete");
+            expect(result.limits.aiDigestLength).toBe("complete");
             expect(result.usage.banks).toBe(50);
             expect(result.canUpgrade).toBe(false); // Already at top tier
         });

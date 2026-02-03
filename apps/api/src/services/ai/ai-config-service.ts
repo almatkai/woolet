@@ -1,6 +1,14 @@
 import { db } from '../../db';
-import { aiConfig, type AiConfig, defaultAiConfig } from '../../db/schema';
+import { aiConfig, type AiConfig, defaultAiConfig, type AiProvider } from '../../db/schema';
 import { eq } from 'drizzle-orm';
+
+function toAiConfig(dbConfig: AiConfig): AiConfig {
+  return {
+    ...dbConfig,
+    providerOrder: dbConfig.providerOrder as AiProvider[],
+    modelSettings: dbConfig.modelSettings as AiConfig['modelSettings'],
+  };
+}
 
 export class AiConfigService {
   /**
@@ -13,7 +21,7 @@ export class AiConfigService {
     });
 
     if (config) {
-      return config;
+      return toAiConfig(config as AiConfig);
     }
 
     // Fallback to default with proper dates
@@ -21,7 +29,7 @@ export class AiConfigService {
       ...defaultAiConfig,
       createdAt: new Date(),
       updatedAt: new Date(),
-    };
+    } as AiConfig;
   }
 
   /**
@@ -38,7 +46,7 @@ export class AiConfigService {
       .returning();
 
     if (result.length > 0) {
-      return result[0];
+      return toAiConfig(result[0] as AiConfig);
     }
 
     // If no config exists, insert the default with updates
@@ -52,7 +60,7 @@ export class AiConfigService {
       })
       .returning();
 
-    return newConfig[0];
+    return toAiConfig(newConfig[0] as AiConfig);
   }
 
   /**
@@ -69,7 +77,7 @@ export class AiConfigService {
       .returning();
 
     if (result.length > 0) {
-      return result[0];
+      return toAiConfig(result[0] as AiConfig);
     }
 
     // If no config exists, insert the default
@@ -82,7 +90,7 @@ export class AiConfigService {
       })
       .returning();
 
-    return newConfig[0];
+    return toAiConfig(newConfig[0] as AiConfig);
   }
 
   /**
@@ -114,6 +122,6 @@ export class AiConfigService {
       })
       .returning();
 
-    return newConfig[0];
+    return toAiConfig(newConfig[0] as AiConfig);
   }
 }

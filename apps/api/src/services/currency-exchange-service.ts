@@ -177,7 +177,7 @@ class CurrencyExchangeService {
                 throw new Error(`Currency API error: ${response.status}`);
             }
 
-            const data: ExchangeRateResponse = await response.json();
+            const data = await response.json() as ExchangeRateResponse;
             const today = new Date().toISOString().split('T')[0];
             const rates: Record<string, number> = {};
 

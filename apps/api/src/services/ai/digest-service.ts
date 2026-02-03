@@ -125,7 +125,7 @@ export class DigestService {
             }
 
             // 3. Try to acquire lock for generation
-            const lockSet = await redis.set(lockKey, '1', 'NX', 'EX', DAILY_DIGEST_LOCK_TTL_SECONDS);
+            const lockSet = await redis.set(lockKey, '1', 'EX', DAILY_DIGEST_LOCK_TTL_SECONDS, 'NX');
 
             if (lockSet) {
                 console.log(`[DigestService] 🔒 Lock acquired, starting background LLM generation for user ${userId}`);

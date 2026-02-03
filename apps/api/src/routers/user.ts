@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { eq, inArray, or } from 'drizzle-orm';
 import { router, protectedProcedure } from '../lib/trpc';
 import { investingCache } from '../lib/investing-cache';
+import { redis } from '../lib/redis';
 import {
     users,
     banks,
@@ -18,7 +19,9 @@ import {
     currencyBalances,
     investmentTransactions,
     portfolioHoldings,
-    stocks
+    stocks,
+    userSettings,
+    subscriptions,
 } from '../db/schema';
 
 // Test mode limits
