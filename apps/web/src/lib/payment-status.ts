@@ -53,8 +53,11 @@ export function getTargetMonthStr(
     const today = new Date();
     const day = billingDay || 1;
 
+    const formatMonthYear = (date: Date) =>
+        `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
     if (logic === 'monthly') {
-        return today.toISOString().slice(0, 7);
+        return formatMonthYear(today);
     }
 
     // Logic for 'period' (Threshold)
@@ -70,12 +73,12 @@ export function getTargetMonthStr(
 
     // If within threshold, we are looking for the payment for the upcoming due date
     if (diffDays <= period) {
-        return nextDue.toISOString().slice(0, 7);
+        return formatMonthYear(nextDue);
     } else {
         // Otherwise, we are still in the "window" of the previous payment
         let prevDue = new Date(nextDue);
         prevDue.setMonth(prevDue.getMonth() - 1);
-        return prevDue.toISOString().slice(0, 7);
+        return formatMonthYear(prevDue);
     }
 }
 
