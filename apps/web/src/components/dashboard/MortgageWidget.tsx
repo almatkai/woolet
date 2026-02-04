@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { MortgagePaymentSheet } from '@/components/MortgagePaymentSheet';
 import { getPaymentStatusOptions, getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
+import { Link } from '@tanstack/react-router';
 
 export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: number } }) {
     const { data: mortgages, isLoading } = trpc.mortgage.list.useQuery();
@@ -34,10 +35,12 @@ export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: nu
     if (isCompact) {
         return (
             <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1">
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Mortgages</CardTitle>
-                    <Home className="dashboard-widget__icon" />
-                </CardHeader>
+                <Link to="/financial/mortgages" className="block">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
+                        <CardTitle className="dashboard-widget__title truncate text-sm">Mortgages</CardTitle>
+                        <Home className="dashboard-widget__icon" />
+                    </CardHeader>
+                </Link>
                 <CardContent className="p-2 pt-0">
                     <div className="dashboard-widget__value">
                         <CurrencyDisplay 
@@ -56,13 +59,14 @@ export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: nu
     return (
         <>
             <Card className={cn('dashboard-widget h-full flex flex-col', isCompact && 'dashboard-widget--compact')}>
-                <CardHeader className="p-3 pb-1">
-                    <div className="flex items-center justify-between">
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Mortgages</CardTitle>
-                        <Home className="dashboard-widget__icon" />
-                    </div>
-
-                </CardHeader>
+                <Link to="/financial/mortgages" className="block">
+                    <CardHeader className="p-3 pb-1 hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="dashboard-widget__title truncate text-sm">Mortgages</CardTitle>
+                            <Home className="dashboard-widget__icon" />
+                        </div>
+                    </CardHeader>
+                </Link>
                 <CardContent className="flex-1 overflow-y-auto p-3 pt-0">
                     {isLoading ? (
                         <div className="space-y-2">

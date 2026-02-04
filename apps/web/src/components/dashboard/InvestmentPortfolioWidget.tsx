@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Link } from '@tanstack/react-router';
 
 interface InvestmentPortfolioWidgetProps {
     gridParams?: { w: number; h: number };
@@ -41,10 +42,12 @@ export function InvestmentPortfolioWidget({ gridParams }: InvestmentPortfolioWid
     if (isCompact) {
         return (
             <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1">
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Portfolio</CardTitle>
-                    <Briefcase className="dashboard-widget__icon" />
-                </CardHeader>
+                <Link to="/investing" className="block">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
+                        <CardTitle className="dashboard-widget__title truncate text-sm">Portfolio</CardTitle>
+                        <Briefcase className="dashboard-widget__icon" />
+                    </CardHeader>
+                </Link>
                 <CardContent className="p-2 pt-0">
                     <div className="dashboard-widget__value">
                         <CurrencyDisplay amount={totalValue} abbreviate />
@@ -111,15 +114,17 @@ export function InvestmentPortfolioWidget({ gridParams }: InvestmentPortfolioWid
     // Large view - detailed holdings list
     return (
         <Card className="dashboard-widget h-full flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
-                <div>
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Investment Portfolio</CardTitle>
-                    <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
-                        Your investment holdings
-                    </CardDescription>
-                </div>
-                <Briefcase className="dashboard-widget__icon" />
-            </CardHeader>
+            <Link to="/investing" className="block">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1 hover:bg-muted/50 transition-colors">
+                    <div>
+                        <CardTitle className="dashboard-widget__title truncate text-sm">Investment Portfolio</CardTitle>
+                        <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
+                            Your investment holdings
+                        </CardDescription>
+                    </div>
+                    <Briefcase className="dashboard-widget__icon" />
+                </CardHeader>
+            </Link>
             <CardContent className="flex-1 overflow-hidden p-3 pt-0 flex flex-col gap-2">
                 {/* Summary */}
                 <div className="grid grid-cols-3 gap-2 pb-2 border-b">

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { getPaymentStatusOptions, getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
+import { Link } from '@tanstack/react-router';
 
 export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: number } }) {
     const { data: credits, isLoading } = trpc.credit.list.useQuery();
@@ -44,13 +45,15 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
 
     return (
         <Card className={cn('dashboard-widget h-full flex flex-col', isCompactStyle && 'dashboard-widget--compact')}>
-            <CardHeader className={cn('p-3 pb-1', isCompactStyle && 'p-2 pb-0')}>
-                <div className="flex items-center justify-between">
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Credits</CardTitle>
-                    <CreditCard className="dashboard-widget__icon" />
-                </div>
-                {!hideCardDescription && <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">Your credit cards & loans</CardDescription>}
-            </CardHeader>
+            <Link to="/financial/credits" className="block">
+                <CardHeader className={cn('p-3 pb-1 hover:bg-muted/50 transition-colors', isCompactStyle && 'p-2 pb-0')}>
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="dashboard-widget__title truncate text-sm">Credits</CardTitle>
+                        <CreditCard className="dashboard-widget__icon" />
+                    </div>
+                    {!hideCardDescription && <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">Your credit cards & loans</CardDescription>}
+                </CardHeader>
+            </Link>
             <CardContent className={cn('flex-1 overflow-y-auto p-3 pt-0', isCompactStyle && 'p-2 pt-0')}>
                 {isLoading ? (
                     <div className="space-y-2">

@@ -232,10 +232,12 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
 
     return (
         <Card className={cn('dashboard-widget h-full flex flex-col', isCompact && 'dashboard-widget--compact')}>
-            <CardHeader className="p-3 pb-1">
-                <CardTitle className="dashboard-widget__title truncate text-sm">Recent Transactions</CardTitle>
-                <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">Your latest spending activity</CardDescription>
-            </CardHeader>
+            <Link to="/spending" className="block">
+                <CardHeader className="p-3 pb-1 hover:bg-muted/50 transition-colors">
+                    <CardTitle className="dashboard-widget__title truncate text-sm">Recent Transactions</CardTitle>
+                    <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">Your latest spending activity</CardDescription>
+                </CardHeader>
+            </Link>
             <CardContent className="flex-1 overflow-auto p-3 pt-0">
                 <div className="space-y-1 sm:space-y-4">
                     {(recentTransactions?.transactions || []).length === 0 ? (

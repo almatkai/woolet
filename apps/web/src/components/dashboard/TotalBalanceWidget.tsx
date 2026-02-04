@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Link } from '@tanstack/react-router';
 
 interface AccountBalance {
     accountId: string;
@@ -96,10 +97,12 @@ export function TotalBalanceWidget({ gridParams }: { gridParams?: GridParams }) 
     if (isCompact) {
         return (
             <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1">
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Total Balance</CardTitle>
-                    <Wallet className="dashboard-widget__icon" />
-                </CardHeader>
+                <Link to="/accounts" className="block">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
+                        <CardTitle className="dashboard-widget__title truncate text-sm">Total Balance</CardTitle>
+                        <Wallet className="dashboard-widget__icon" />
+                    </CardHeader>
+                </Link>
                 <CardContent className="p-2 pt-0">
                     <div className="dashboard-widget__value">
                         <CurrencyDisplay amount={primaryAmount} currency={primaryCurrency} abbreviate />
@@ -115,10 +118,12 @@ export function TotalBalanceWidget({ gridParams }: { gridParams?: GridParams }) 
     // Expanded view with account list
     return (
         <Card className="dashboard-widget h-full flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
-                <CardTitle className="dashboard-widget__title truncate text-sm">Total Balance</CardTitle>
-                <Wallet className="dashboard-widget__icon" />
-            </CardHeader>
+            <Link to="/accounts" className="block">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1 hover:bg-muted/50 transition-colors">
+                    <CardTitle className="dashboard-widget__title truncate text-sm">Total Balance</CardTitle>
+                    <Wallet className="dashboard-widget__icon" />
+                </CardHeader>
+            </Link>
             <CardContent className="flex-1 overflow-hidden p-3 pt-0 flex flex-col">
                 <div className="dashboard-widget__value mb-2">
                     <CurrencyDisplay amount={primaryAmount} currency={primaryCurrency} abbreviate />

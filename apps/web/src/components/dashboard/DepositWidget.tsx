@@ -5,6 +5,7 @@ import { trpc } from '@/lib/trpc';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
+import { Link } from '@tanstack/react-router';
 
 export function DepositWidget({ gridParams }: { gridParams?: { w: number; h: number } }) {
     const { data: deposits, isLoading } = trpc.deposit.list.useQuery();
@@ -57,13 +58,15 @@ export function DepositWidget({ gridParams }: { gridParams?: { w: number; h: num
 
     return (
         <Card className={cn('dashboard-widget h-full flex flex-col', isCompactStyle && 'dashboard-widget--compact')}>
-            <CardHeader className={cn('p-3 pb-1', isCompactStyle && 'p-2 pb-0')}>
-                <div className="flex items-center justify-between">
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Deposits</CardTitle>
-                    <PiggyBank className="dashboard-widget__icon" />
-                </div>
-                {!hideCardDescription && <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">Your savings & deposits</CardDescription>}
-            </CardHeader>
+            <Link to="/financial/deposits" className="block">
+                <CardHeader className={cn('p-3 pb-1 hover:bg-muted/50 transition-colors', isCompactStyle && 'p-2 pb-0')}>
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="dashboard-widget__title truncate text-sm">Deposits</CardTitle>
+                        <PiggyBank className="dashboard-widget__icon" />
+                    </div>
+                    {!hideCardDescription && <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">Your savings & deposits</CardDescription>}
+                </CardHeader>
+            </Link>
             <CardContent className={cn('flex-1 overflow-y-auto p-3 pt-0', isCompactStyle && 'p-2 pt-0')}>
                 {isLoading ? (
                     <div className="space-y-2">

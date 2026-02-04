@@ -8,6 +8,7 @@ import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Area, AreaChart, ResponsiveContainer, XAxis } from 'recharts';
 import { TooltipPro } from '@/components/ui/tooltip-pro';
+import { Link } from '@tanstack/react-router';
 
 interface Transaction {
     id: string;
@@ -83,10 +84,12 @@ export function MonthlyIncomeWidget({ gridParams }: { gridParams?: GridParams })
     if (isCompact) {
         return (
             <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1">
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Monthly Income</CardTitle>
-                    <TrendingUp className="dashboard-widget__icon text-green-500" />
-                </CardHeader>
+                <Link to="/spending" className="block">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
+                        <CardTitle className="dashboard-widget__title truncate text-sm">Monthly Income</CardTitle>
+                        <TrendingUp className="dashboard-widget__icon text-green-500" />
+                    </CardHeader>
+                </Link>
                 <CardContent className="p-2 pt-0">
                     <div className="dashboard-widget__value" style={{ color: totalIncome > 0 ? '#22c55e' : '#6b7280' }}>
                         {totalIncome > 0 ? (
@@ -106,10 +109,12 @@ export function MonthlyIncomeWidget({ gridParams }: { gridParams?: GridParams })
     // Expanded view with chart or transaction list
     return (
         <Card className="dashboard-widget h-full flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
-                <CardTitle className="dashboard-widget__title truncate text-sm">Monthly Income</CardTitle>
-                <TrendingUp className="dashboard-widget__icon text-green-500" />
-            </CardHeader>
+            <Link to="/spending" className="block">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1 hover:bg-muted/50 transition-colors">
+                    <CardTitle className="dashboard-widget__title truncate text-sm">Monthly Income</CardTitle>
+                    <TrendingUp className="dashboard-widget__icon text-green-500" />
+                </CardHeader>
+            </Link>
             <CardContent className="flex-1 overflow-hidden p-3 pt-0 flex flex-col">
                 <div className="dashboard-widget__value" style={{ color: totalIncome > 0 ? '#22c55e' : '#6b7280' }}>
                     {totalIncome > 0 ? (

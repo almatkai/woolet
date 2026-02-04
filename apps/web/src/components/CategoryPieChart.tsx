@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
+import { Link } from '@tanstack/react-router';
 import { PieChart, Pie, Cell } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -149,7 +150,7 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
 
     if (isLoading) {
         return (
-            <Card className="h-full flex flex-col overflow-hidden">
+            <Card className="dashboard-widget h-full flex flex-col overflow-hidden">
                 <CardHeader className="pb-2 px-4 pt-4">
                     <Skeleton className="h-5 w-32" />
                 </CardHeader>
@@ -163,12 +164,12 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
     const allCategories = stats?.categoryData || [];
 
     return (
-        <Card className="h-full flex flex-col overflow-hidden">
+        <Card className="dashboard-widget h-full flex flex-col">
             <CardHeader className="pb-2 px-2 sm:px-4 pt-2 sm:pt-4">
                 <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                        <CardTitle className="text-sm font-semibold">Category Spending</CardTitle>
-                    </div>
+                    <Link to="/spending" className="min-w-0 flex-1">
+                        <CardTitle className="text-sm font-semibold hover:underline">Category Spending</CardTitle>
+                    </Link>
                     <Tabs value={period} onValueChange={(v) => setPeriod(v as 'weekly' | 'monthly')}>
                         <TabsList className="h-7 bg-muted/50 p-0.5">
                             <TabsTrigger value="weekly" className="h-full px-2 text-[10px]">W</TabsTrigger>

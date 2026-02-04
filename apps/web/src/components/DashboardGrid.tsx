@@ -640,7 +640,7 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                         });
 
                         return (
-                            <div key={widgetId} className={isEditing ? "border-2 border-dashed border-primary/50 rounded-lg relative bg-background/50 overflow-hidden" : ""}>
+                            <div key={widgetId} className={isEditing ? "border-2 border-dashed border-primary/50 rounded-lg relative bg-background/50" : "relative"}>
                                 {isEditing && (
                                     <>
                                         <div className="drag-handle absolute top-0 left-0 right-0 h-6 bg-primary/5 cursor-move rounded-t-lg z-50 flex items-center justify-center">
@@ -656,7 +656,7 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                                         </div>
                                     </>
                                 )}
-                                <div className="h-full w-full overflow-hidden rounded-lg">
+                                <div className="h-full w-full rounded-lg">
                                     {childWithProps}
                                 </div>
                             </div>

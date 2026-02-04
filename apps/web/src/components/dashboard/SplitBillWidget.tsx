@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from '@tanstack/react-router';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Users, Check, ChevronRight, Clock } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
@@ -48,10 +49,12 @@ export function SplitBillWidget({ gridParams }: SplitBillWidgetProps) {
     if (isCompact) {
         return (
             <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1">
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Split Bills</CardTitle>
-                    <Users className="dashboard-widget__icon" />
-                </CardHeader>
+                <Link to="/spending" className="block">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
+                        <CardTitle className="dashboard-widget__title truncate text-sm">Split Bills</CardTitle>
+                        <Users className="dashboard-widget__icon" />
+                    </CardHeader>
+                </Link>
                 <CardContent className="p-2 pt-0">
                     <div className="dashboard-widget__value">
                         <CurrencyDisplay amount={summary?.total || 0} />
@@ -67,15 +70,17 @@ export function SplitBillWidget({ gridParams }: SplitBillWidgetProps) {
     // Regular and large views
     return (
         <Card className="dashboard-widget h-full flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
-                <div>
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Split Bills</CardTitle>
-                    <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
-                        Who owes you money
-                    </CardDescription>
-                </div>
-                <Users className="dashboard-widget__icon" />
-            </CardHeader>
+            <Link to="/spending" className="block">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1 hover:bg-muted/50 transition-colors">
+                    <div>
+                        <CardTitle className="dashboard-widget__title truncate text-sm">Split Bills</CardTitle>
+                        <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
+                            Who owes you money
+                        </CardDescription>
+                    </div>
+                    <Users className="dashboard-widget__icon" />
+                </CardHeader>
+            </Link>
             <CardContent className="flex-1 overflow-hidden p-3 pt-0">
                 {!summary?.byParticipant.length ? (
                     <div className="flex flex-col items-center justify-center h-full text-center">

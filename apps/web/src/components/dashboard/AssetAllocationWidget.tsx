@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from '@tanstack/react-router';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PieChart as PieChartIcon } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
@@ -75,10 +76,12 @@ export function AssetAllocationWidget({ gridParams }: AssetAllocationWidgetProps
         const topHolding = allocationData[0];
         return (
             <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1">
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Allocation</CardTitle>
-                    <PieChartIcon className="dashboard-widget__icon" />
-                </CardHeader>
+                <Link to="/investing" className="block">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
+                        <CardTitle className="dashboard-widget__title truncate text-sm">Allocation</CardTitle>
+                        <PieChartIcon className="dashboard-widget__icon" />
+                    </CardHeader>
+                </Link>
                 <CardContent className="p-2 pt-0">
                     {topHolding ? (
                         <>
@@ -102,15 +105,17 @@ export function AssetAllocationWidget({ gridParams }: AssetAllocationWidgetProps
     if (isMedium && !isLarge) {
         return (
             <Card className="dashboard-widget h-full flex flex-col">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
-                    <div>
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Portfolio Holdings</CardTitle>
-                        <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
-                            Stock distribution
-                        </CardDescription>
-                    </div>
-                    <PieChartIcon className="dashboard-widget__icon" />
-                </CardHeader>
+                <Link to="/investing" className="block">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1 hover:bg-muted/50 transition-colors">
+                        <div>
+                            <CardTitle className="dashboard-widget__title truncate text-sm">Portfolio Holdings</CardTitle>
+                            <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
+                                Stock distribution
+                            </CardDescription>
+                        </div>
+                        <PieChartIcon className="dashboard-widget__icon" />
+                    </CardHeader>
+                </Link>
                 <CardContent className="flex-1 overflow-hidden p-3 pt-0">
                     <ScrollArea className="h-full">
                         {allocationData.length === 0 ? (
@@ -147,15 +152,17 @@ export function AssetAllocationWidget({ gridParams }: AssetAllocationWidgetProps
     // Large view - pie chart + detailed list
     return (
         <Card className="dashboard-widget h-full flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
-                <div>
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Portfolio Holdings</CardTitle>
-                    <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
-                        Stock distribution
-                    </CardDescription>
-                </div>
-                <PieChartIcon className="dashboard-widget__icon" />
-            </CardHeader>
+            <Link to="/investing" className="block">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1 hover:bg-muted/50 transition-colors">
+                    <div>
+                        <CardTitle className="dashboard-widget__title truncate text-sm">Portfolio Holdings</CardTitle>
+                        <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
+                            Stock distribution
+                        </CardDescription>
+                    </div>
+                    <PieChartIcon className="dashboard-widget__icon" />
+                </CardHeader>
+            </Link>
             <CardContent className="flex-1 overflow-hidden p-3 pt-0">
                 {(() => {
                     if (allocationData.length === 0) {

@@ -56,10 +56,10 @@
 /* Prevent flickering and layout fighting */
 .layout .react-grid-item {
     will-change: transform;
-    contain: layout style;
     transition: transform 150ms ease-out !important;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
+    overflow: visible !important;
 }
 
 /* Stable positioning - prevent layout recalculation jitter */

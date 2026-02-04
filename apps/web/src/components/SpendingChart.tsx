@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
+import { Link } from '@tanstack/react-router';
 import {
     BarChart,
     Bar,
@@ -242,8 +243,8 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
         <Card className={cn('dashboard-widget h-full flex flex-col', isCompact && 'dashboard-widget--compact')}>
             <CardHeader className="pb-2 px-3 pt-3">
                 <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                        <CardTitle className="dashboard-widget__title text-xs sm:text-sm truncate font-bold">Spending Overview</CardTitle>
+                    <Link to="/spending" className="min-w-0 flex-1 group/header">
+                        <CardTitle className="dashboard-widget__title text-xs sm:text-sm truncate font-bold group-hover/header:underline">Spending Overview</CardTitle>
                         <div className="flex items-center gap-2 mt-0.5">
                             <span className="text-sm sm:text-base font-bold whitespace-nowrap">{formatCurrency(currentTotal)}</span>
                             {categoryIds.length > 0 && !isLoading && (
@@ -259,7 +260,7 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
                                 </div>
                             )}
                         </div>
-                    </div>
+                    </Link>
                     <div className="flex gap-1 sm:gap-1.5 items-center flex-shrink-0">
                         {!isNarrow && (
                             <Button

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ArrowRightLeft, TrendingUp, TrendingDown } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
@@ -136,9 +137,11 @@ export function CurrencyExchangeWidget({ gridParams }: CurrencyExchangeWidgetPro
         return (
             <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1">
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Exchange Rates</CardTitle>
+                    <Link to="/accounts" className="flex-1 min-w-0">
+                        <CardTitle className="dashboard-widget__title truncate text-sm hover:underline">Exchange Rates</CardTitle>
+                    </Link>
                     <button 
-                        onClick={() => setIsReversed(!isReversed)}
+                        onClick={(e) => { e.stopPropagation(); setIsReversed(!isReversed); }}
                         className="dashboard-widget__icon cursor-pointer hover:text-primary transition-colors"
                     >
                         <ArrowRightLeft className="h-4 w-4" />
@@ -161,14 +164,16 @@ export function CurrencyExchangeWidget({ gridParams }: CurrencyExchangeWidgetPro
         return (
             <Card className="dashboard-widget h-full flex flex-col">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
-                    <div>
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Exchange Rates</CardTitle>
-                        <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
-                            {isReversed ? `To ${baseCurrency}` : `From ${baseCurrency}`}
-                        </CardDescription>
-                    </div>
+                    <Link to="/accounts" className="flex-1 min-w-0">
+                        <div className="hover:underline">
+                            <CardTitle className="dashboard-widget__title truncate text-sm">Exchange Rates</CardTitle>
+                            <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
+                                {isReversed ? `To ${baseCurrency}` : `From ${baseCurrency}`}
+                            </CardDescription>
+                        </div>
+                    </Link>
                     <button 
-                        onClick={() => setIsReversed(!isReversed)}
+                        onClick={(e) => { e.stopPropagation(); setIsReversed(!isReversed); }}
                         className="dashboard-widget__icon cursor-pointer hover:text-primary transition-colors"
                     >
                         <ArrowRightLeft className="h-4 w-4" />
@@ -212,14 +217,16 @@ export function CurrencyExchangeWidget({ gridParams }: CurrencyExchangeWidgetPro
     return (
         <Card className="dashboard-widget h-full flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
-                <div>
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Exchange Rates</CardTitle>
-                    <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
-                        {isReversed ? `To ${baseCurrency}` : `From ${baseCurrency}`}
-                    </CardDescription>
-                </div>
+                <Link to="/accounts" className="flex-1 min-w-0">
+                    <div className="hover:underline">
+                        <CardTitle className="dashboard-widget__title truncate text-sm">Exchange Rates</CardTitle>
+                        <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
+                            {isReversed ? `To ${baseCurrency}` : `From ${baseCurrency}`}
+                        </CardDescription>
+                    </div>
+                </Link>
                 <button 
-                    onClick={() => setIsReversed(!isReversed)}
+                    onClick={(e) => { e.stopPropagation(); setIsReversed(!isReversed); }}
                     className="dashboard-widget__icon cursor-pointer hover:text-primary transition-colors"
                 >
                     <ArrowRightLeft className="h-4 w-4" />
