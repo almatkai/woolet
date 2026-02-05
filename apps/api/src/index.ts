@@ -58,6 +58,15 @@ app.onError((err, c) => {
     });
     
     const isDev = process.env.NODE_ENV === 'development';
+
+    if (isDev) {
+        notifier.notify({
+            title: 'Woolet API Error',
+            message: `${c.req.method} ${c.req.path}: ${err.message}`,
+            sound: 'Basso', // macOS specific sound
+        });
+    }
+
     return c.json({
         error: err.message,
         ...(isDev && { stack: err.stack })

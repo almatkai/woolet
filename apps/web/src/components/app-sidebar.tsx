@@ -250,12 +250,6 @@ export function AppSidebar() {
                                     </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <SignOutButton>
-                                    <DropdownMenuItem className="flex items-center gap-2 text-destructive focus:text-destructive">
-                                        <LogOut className="size-4" />
-                                        Sign out
-                                    </DropdownMenuItem>
-                                </SignOutButton>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </SidebarMenuItem>

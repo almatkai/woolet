@@ -7,6 +7,7 @@ import { useAuth } from '@clerk/clerk-expo';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassCard } from '@/components/GlassCard';
 import { BlurView } from 'expo-blur';
+import { NotificationsBell } from '@/components/NotificationsBell';
 
 const colors = {
     background: '#111827',
@@ -75,11 +76,14 @@ export default function TabsLayout() {
                     ),
                     headerTitle: 'Dashboard',
                     headerRight: () => (
-                        <Link href="/settings" asChild>
-                            <TouchableOpacity style={{ marginRight: 16 }}>
-                                <Settings size={22} color="#F9FAFB" />
-                            </TouchableOpacity>
-                        </Link>
+                        <>
+                            <NotificationsBell />
+                            <Link href="/settings" asChild>
+                                <TouchableOpacity style={{ marginRight: 8 }}>
+                                    <Settings size={22} color="#F9FAFB" />
+                                </TouchableOpacity>
+                            </Link>
+                        </>
                     ),
                 }}
             />

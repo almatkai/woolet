@@ -4,7 +4,14 @@ import { trpc } from '@/lib/trpc';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { DeleteConfirm } from '@/components/DeleteConfirm';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from '@tanstack/react-router';
 import {
@@ -25,6 +32,8 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { PushNotificationSettings, usePushNotifications } from '@/hooks/usePushNotifications';
+import { cn } from '@/lib/utils';
 import {
     Select,
     SelectContent,
@@ -43,6 +52,8 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Bell, BellRing, Check } from 'lucide-react';
+import { SignOutButton } from '@clerk/clerk-react';
 
 export function SettingsPage() {
     const { theme, setTheme } = useTheme();
@@ -51,7 +62,10 @@ export function SettingsPage() {
     const [isExporting, setIsExporting] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [pushSettingsOpen, setPushSettingsOpen] = useState(false);
     const navigate = useNavigate();
+
+    const { isSupported, isSubscribed, subscribe, unsubscribe } = usePushNotifications();
 
     const utils = trpc.useUtils();
 
@@ -130,6 +144,8 @@ export function SettingsPage() {
                 <h1 className="text-4xl font-bold tracking-tight text-white">General Settings</h1>
                 <p className="text-muted-foreground text-lg">Manage your application preferences and appearance.</p>
             </div>
+
+            <PushNotificationSettings open={pushSettingsOpen} onOpenChange={setPushSettingsOpen} />
 
             {/* Theme Settings */}
             <Card className="bg-card/30 backdrop-blur-sm border-border/50">
@@ -422,6 +438,57 @@ export function SettingsPage() {
                 </CardContent>
             </Card>
 
+            {/* Push Notifications */}
+            <Card className="bg-card/30 backdrop-blur-sm border-border/50">
+                <CardHeader>
+                    <CardTitle className="text-xl font-bold flex items-center gap-2">
+                        <Bell className="size-5 text-primary" />
+                        Push Notifications
+                    </CardTitle>
+                    <CardDescription>Receive browser notifications for subscription reminders and payment alerts</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">
+                        <div className="flex items-center gap-3">
+                            {isSubscribed ? (
+                                <BellRing className="size-5 text-green-500" />
+                            ) : (
+                                <Bell className="size-5 text-muted-foreground" />
+                            )}
+                            <div>
+                                <p className="font-medium">
+                                    {isSubscribed ? 'Notifications Enabled' : 'Browser Notifications'}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    {isSubscribed
+                                        ? 'You will receive push notifications'
+                                        : 'Enable to receive notifications outside the app'}
+                                </p>
+                            </div>
+                        </div>
+                        <Button
+                            variant={isSubscribed ? 'outline' : 'default'}
+                            onClick={() => {
+                                if (isSubscribed) {
+                                    unsubscribe().catch(console.error);
+                                } else {
+                                    subscribe().catch(console.error);
+                                }
+                            }}
+                            disabled={!isSupported}
+                        >
+                            {isSubscribed ? 'Disable' : 'Enable'}
+                        </Button>
+                    </div>
+
+                    {!isSupported && (
+                        <p className="text-sm text-muted-foreground">
+                            Push notifications are not supported in your browser.
+                        </p>
+                    )}
+                </CardContent>
+            </Card>
+
             {/* Data Management */}
             <Card className="bg-card/30 backdrop-blur-sm border-border/50 overflow-hidden">
                 <CardHeader>
@@ -526,6 +593,14 @@ export function SettingsPage() {
                     </CardContent>
                 </div>
             </Card>
+            <div className="pt-8 border-t border-border/50 flex justify-end">
+                <SignOutButton>
+                <Button>
+                    <LogOut className="size-4" />
+                    Sign out
+                </Button>
+                </SignOutButton>
+            </div>
         </div>
     );
 }

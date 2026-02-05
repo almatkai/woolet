@@ -201,7 +201,6 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
     const sessionClaims = auth?.sessionClaims as ClerkClaims | undefined;
     const derivedTier = resolveTierFromAuth(auth) || resolveTierFromClaims(sessionClaims);
 
-    console.log(`[TRPC] User: ${ctx.userId}, DB Tier: ${user.subscriptionTier}, Derived Tier: ${derivedTier}`);
     if (!derivedTier) {
         console.log('[TRPC] Raw Claims:', JSON.stringify(sessionClaims, null, 2));
     }

@@ -17,6 +17,8 @@ import { newsRouter } from './news';
 import { aiRouter } from './ai';
 import { settingsRouter } from './settings';
 import { splitBillRouter } from './split-bill';
+import { notificationRouter } from './notification';
+import { pushSubscriptionRouter } from './push-subscription';
 
 export const appRouter = router({
     user: userRouter,
@@ -37,6 +39,8 @@ export const appRouter = router({
     ai: aiRouter,
     settings: settingsRouter,
     splitBill: splitBillRouter,
+    notification: notificationRouter,
+    pushSubscription: pushSubscriptionRouter,
 });
 
 export type AppRouter = typeof appRouter;

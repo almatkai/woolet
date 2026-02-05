@@ -13,6 +13,22 @@ import { ThemeProvider } from './components/theme-provider';
 import { PostHogProvider } from './components/PostHogProvider';
 import { PricingProvider } from './components/PricingProvider';
 import { initErrorTracking, GlitchTip } from './lib/error-tracking';
+import { useEffect } from 'react';
+
+function ServiceWorkerRegistration() {
+    useEffect(() => {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/push-sw.js')
+                .then((registration) => {
+                    console.log('[Service Worker] Registered:', registration.scope);
+                })
+                .catch((error) => {
+                    console.error('[Service Worker] Registration failed:', error);
+                });
+        }
+    }, []);
+    return null;
+}
 
 // Clerk publishable key
 const VITE_CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -59,7 +75,6 @@ const trpcClient = trpc.createClient({
         httpBatchLink({
             url: '/trpc',
             async headers() {
-                // Get auth token from Clerk if available
                 try {
                     const token = await window.Clerk?.session?.getToken();
                     return token ? { Authorization: `Bearer ${token}` } : {};
@@ -76,7 +91,7 @@ const router = createRouter({
     routeTree,
     defaultPreload: 'intent',
     defaultPreloadDelay: 50,
-    defaultPreloadStaleTime: 1000 * 60 * 5, // keep preloaded matches fresh for 5 minutes
+    defaultPreloadStaleTime: 1000 * 60 * 5,
 });
 
 // Type declaration for router
@@ -105,6 +120,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                     <trpc.Provider client={trpcClient} queryClient={queryClient}>
                         <QueryClientProvider client={queryClient}>
                             <PricingProvider>
+                                <ServiceWorkerRegistration />
                                 <RouterProvider router={router} />
                                 <Toaster
                                     position="bottom-right"
@@ -121,4 +137,3 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         </ClerkProvider>
     </React.StrictMode>
 );
-

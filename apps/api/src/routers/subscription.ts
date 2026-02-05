@@ -14,7 +14,8 @@ import {
     mortgages,
     userSettings,
     creditPayments,
-    mortgagePayments
+    mortgagePayments,
+    notifications
 } from '../db/schema';
 import { checkEntityLimit } from '../lib/limits';
 
@@ -704,6 +705,88 @@ export const subscriptionRouter = router({
                 month: input.month,
                 daysInMonth: endOfMonth.getDate(),
                 data: calendarData
+            };
+        }),
+
+    // Check for due subscriptions and create notifications
+    checkAndNotifyDueSubscriptions: protectedProcedure
+        .input(z.object({
+            daysAhead: z.number().int().min(1).max(7).default(3),
+        }).optional())
+        .mutation(async ({ ctx, input }) => {
+            const daysAhead = input?.daysAhead || 3;
+            const today = new Date();
+            const futureDate = new Date();
+            futureDate.setDate(futureDate.getDate() + daysAhead);
+
+            const createdNotifications: string[] = [];
+
+            const activeSubscriptions = await ctx.db.query.subscriptions.findMany({
+                where: and(
+                    eq(subscriptions.userId, ctx.userId!),
+                    eq(subscriptions.status, 'active')
+                ),
+                with: {
+                    payments: {
+                        orderBy: [desc(subscriptionPayments.paidAt)],
+                        limit: 1
+                    }
+                }
+            });
+
+            for (const sub of activeSubscriptions) {
+                const billingDay = sub.billingDay || 1;
+                const currentMonthDue = new Date(today.getFullYear(), today.getMonth(), billingDay);
+                
+                if (currentMonthDue < today) {
+                    currentMonthDue.setMonth(currentMonthDue.getMonth() + 1);
+                }
+
+                const daysUntilDue = Math.ceil((currentMonthDue.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                
+                const lastPayment = sub.payments[0];
+                const isPaidThisMonth = lastPayment &&
+                    new Date(lastPayment.paidAt).getMonth() === currentMonthDue.getMonth() &&
+                    new Date(lastPayment.paidAt).getFullYear() === currentMonthDue.getFullYear();
+
+                if (!isPaidThisMonth && daysUntilDue >= 0 && daysUntilDue <= daysAhead) {
+                    try {
+                        await ctx.db.insert(notifications).values({
+                            userId: ctx.userId!,
+                            type: daysUntilDue <= 0 ? 'subscription_overdue' as const : 'subscription_due' as const,
+                            title: daysUntilDue <= 0 
+                                ? `Subscription Overdue: ${sub.name}`
+                                : daysUntilDue === 1
+                                    ? `Subscription Due Tomorrow: ${sub.name}`
+                                    : `Subscription Due: ${sub.name}`,
+                            message: `${sub.name} payment of ${sub.currency} ${Number(sub.amount).toLocaleString()} is ${daysUntilDue <= 0 ? 'overdue' : `due in ${daysUntilDue} day${daysUntilDue > 1 ? 's' : ''}`}.`,
+                            priority: daysUntilDue <= 0 ? 'urgent' as const : daysUntilDue <= 1 ? 'high' as const : 'medium' as const,
+                            links: {
+                                web: `/subscriptions/${sub.id}`,
+                                mobile: `woolet://subscriptions/${sub.id}`,
+                                universal: `https://woolet.app/subscriptions/${sub.id}`,
+                            },
+                            entityType: 'subscription',
+                            entityId: sub.id,
+                            metadata: {
+                                amount: sub.amount,
+                                currency: sub.currency,
+                                billingDay: sub.billingDay,
+                                dueDate: currentMonthDue.toISOString(),
+                                daysUntilDue,
+                            },
+                        });
+                        createdNotifications.push(sub.id);
+                    } catch (error) {
+                        console.error(`Failed to create notification for subscription ${sub.id}:`, error);
+                    }
+                }
+            }
+
+            return {
+                success: true,
+                notificationsCreated: createdNotifications.length,
+                subscriptionIds: createdNotifications,
             };
         }),
 });

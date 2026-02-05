@@ -5,6 +5,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/s
 import { AppSidebar } from '@/components/app-sidebar';
 import { Separator } from '@/components/ui/separator';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { NotificationsMenu } from '@/components/NotificationsMenu';
 
 // Routes
 import { Dashboard } from './routes/index';
@@ -23,9 +24,10 @@ import { PricingPage } from './routes/pricing';
 import AdminRoute from './routes/admin';
 // AccountPage no longer used as a route - now shown in dialog
 import { SettingsPage } from './routes/settings';
+import { NotificationsPage } from './routes/notifications';
 
 // Layouts
-import { SettingsLayout } from './components/SettingsLayout';
+import { SettingsLayout } from '@/components/SettingsLayout';
 
 import { Bitcoin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -70,6 +72,7 @@ function RootLayout() {
                                 <Separator orientation="vertical" className="mr-2 h-4" />
                                 <div className="flex flex-1 items-center justify-between">
                                     <DateRangePicker />
+                                    <NotificationsMenu />
                                 </div>
                             </header>
                         )}
@@ -211,6 +214,12 @@ export const adminRoute = createRoute({
     component: AdminRoute,
 });
 
+export const notificationsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/notifications',
+    component: NotificationsPage,
+});
+
 // Route tree
 export const routeTree = rootRoute.addChildren([
     indexRoute,
@@ -222,6 +231,7 @@ export const routeTree = rootRoute.addChildren([
     mortgagesRoute,
     depositsRoute,
     subscriptionsRoute,
+    notificationsRoute,
     settingsLayoutRoute.addChildren([
         settingsRoute,
     ]),

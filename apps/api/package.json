@@ -4,7 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "bun run --env-file=../../.env --watch src/index.ts",
+        "dev": "NODE_ENV=development bun run --env-file=../../.env --watch src/index.ts",
         "build": "bun build src/index.ts --outdir dist --target bun",
         "start": "bun run dist/index.js",
         "test": "bun test --preload ./test/setup.ts",
@@ -23,16 +23,19 @@
         "@sentry/bun": "^10.38.0",
         "@sentry/node": "7.120.3",
         "@trpc/server": "^10.45.4",
+        "@types/node-notifier": "^8.0.5",
         "@woolet/shared": "workspace:*",
         "dotenv": "^17.2.3",
         "drizzle-orm": "^0.38.4",
         "groq-sdk": "^0.37.0",
         "hono": "^4.11.7",
         "ioredis": "^5.9.2",
+        "node-notifier": "^10.0.1",
         "openai": "^6.17.0",
         "pino": "^10.3.0",
         "postgres": "^3.4.8",
         "superjson": "^2.2.6",
+        "web-push": "^3.6.7",
         "zod": "^3.25.76"
     },
     "devDependencies": {
