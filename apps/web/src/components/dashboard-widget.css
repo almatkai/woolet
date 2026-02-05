@@ -3,7 +3,7 @@
 }
 
 .dashboard-widget:hover {
-    @apply shadow-2xl -translate-y-2 z-10 border-primary/20;
+    @apply shadow-2xl -translate-y-1 z-10 border-primary/20;
 }
 
 .light .dashboard-widget {
@@ -11,7 +11,7 @@
 }
 
 .light .dashboard-widget:hover {
-    @apply border-gray-300 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] -translate-y-2;
+    @apply border-gray-300 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] -translate-y-1;
 }
 
 .react-grid-item:hover {

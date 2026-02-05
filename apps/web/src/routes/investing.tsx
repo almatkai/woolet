@@ -35,6 +35,7 @@ import { TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, DollarSign, Wal
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { AddInvestmentSheet } from '@/components/AddInvestmentSheet';
+import { SeeInvestingAccountsSheet } from '@/components/SeeInvestingAccountsSheet';
 import { EditInvestmentTransactionSheet } from '@/components/EditInvestmentTransactionSheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
@@ -398,7 +399,10 @@ export function InvestingPage() {
                     <h1 className="text-2xl font-bold">Investing</h1>
                     <p className="text-sm text-muted-foreground">Track stocks, ETFs, and portfolio performance</p>
                 </div>
-                <AddInvestmentSheet />
+                <div>
+                    <SeeInvestingAccountsSheet />
+                    <AddInvestmentSheet />
+                </div>
             </div>
 
             {/* Edit Transaction Sheet */}
