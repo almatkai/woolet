@@ -15,7 +15,9 @@ RUN bun install --frozen-lockfile
 
 # Stage 2: Build the application
 FROM base AS build
-COPY --from=install /app/node_modules ./node_modules
+# Copy everything from install stage (includes node_modules with workspace links)
+COPY --from=install /app ./
+# Overlay with source code
 COPY . .
 RUN bun run build --filter=@woolet/api
 
