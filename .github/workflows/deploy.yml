@@ -99,6 +99,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           envs: DB_PASSWORD,GLITCHTIP_DB_PASSWORD,GLITCHTIP_DOMAIN,GLITCHTIP_FROM_EMAIL,GLITCHTIP_SECRET_KEY,REDIS_PASSWORD,WOOLET_API_IMAGE,WOOLET_WEB_IMAGE,WOOLET_LANDING_IMAGE
+          command_timeout: 20m
           script: |
             cd ~/woolet
             chmod +x deploy.sh
