@@ -96,6 +96,3 @@ sw.addEventListener('pushsubscriptionchange', (event) => {
     console.log('[Push Service Worker] Push subscription changed');
     // Subscription change handling is done on the client side
 });
-});
-
-export {};
