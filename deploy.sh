@@ -11,13 +11,15 @@ echo "🚀 Starting deployment..."
 echo "🧪 Running tests..."
 bun run test
 
-# 3. Build and start services
-echo "🏗️ Building and starting services..."
-docker compose up -d --build
+# 3. Pull and start services
+echo "🏗️ Pulling and starting services..."
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 
 # 4. Run database migrations
 echo "🔄 Running database migrations..."
-docker compose exec -T woolet-api bun run db:push
+# Assuming migrator script is available in the api container
+docker compose exec -T woolet-api bun run db:migrate --filter=@woolet/api
 
 # 5. Clean up unused images
 echo "🧹 Cleaning up..."

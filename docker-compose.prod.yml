@@ -11,7 +11,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -35,7 +35,7 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-password}
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-password}", "ping"]
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-password}", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -64,6 +64,44 @@ services:
     env_file:
       - .env
 
+  woolet-landing:
+    image: ${WOOLET_LANDING_IMAGE:-ghcr.io/${GITHUB_REPOSITORY:-owner/repo}/landing:latest}
+    restart: always
+    ports:
+      - "8081:80"
+
+  glitchtip-db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: glitchtip
+      POSTGRES_PASSWORD: ${GLITCHTIP_DB_PASSWORD:-glitchtip_password}
+      POSTGRES_DB: glitchtip
+    volumes:
+      - glitchtip_postgres_data:/var/lib/postgresql/data
+
+  glitchtip-redis:
+    image: redis:7-alpine
+    restart: always
+
+  glitchtip:
+    image: glitchtip/glitchtip
+    restart: always
+    depends_on:
+      - glitchtip-db
+      - glitchtip-redis
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://glitchtip:${GLITCHTIP_DB_PASSWORD:-glitchtip_password}@glitchtip-db:5432/glitchtip
+      REDIS_URL: redis://glitchtip-redis:6379/0
+      PORT: 8000
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:-change_me_to_something_very_long}
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN:-http://localhost:8000}
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL:-alerts@woolet.com}
+      ENABLE_REGISTRATION: "True"
+
 volumes:
   redis_data:
   postgres_data:
+  glitchtip_postgres_data:
