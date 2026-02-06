@@ -37,6 +37,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+    environment: SSH_PRIVATE_KEY
     strategy:
       matrix:
         component: [api, web, landing]
@@ -69,6 +70,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            VITE_CLERK_PUBLISHABLE_KEY=${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+            VITE_GLITCHTIP_DSN_WEB=${{ secrets.VITE_GLITCHTIP_DSN_WEB }}
 
   deploy:
     needs: build-and-push

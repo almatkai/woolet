@@ -32,8 +32,9 @@ docker compose -f docker-compose.prod.yml up -d
 
 # 4. Run database migrations
 echo "🔄 Running database migrations..."
-# Assuming migrator script is available in the api container
-docker compose exec -T woolet-api bun run db:migrate --filter=@woolet/api
+# Wait a few seconds for the database to be ready
+sleep 5
+docker compose -f docker-compose.prod.yml exec -T woolet-api bun run db:migrate --filter=@woolet/api
 
 # 5. Clean up unused images
 echo "🧹 Cleaning up..."

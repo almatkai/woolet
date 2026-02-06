@@ -12,6 +12,10 @@ COPY apps/chrome-extension/package.json ./apps/chrome-extension/
 COPY packages/shared/package.json ./packages/shared/
 RUN bun install --frozen-lockfile
 
+# Build-time environment variables
+ARG VITE_CLERK_PUBLISHABLE_KEY
+ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
+
 # Build the application
 COPY . .
 # We need to build shared package first if it had a build step, but here it's just TS
