@@ -7,11 +7,7 @@ echo "🚀 Starting deployment..."
 # 1. Pull latest changes (if in git repo)
 # git pull origin main
 
-# 2. Run tests
-echo "🧪 Running tests..."
-bun run test
-
-# 3. Pull and start services
+# 2. Pull and start services
 echo "🏗️ Pulling and starting services..."
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d

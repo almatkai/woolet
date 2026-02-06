@@ -71,6 +71,17 @@ jobs:
     if: github.ref == 'refs/heads/main'
     environment: SSH_PRIVATE_KEY
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy Files to Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker-compose.prod.yml,docker-compose.monitoring.yml,nginx.conf,deploy.sh"
+          target: "~/woolet"
+
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.3
         env:
@@ -80,12 +91,15 @@ jobs:
           GLITCHTIP_FROM_EMAIL: ${{ secrets.GLITCHTIP_FROM_EMAIL }}
           GLITCHTIP_SECRET_KEY: ${{ secrets.GLITCHTIP_SECRET_KEY }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          WOOLET_API_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:main
+          WOOLET_WEB_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:main
+          WOOLET_LANDING_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/landing:main
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: DB_PASSWORD,GLITCHTIP_DB_PASSWORD,GLITCHTIP_DOMAIN,GLITCHTIP_FROM_EMAIL,GLITCHTIP_SECRET_KEY,REDIS_PASSWORD
-          debug: true
+          envs: DB_PASSWORD,GLITCHTIP_DB_PASSWORD,GLITCHTIP_DOMAIN,GLITCHTIP_FROM_EMAIL,GLITCHTIP_SECRET_KEY,REDIS_PASSWORD,WOOLET_API_IMAGE,WOOLET_WEB_IMAGE,WOOLET_LANDING_IMAGE
           script: |
             cd ~/woolet
+            chmod +x deploy.sh
             ./deploy.sh
