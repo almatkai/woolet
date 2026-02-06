@@ -69,6 +69,7 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    environment: SSH_PRIVATE_KEY
     steps:
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.3
