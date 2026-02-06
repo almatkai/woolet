@@ -7,7 +7,25 @@ echo "🚀 Starting deployment..."
 # 1. Pull latest changes (if in git repo)
 # git pull origin main
 
-# 2. Pull and start services
+# 2. Generate .env file from environment variables passed from GitHub Actions
+echo "🏗️ Generating .env file..."
+cat <<EOF > .env
+DB_PASSWORD=$DB_PASSWORD
+GLITCHTIP_DB_PASSWORD=$GLITCHTIP_DB_PASSWORD
+GLITCHTIP_DOMAIN=$GLITCHTIP_DOMAIN
+GLITCHTIP_FROM_EMAIL=$GLITCHTIP_FROM_EMAIL
+GLITCHTIP_SECRET_KEY=$GLITCHTIP_SECRET_KEY
+REDIS_PASSWORD=$REDIS_PASSWORD
+CLERK_SECRET_KEY=$CLERK_SECRET_KEY
+VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
+DATABASE_URL=$DATABASE_URL
+REDIS_URL=$REDIS_URL
+WOOLET_API_IMAGE=$WOOLET_API_IMAGE
+WOOLET_WEB_IMAGE=$WOOLET_WEB_IMAGE
+WOOLET_LANDING_IMAGE=$WOOLET_LANDING_IMAGE
+EOF
+
+# 3. Pull and start services
 echo "🏗️ Pulling and starting services..."
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
