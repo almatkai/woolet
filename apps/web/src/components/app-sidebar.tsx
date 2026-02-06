@@ -1,7 +1,7 @@
 'use client';
 
 import { Link, useRouterState } from '@tanstack/react-router';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, UserProfile } from '@clerk/clerk-react';
 import { dark } from '@clerk/themes';
 import {
     LayoutDashboard,
