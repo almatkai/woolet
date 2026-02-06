@@ -2,9 +2,14 @@
 FROM oven/bun:1.3-slim AS build
 WORKDIR /app
 
-# Install dependencies
+# Install dependencies - copy all workspace package.json files for lockfile validation
 COPY package.json bun.lock ./
 COPY apps/landing/package.json ./apps/landing/
+COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
+COPY apps/mobile/package.json ./apps/mobile/
+COPY apps/chrome-extension/package.json ./apps/chrome-extension/
+COPY packages/shared/package.json ./packages/shared/
 RUN bun install --frozen-lockfile
 
 # Build the application
