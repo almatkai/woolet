@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Link, useRouter } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import { Bell, Check, ExternalLink, AlertCircle, CalendarClock, CreditCard, TrendingUp, Wallet, DollarSign } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
@@ -56,7 +56,7 @@ const typeIcons = {
 export function NotificationsMenu() {
     const [isOpen, setIsOpen] = useState(false);
     const lastNotifiedId = useRef<string | null>(null);
-    
+
     const { data: notificationsData, refetch } = trpc.notification.list.useQuery(
         { limit: 10, unreadOnly: true },
         { refetchInterval: 30000 }
@@ -67,16 +67,16 @@ export function NotificationsMenu() {
         if (!notificationsData?.notifications || notificationsData.notifications.length === 0) return;
 
         const latestNotification = notificationsData.notifications[0] as Notification;
-        
+
         console.log('[Notification Debug] Latest:', latestNotification.title, 'isRead:', latestNotification.isRead);
 
         // Notify if it's new, unread, and we haven't notified about it yet
         if (!latestNotification.isRead && latestNotification.id !== lastNotifiedId.current) {
             console.log('[Notification Debug] Triggering native notification...');
-            
+
             if ('Notification' in window) {
                 console.log('[Notification Debug] Permission state:', Notification.permission);
-                
+
                 const showNotification = () => {
                     try {
                         const notification = new window.Notification(latestNotification.title, {
@@ -115,26 +115,27 @@ export function NotificationsMenu() {
             lastNotifiedId.current = latestNotification.id;
         }
     }, [notificationsData?.notifications]);
-    
+
     const markAsReadMutation = trpc.notification.markAsRead.useMutation({
         onSuccess: () => refetch(),
     });
-    
+
     const markAllAsReadMutation = trpc.notification.markAllAsRead.useMutation({
         onSuccess: () => refetch(),
     });
-    
-    const deleteMutation = trpc.notification.delete.useMutation({
-        onSuccess: () => refetch(),
-    });
+
+    // deleteMutation removed (unused)
 
     const handleNotificationClick = (notification: Notification) => {
         if (!notification.isRead) {
             markAsReadMutation.mutate({ id: notification.id });
         }
-        
+
         if (notification.links?.web) {
-            window.location.href = notification.links.web;
+            const url = notification.links.web;
+            setTimeout(() => {
+                window.location.assign(url);
+            }, 0);
         }
         setIsOpen(false);
     };
@@ -185,7 +186,7 @@ export function NotificationsMenu() {
                     )}
                 </div>
                 <DropdownMenuSeparator />
-                
+
                 {notifications.length === 0 ? (
                     <div className="py-8 text-center text-muted-foreground">
                         <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -196,7 +197,7 @@ export function NotificationsMenu() {
                         {notifications.map((notification: Notification) => {
                             const Icon = typeIcons[notification.type as keyof typeof typeIcons] || Bell;
                             const isUnread = !notification.isRead;
-                            
+
                             return (
                                 <DropdownMenuItem
                                     key={notification.id}
@@ -239,7 +240,7 @@ export function NotificationsMenu() {
                         })}
                     </ScrollArea>
                 )}
-                
+
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                     <Link to="/notifications" className="justify-center text-primary cursor-pointer">

@@ -47,7 +47,7 @@ interface MortgagePaymentSheetProps {
 function getMonthsBetween(startDate: string, endDate: string | null, termYears: number): string[] {
     const months: string[] = [];
     const start = new Date(startDate);
-    
+
     // Calculate end date from term if not provided
     let end: Date;
     if (endDate) {
@@ -56,7 +56,7 @@ function getMonthsBetween(startDate: string, endDate: string | null, termYears: 
         end = new Date(start.getFullYear() + termYears, start.getMonth(), start.getDate());
     }
 
-    let current = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+    const current = new Date(start.getFullYear(), start.getMonth() + 1, 1);
     const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
 
     while (current <= endMonth) {
@@ -105,36 +105,31 @@ export function MortgagePaymentSheet({ open, onOpenChange, mortgage }: MortgageP
 
     // Reset custom amount when mortgage changes
     useEffect(() => {
-        if (mortgage) {
-            setCustomAmount(mortgage.monthlyPayment);
-        }
-    }, [mortgage?.id]);
+        const handle = setTimeout(() => {
+            if (mortgage) {
+                setCustomAmount(mortgage.monthlyPayment);
+            }
+        }, 0);
+        return () => clearTimeout(handle);
+    }, [mortgage?.id, mortgage?.monthlyPayment]);
 
     // Calculate all months for this mortgage
-    const allMonths = useMemo(() => {
-        if (!mortgage) return [];
-        return getMonthsBetween(mortgage.startDate, mortgage.endDate, mortgage.termYears);
-    }, [mortgage?.startDate, mortgage?.endDate, mortgage?.termYears]);
+    const allMonths = mortgage ? getMonthsBetween(mortgage.startDate, mortgage.endDate, mortgage.termYears) : [];
 
     // Get paid months
-    const paidMonths = useMemo(() => {
-        if (!mortgage) return new Set<string>();
-        return new Set(mortgage.payments.map(p => p.monthYear));
-    }, [mortgage?.payments]);
+    const paidMonths = mortgage ? new Set(mortgage.payments.map(p => p.monthYear)) : new Set<string>();
 
     // Get unpaid months
-    const unpaidMonths = useMemo(() => {
-        return allMonths.filter(m => !paidMonths.has(m));
-    }, [allMonths, paidMonths]);
+    const unpaidMonths = allMonths.filter(m => !paidMonths.has(m));
 
     // Get account balance for mortgage's currency
-    const accountBalance = useMemo(() => {
+    const accountBalance = (() => {
         if (!mortgage) return 0;
         const balance = mortgage.account.currencyBalances.find(
             cb => cb.currencyCode === mortgage.currency
         );
         return balance ? Number(balance.balance) : 0;
-    }, [mortgage]);
+    })();
 
     // Calculate total payment
     const monthlyPayment = (customAmount && !isNaN(Number(customAmount))) ? Number(customAmount) : (mortgage ? Number(mortgage.monthlyPayment) : 0);
@@ -245,7 +240,7 @@ export function MortgagePaymentSheet({ open, onOpenChange, mortgage }: MortgageP
                                     }}
                                 />
                             ) : (
-                                <div 
+                                <div
                                     className="font-semibold cursor-pointer hover:text-primary transition-colors flex items-center justify-between"
                                     onClick={() => setIsEditingAmount(true)}
                                 >

@@ -224,10 +224,10 @@ export function SpendingPage() {
             }
         }
 
-        if (updated) {
+        if (updated && updated !== editingTransaction) {
             setEditingTransaction(updated);
         }
-    }, [transactionsData, editingTransaction?.id]);
+    }, [transactionsData, editingTransaction, setEditingTransaction]);
 
     const toggleFavoritesWidget = (visible: boolean) => {
         setFavoritesWidgetVisible(visible);
@@ -338,9 +338,9 @@ export function SpendingPage() {
     const currencyOptions = useMemo(() => {
         if (!banks) return [];
         const options: { id: string; label: string; currencyCode: string }[] = [];
-        banks.forEach((bank: { name: string; accounts: any[] }) => {
-            bank.accounts.forEach((acc: { name: string; currencyBalances: any[] }) => {
-                acc.currencyBalances.forEach((cb: { id: string; balance: string | number; currencyCode: string }) => {
+        banks.forEach((bank: { name: string; accounts: Array<{ name: string; currencyBalances: Array<{ id: string; balance: string | number; currencyCode: string }> }> }) => {
+            bank.accounts.forEach((acc) => {
+                acc.currencyBalances.forEach((cb) => {
                     options.push({
                         id: cb.id,
                         label: `[${bank.name}] ${acc.name} `,
@@ -352,9 +352,6 @@ export function SpendingPage() {
         return options;
     }, [banks]);
 
-    const accountLabelById = useMemo(() => {
-        return new Map<string, string>(currencyOptions.map((opt) => [opt.id, opt.label]));
-    }, [currencyOptions]);
 
     const categoryLabelById = useMemo(() => {
         return new Map<string, string>((categories || []).map((cat: { id: string; name: string; icon: string }) => [cat.id, `${cat.icon} ${cat.name} `]));
@@ -947,8 +944,8 @@ export function SpendingPage() {
                                         type="button"
                                         onClick={() => setShortcutValue('icon', emoji)}
                                         className={`h - 10 w - 10 rounded - full flex items - center justify - center text - lg border - 2 transition - colors ${watchShortcut('icon') === emoji
-                                                ? 'border-primary bg-primary/10'
-                                                : 'border-muted hover:border-muted-foreground/50'
+                                            ? 'border-primary bg-primary/10'
+                                            : 'border-muted hover:border-muted-foreground/50'
                                             } `}
                                     >
                                         {emoji}
@@ -998,7 +995,7 @@ export function SpendingPage() {
                                     <SelectValue placeholder="Select category" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {categories?.map((cat: any) => (
+                                    {categories?.map((cat: { id: string; name: string; icon: string }) => (
                                         <SelectItem key={cat.id} value={cat.id}>
                                             {cat.icon} {cat.name}
                                         </SelectItem>
@@ -1060,8 +1057,8 @@ export function SpendingPage() {
                                 <div
                                     key={shortcut.id}
                                     className={`flex items - center gap - 3 p - 3 rounded - lg border transition - all group ${selectedShortcut?.id === shortcut.id && transactionSheetOpen
-                                            ? 'bg-primary/10 border-primary/50 shadow-md'
-                                            : 'bg-card hover:bg-muted/50 border-border'
+                                        ? 'bg-primary/10 border-primary/50 shadow-md'
+                                        : 'bg-card hover:bg-muted/50 border-border'
                                         } `}
                                 >
                                     <button
@@ -1083,8 +1080,8 @@ export function SpendingPage() {
                                         <p className="font-medium truncate">{shortcut.name}</p>
                                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                                             <span className={`px - 1.5 py - 0.5 rounded text - [10px] font - medium uppercase ${shortcut.type === 'expense' ? 'bg-red-500/10 text-red-500' :
-                                                    shortcut.type === 'income' ? 'bg-green-500/10 text-green-500' :
-                                                        'bg-blue-500/10 text-blue-500'
+                                                shortcut.type === 'income' ? 'bg-green-500/10 text-green-500' :
+                                                    'bg-blue-500/10 text-blue-500'
                                                 } `}>
                                                 {shortcut.type}
                                             </span>
@@ -1170,9 +1167,9 @@ export function SpendingPage() {
                                     <SelectValue placeholder="Select account" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {banks?.map((bank: any) =>
-                                        bank.accounts?.map((account: any) =>
-                                            account.currencyBalances?.map((cb: any) => (
+                                    {banks?.map((bank: { name: string; accounts: Array<{ name: string; currencyBalances: Array<{ id: string; currencyCode: string }> }> }) =>
+                                        bank.accounts?.map((account) =>
+                                            account.currencyBalances?.map((cb) => (
                                                 <SelectItem key={cb.id} value={cb.id}>
                                                     [{bank.name}] {account.name} ({cb.currencyCode})
                                                 </SelectItem>
@@ -1238,8 +1235,8 @@ export function SpendingPage() {
                                         key={shortcut.id}
                                         onClick={() => openShortcut(shortcut)}
                                         className={`h - 12 w - 12 rounded - full flex items - center justify - center text - lg transition - all border ${selectedShortcut?.id === shortcut.id && transactionSheetOpen
-                                                ? 'bg-primary border-primary text-primary-foreground scale-110 shadow-lg'
-                                                : 'bg-muted hover:bg-muted/80 border-border/50 hover:border-border'
+                                            ? 'bg-primary border-primary text-primary-foreground scale-110 shadow-lg'
+                                            : 'bg-muted hover:bg-muted/80 border-border/50 hover:border-border'
                                             } `}
                                         title={shortcut.name}
                                     >

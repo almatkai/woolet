@@ -85,22 +85,22 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
 
     // Sync from Database when user data loads
     useEffect(() => {
-        if (user?.preferences) {
-            const prefs = user.preferences as any;
-            const dbCategories = prefs?.spendingWidget?.categoryIds;
-            if (Array.isArray(dbCategories) && dbCategories.length > 0) {
-                // Check if different from current to avoid unnecessary re-renders/loops
-                // Simple stringify comparison or length check
-                const currentStr = JSON.stringify(categoryIds.slice().sort());
-                const dbStr = JSON.stringify(dbCategories.slice().sort());
+        const handle = setTimeout(() => {
+            if (user?.preferences) {
+                const prefs = user.preferences as any;
+                const dbCategories = prefs?.spendingWidget?.categoryIds;
+                if (Array.isArray(dbCategories) && dbCategories.length > 0) {
+                    const currentStr = JSON.stringify(categoryIds.slice().sort());
+                    const dbStr = JSON.stringify(dbCategories.slice().sort());
 
-                if (currentStr !== dbStr) {
-                    setCategoryIds(dbCategories);
-                    // localStorage update will be handled by the other useEffect
+                    if (currentStr !== dbStr) {
+                        setCategoryIds(dbCategories);
+                    }
                 }
             }
-        }
-    }, [user, categoryIds]); // strict dependency on user
+        }, 0);
+        return () => clearTimeout(handle);
+    }, [user, categoryIds]);
 
     const handleSavePreferences = () => {
         const currentPrefs = (user?.preferences as any) || {};
@@ -120,28 +120,28 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
         const now = new Date();
         const userPrefs = (user?.preferences as UserPreferences) || {};
         let weekStartsOn = userPrefs.weekStartsOn ?? DEFAULT_WEEK_STARTS_ON;
-        
+
         // Ensure weekStartsOn is a proper number and within valid range
         if (typeof weekStartsOn === 'string') {
             weekStartsOn = parseInt(weekStartsOn, 10) as WeekStartDay;
         }
         weekStartsOn = Math.max(0, Math.min(6, Number(weekStartsOn))) as WeekStartDay;
-        
+
         if (period === 'weekly') {
             const dateStartsOn = weekStartsOn as 0 | 1 | 2 | 3 | 4 | 5 | 6;
             const start = startOfWeek(now, { weekStartsOn: dateStartsOn });
             const end = endOfWeek(now, { weekStartsOn: dateStartsOn });
-            
+
             const prevStart = subWeeks(start, 1);
             const prevEnd = subWeeks(end, 1);
-            
+
             // Use format to get local date string (YYYY-MM-DD) to avoid timezone issues
             // Then append time to create a proper ISO string in local context
             const startDateStr = format(start, 'yyyy-MM-dd');
             const endDateStr = format(end, 'yyyy-MM-dd');
             const prevStartDateStr = format(prevStart, 'yyyy-MM-dd');
             const prevEndDateStr = format(prevEnd, 'yyyy-MM-dd');
-            
+
             return {
                 start: `${startDateStr}T00:00:00.000Z`,
                 end: `${endDateStr}T23:59:59.999Z`,
@@ -158,7 +158,7 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
             const endDateStr = format(end, 'yyyy-MM-dd');
             const prevStartDateStr = format(prevStart, 'yyyy-MM-dd');
             const prevEndDateStr = format(prevEnd, 'yyyy-MM-dd');
-            
+
             return {
                 start: `${startDateStr}T00:00:00.000Z`,
                 end: `${endDateStr}T23:59:59.999Z`,
@@ -195,7 +195,7 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
 
     const chartData = useMemo(() => {
         if (!stats?.timeSeriesData) return [];
-        
+
         return stats.timeSeriesData.map((item: any) => {
             const currentDate = new Date(item.date);
             let prevDate;
@@ -206,7 +206,7 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
             }
             const prevDateStr = format(prevDate, 'yyyy-MM-dd');
             const prevItem = prevStats?.timeSeriesData?.find((d: any) => d.date === prevDateStr);
-            
+
             return {
                 ...item,
                 prevAmount: prevItem?.amount || 0
@@ -326,7 +326,7 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
                 ) : (
                     <div className="flex h-full w-full overflow-visible">
                         {/* Custom Bar Chart with backdrop blur */}
-                        <div 
+                        <div
                             className="flex-1 min-w-0 h-full relative group rounded-xl overflow-visible"
                             onMouseMove={(e) => {
                                 const rect = e.currentTarget.getBoundingClientRect();
@@ -335,17 +335,17 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
                                     const tooltipWidth = 120; // approximate tooltip width
                                     const mouseX = e.clientX - rect.left;
                                     const mouseY = e.clientY - rect.top;
-                                    
+
                                     // Position tooltip to the left if near right edge
                                     let left = mouseX + 10;
                                     if (mouseX > rect.width - tooltipWidth) {
                                         left = mouseX - tooltipWidth - 10;
                                     }
-                                    
+
                                     // Keep tooltip above cursor, but not above container
                                     let top = mouseY - 60;
                                     if (top < 0) top = mouseY + 20;
-                                    
+
                                     tooltip.style.left = `${left}px`;
                                     tooltip.style.top = `${top}px`;
                                 }
@@ -353,9 +353,9 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
                         >
                             {/* Inner glow ring */}
                             <div className="absolute inset-0 rounded-xl pointer-events-none ring-1 ring-purple-500/20" />
-                            
+
                             {/* Cursor-following tooltip */}
-                            <div 
+                            <div
                                 data-tooltip
                                 className="absolute opacity-0 transition-opacity duration-150 z-50 pointer-events-none"
                                 style={{ left: 0, top: 0 }}
@@ -365,7 +365,7 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
                                     <div data-tooltip-amount className="text-sm font-bold text-foreground"></div>
                                 </div>
                             </div>
-                            
+
                             {/* Custom HTML-based bar chart for backdrop blur support */}
                             <div className="absolute inset-0 p-4 pt-6 pb-8 flex">
                                 {/* Y-axis */}
@@ -382,7 +382,7 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
                                         ));
                                     })()}
                                 </div>
-                                
+
                                 {/* Chart area with grid lines */}
                                 <div className="flex-1 flex flex-col relative">
                                     {/* Horizontal grid lines - behind bars */}
@@ -391,13 +391,13 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
                                             <div key={i} className="w-full h-px" style={{ backgroundImage: 'linear-gradient(to right, rgba(168, 85, 247, 0.6) 50%, transparent 50%)', backgroundSize: '8px 1px' }} />
                                         ))}
                                     </div>
-                                    
+
                                     <div className="flex-1 flex items-end justify-around gap-0.5 sm:gap-1 relative z-10">
                                         {chartData.map((item: any, index: number) => {
                                             const currentMax = Math.max(...(stats?.timeSeriesData || []).map((d: any) => d.amount), 0);
                                             const prevMax = Math.max(...(prevStats?.timeSeriesData || []).map((d: any) => d.amount), 0);
                                             const maxAmount = Math.max(currentMax, prevMax, 1);
-                                            
+
                                             const heightPercent = (item.amount / maxAmount) * 100;
                                             const prevHeightPercent = (item.prevAmount / maxAmount) * 100;
 
@@ -406,17 +406,17 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
                                                     <div className="flex items-end gap-[1px] w-full justify-center h-full px-[1px]">
                                                         {/* Previous Bar */}
                                                         {prevTotal > 0 && (
-                                                            <div 
+                                                            <div
                                                                 className="flex-1 max-w-[12px] rounded-t-[1px] sm:rounded-t-sm bg-muted/20 border-t border-x border-muted-foreground/10 transition-all duration-300"
-                                                                style={{ 
+                                                                style={{
                                                                     height: `${Math.max(prevHeightPercent, 1)}%`,
                                                                 }}
                                                             />
                                                         )}
                                                         {/* Current Bar */}
-                                                        <div 
+                                                        <div
                                                             className="flex-[1.5] max-w-[20px] rounded-t-[1px] sm:rounded-t-sm border sm:border-2 border-purple-500 backdrop-blur-[2px] transition-all duration-300 hover:scale-110 cursor-pointer z-10"
-                                                            style={{ 
+                                                            style={{
                                                                 height: `${Math.max(heightPercent, 2)}%`,
                                                                 backgroundColor: 'rgba(139, 92, 246, 0.2)'
                                                             }}
@@ -432,7 +432,7 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
                                                                     const dateText = format(new Date(item.date), 'EEE, MMM do');
                                                                     const currentVal = formatCurrency(item.amount);
                                                                     const prevVal = formatCurrency(item.prevAmount);
-                                                                    
+
                                                                     dateEl.textContent = dateText;
                                                                     amountEl.innerHTML = `
                                                                         <div class="flex flex-col gap-0.5">

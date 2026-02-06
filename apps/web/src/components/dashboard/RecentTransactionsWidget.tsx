@@ -3,12 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { trpc } from '@/lib/trpc';
 import { Link } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
-import { CreditCard, Save, Filter, Eye, EyeOff, Calendar } from 'lucide-react';
+import { CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
-import { MultiSelect } from '@/components/ui/multi-select';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
 const STORAGE_KEY = 'woolet :recent-transactions-widget';
@@ -64,22 +62,14 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
         return 'all';
     });
 
-    const [showIncomeOnly, setShowIncomeOnly] = useState(false);
-    const [showExpensesOnly, setShowExpensesOnly] = useState(false);
+    // showIncomeOnly/showExpensesOnly removed (unused)
 
     const utils = trpc.useUtils();
     const { data: user } = trpc.user.me.useQuery();
-    const { data: categories } = trpc.category.list.useQuery();
+    // categories removed (unused)
 
-    const updateUser = trpc.user.update.useMutation({
-        onSuccess: () => {
-            toast.success('Widget preferences saved');
-            utils.user.me.invalidate();
-        },
-        onError: () => {
-            toast.error('Failed to save preferences');
-        }
-    });
+
+    // updateUser mutation removed (unused)
 
     // Sync LocalStorage
     useEffect(() => {
@@ -92,37 +82,29 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
 
     // Sync from Database
     useEffect(() => {
-        if (user?.preferences) {
-            const prefs = user.preferences as any;
-            const dbPrefs = prefs?.recentTransactionsWidget;
-            if (dbPrefs) {
-                if (Array.isArray(dbPrefs.excludedCategories)) {
-                    const currentStr = JSON.stringify(excludedCategories.slice().sort());
-                    const dbStr = JSON.stringify(dbPrefs.excludedCategories.slice().sort());
-                    if (currentStr !== dbStr) {
-                        setExcludedCategories(dbPrefs.excludedCategories);
+        const handle = setTimeout(() => {
+            if (user?.preferences) {
+                const prefs = user.preferences as any;
+                const dbPrefs = prefs?.recentTransactionsWidget;
+                if (dbPrefs) {
+                    if (Array.isArray(dbPrefs.excludedCategories)) {
+                        const currentStr = JSON.stringify(excludedCategories.slice().sort());
+                        const dbStr = JSON.stringify(dbPrefs.excludedCategories.slice().sort());
+                        if (currentStr !== dbStr) {
+                            setExcludedCategories(dbPrefs.excludedCategories);
+                        }
+                    }
+                    if (dbPrefs.period && dbPrefs.period !== period) {
+                        setPeriod(dbPrefs.period);
                     }
                 }
-                if (dbPrefs.period && dbPrefs.period !== period) {
-                    setPeriod(dbPrefs.period);
-                }
             }
-        }
-    }, [user]);
+        }, 0);
+        return () => clearTimeout(handle);
+    }, [user, excludedCategories, period]);
 
-    const handleSavePreferences = () => {
-        const currentPrefs = (user?.preferences as any) || {};
-        updateUser.mutate({
-            preferences: {
-                ...currentPrefs,
-                recentTransactionsWidget: {
-                    ...currentPrefs.recentTransactionsWidget,
-                    excludedCategories: excludedCategories,
-                    period: period,
-                }
-            }
-        });
-    };
+    // handleSavePreferences removed (unused)
+
 
     // Calculate date range
     const dateRange = useMemo(() => {
@@ -150,31 +132,13 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
         })
     }), [dateRange]);
 
-    const { data: recentTransactions, isLoading } = trpc.transaction.list.useQuery(queryParams) as { data: { transactions: Transaction[] } | undefined, isLoading: boolean };
+    const { data: recentTransactions } = trpc.transaction.list.useQuery(queryParams) as { data: { transactions: Transaction[] } | undefined };
 
-    // Filter transactions
-    const filteredTransactions = useMemo(() => {
-        if (!recentTransactions?.transactions) return [];
-        
-        return recentTransactions.transactions.filter(tx => {
-            // Category filter
-            if (excludedCategories.length > 0 && tx.category?.id && excludedCategories.includes(tx.category.id)) {
-                return false;
-            }
-            
-            // Type filter
-            if (showIncomeOnly && tx.type !== 'income') return false;
-            if (showExpensesOnly && tx.type !== 'expense') return false;
-            
-            return true;
-        });
-    }, [recentTransactions, excludedCategories, showIncomeOnly, showExpensesOnly]);
+    // Filtering handled inline where needed (removed unused variable)
 
-    const categoryOptions = categories?.map((cat: any) => ({
-        label: cat.name,
-        value: cat.id,
-        icon: <span className="mr-1">{cat?.icon}</span>
-    })) || [];
+
+    // categoryOptions removed (unused)
+
 
     // Less restrictive compact mode - only for very small widgets
     const isCompact = (gridParams?.w ?? 0) <= 1 && (gridParams?.h ?? 0) <= 1;
@@ -210,11 +174,11 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
                                         "text-[11px] font-bold whitespace-nowrap",
                                         tx.type === 'income' ? 'text-green-600' : tx.type === 'expense' ? 'text-red-600' : 'text-foreground'
                                     )}>
-                                        <CurrencyDisplay 
-                                            amount={tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Number(tx.amount)} 
-                                            currency={tx.currencyBalance?.currencyCode || 'USD'} 
-                                            showSign 
-                                            abbreviate 
+                                        <CurrencyDisplay
+                                            amount={tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Number(tx.amount)}
+                                            currency={tx.currencyBalance?.currencyCode || 'USD'}
+                                            showSign
+                                            abbreviate
                                         />
                                     </div>
                                 </div>
@@ -259,9 +223,9 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
                                     </div>
                                 </div>
                                 <span className={`dashboard-widget__item font-semibold whitespace-nowrap ${tx.type === 'income' ? 'text-green-600' : tx.type === 'expense' ? 'text-red-600' : 'text-foreground'}`}>
-                                    <CurrencyDisplay 
-                                        amount={tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Number(tx.amount)} 
-                                        currency={tx.currencyBalance?.currencyCode || 'USD'} 
+                                    <CurrencyDisplay
+                                        amount={tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Number(tx.amount)}
+                                        currency={tx.currencyBalance?.currencyCode || 'USD'}
                                         showSign={tx.type === 'income'}
                                     />
                                 </span>

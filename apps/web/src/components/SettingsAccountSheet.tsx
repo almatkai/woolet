@@ -42,7 +42,7 @@ export function SettingsAccountSheet({ account, trigger }: SettingsAccountSheetP
     const [open, setOpen] = useState(false);
     const utils = trpc.useUtils();
 
-    const { register, handleSubmit, reset, formState: { errors }, setValue } = useForm<UpdateAccountForm>({
+    const { register, handleSubmit, formState: { errors }, setValue } = useForm<UpdateAccountForm>({
         resolver: zodResolver(updateAccountSchema),
         defaultValues: {
             name: account.name,

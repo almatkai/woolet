@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Plus, Wallet, Receipt, PiggyBank, Home, CalendarDays, TrendingUp, Users, ArrowLeft, X } from 'lucide-react';
+import { Plus, Wallet, Receipt, PiggyBank, Home, CalendarDays, TrendingUp, Users, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Sheet,
@@ -106,10 +106,7 @@ export function UniversalAddSheet() {
         }
     };
 
-    const handleClose = () => {
-        setOpen(false);
-        setSelectedOption(null);
-    };
+    // handleClose removed (unused)
 
     const handleBack = () => {
         setSelectedOption(null);

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowRight, ArrowLeftRight, Building2 } from 'lucide-react';
+import { ArrowRight, ArrowLeftRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+// Switch removed (unused)
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const transferSchema = z.object({

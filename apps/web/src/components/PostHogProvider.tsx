@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import posthog from 'posthog-js';
 import { PostHogProvider as PHProvider } from 'posthog-js/react';
-import { useAuth, useUser } from '@clerk/clerk-react';
+import { useUser } from '@clerk/clerk-react';
 import { useLocation } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc';
 import { GlitchTip } from '@/lib/error-tracking';

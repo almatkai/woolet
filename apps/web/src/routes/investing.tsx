@@ -154,7 +154,7 @@ function NewsFeed({ category, icon }: { category: 'latest' | 'ai' | 'oil' | 'med
 
     return (
         <div className="space-y-2 mt-3">
-            {news.slice(0, 7).map((item: any, i: number) => (
+            {news.slice(0, 7).map((item: { title: string; description: string; link: string }, i: number) => (
                 <NewsLink
                     key={i}
                     title={item.title}
@@ -197,11 +197,11 @@ export function InvestingPage() {
 
     useEffect(() => {
         if (summary) {
-            posthog.setPersonProperties({ 
+            posthog.setPersonProperties({
                 investment_count: summary.holdings.length,
                 total_investment_value: summary.totalValue
             });
-            posthog.capture('investing_viewed', { 
+            posthog.capture('investing_viewed', {
                 investment_count: summary.holdings.length,
                 total_investment_value: summary.totalValue
             });
@@ -216,7 +216,7 @@ export function InvestingPage() {
             toast.success('Buy transaction recorded');
             resetTrade();
         },
-        onError: (error: any) => toast.error(error.message || 'Failed to record buy'),
+        onError: (error: { message?: string }) => toast.error(error.message || 'Failed to record buy'),
     });
 
     const sellStock = trpc.investing.sellStock.useMutation({
@@ -227,7 +227,7 @@ export function InvestingPage() {
             toast.success('Sell transaction recorded');
             resetTrade();
         },
-        onError: (error: any) => toast.error(error.message || 'Failed to record sell'),
+        onError: (error: { message?: string }) => toast.error(error.message || 'Failed to record sell'),
     });
 
     const deleteAllStocks = trpc.investing.deleteAllStocks.useMutation({
@@ -238,7 +238,7 @@ export function InvestingPage() {
             utils.investing.getInvestmentCashBalance.invalidate();
             toast.success('All stocks deleted');
         },
-        onError: (error: any) => toast.error(error.message || 'Failed to delete stocks'),
+        onError: (error: { message?: string }) => toast.error(error.message || 'Failed to delete stocks'),
     });
 
     const depositCash = trpc.investing.depositToInvestment.useMutation({
@@ -247,7 +247,7 @@ export function InvestingPage() {
             utils.investing.getInvestmentCashBalance.invalidate();
             toast.success('Cash deposited to investment account');
         },
-        onError: (error: any) => toast.error(error.message || 'Failed to deposit cash'),
+        onError: (error: { message?: string }) => toast.error(error.message || 'Failed to deposit cash'),
     });
 
     const withdrawCash = trpc.investing.withdrawFromInvestment.useMutation({
@@ -256,7 +256,7 @@ export function InvestingPage() {
             utils.investing.getInvestmentCashBalance.invalidate();
             toast.success('Cash withdrawn from investment account');
         },
-        onError: (error: any) => toast.error(error.message || 'Failed to withdraw cash'),
+        onError: (error: { message?: string }) => toast.error(error.message || 'Failed to withdraw cash'),
     });
 
     const holdingsByStockId = useMemo(() => {
@@ -294,9 +294,6 @@ export function InvestingPage() {
 
     const totalInvested = summary?.totalInvested ?? 0;
     const currentValue = summary?.stockValue ?? 0; // Stock value only
-    const totalCash = summary?.cash?.totalCash ?? 0;
-    const totalPortfolioValue = summary?.totalPortfolioValue ?? 0; // Stocks + cash
-    const cashAllocationPercent = summary?.cashAllocationPercent ?? 0;
     const totalReturn = summary?.totalReturn ?? 0;
     const totalReturnPercent = summary?.totalReturnPercent ?? 0;
     const totalQuantity = summary?.holdings?.reduce((sum: number, h: HoldingSummary) => sum + h.quantity, 0) ?? 0;
@@ -368,8 +365,8 @@ export function InvestingPage() {
         const benchmarkSeries = benchmarkComparison?.benchmark?.chartData || [];
         if (portfolioSeries.length === 0 || benchmarkSeries.length === 0) return [];
 
-        const benchmarkMap = new Map(benchmarkSeries.map((point: any) => [point.date, point.value]));
-        return portfolioSeries.map((point: any) => ({
+        const benchmarkMap = new Map(benchmarkSeries.map((point: { date: string; value: number }) => [point.date, point.value]));
+        return portfolioSeries.map((point: { date: string; value: number }) => ({
             date: point.date,
             portfolio: point.value,
             benchmark: benchmarkMap.get(point.date) ?? 0,
@@ -417,7 +414,7 @@ export function InvestingPage() {
 
             {/* Cash & Portfolio Value Row */}
             <div className="flex flex-col lg:flex-row gap-4">
-                
+
                 {/* Asset Performance Metrics - Fixed width 186px, appears first on mobile */}
                 <Card className="flex flex-col w-full lg:w-[186px] shrink-0 order-3 lg:order-3">
                     <CardHeader className="pb-2 pt-4 px-4">
@@ -1222,7 +1219,7 @@ export function InvestingPage() {
                             {cashType === 'deposit' ? 'Deposit Cash' : 'Withdraw Cash'}
                         </DialogTitle>
                         <DialogDescription>
-                            {cashType === 'deposit' 
+                            {cashType === 'deposit'
                                 ? 'Add funds to your investment account from your bank account'
                                 : 'Withdraw funds from your investment account to your bank account'
                             }

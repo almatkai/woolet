@@ -59,13 +59,16 @@ export function AiDigestCard() {
 
     // Load dismissed state from localStorage on mount
     useEffect(() => {
-        if (user?.id) {
-            const storageKey = `${LOCKED_CARD_STORAGE_KEY}_${user.id}`;
-            const dismissed = localStorage.getItem(storageKey);
-            setShowLockedCard(dismissed !== 'true');
-        } else {
-            setShowLockedCard(true);
-        }
+        const handle = setTimeout(() => {
+            if (user?.id) {
+                const storageKey = `${LOCKED_CARD_STORAGE_KEY}_${user.id}`;
+                const dismissed = localStorage.getItem(storageKey);
+                setShowLockedCard(dismissed !== 'true');
+            } else {
+                setShowLockedCard(true);
+            }
+        }, 0);
+        return () => clearTimeout(handle);
     }, [user?.id]);
 
     const handleCloseLockedCard = () => {

@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { usePricing } from '@/components/PricingContext';
-import { useUser } from '@clerk/clerk-react';
 import { Sparkles, ArrowRight, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';

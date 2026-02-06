@@ -39,9 +39,12 @@ export function useTooltipPro(data: TooltipData[] = [], formatValue?: (value: nu
     const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
     useEffect(() => {
-        if (typeof window === 'undefined') return;
-        setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
-        setPortalTarget(document.body);
+        const handle = setTimeout(() => {
+            if (typeof window === 'undefined') return;
+            setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+            setPortalTarget(document.body);
+        }, 0);
+        return () => clearTimeout(handle);
     }, []);
 
     const total = useMemo(() => {
@@ -88,7 +91,7 @@ export function useTooltipPro(data: TooltipData[] = [], formatValue?: (value: nu
         const handleClickOutside = () => {
             setShowMobileTooltip(false);
         };
-        
+
         if (showMobileTooltip) {
             document.addEventListener('click', handleClickOutside);
             return () => document.removeEventListener('click', handleClickOutside);
@@ -122,7 +125,7 @@ export function useTooltipPro(data: TooltipData[] = [], formatValue?: (value: nu
 
                 {/* Mobile tooltip */}
                 {isTouchDevice && showMobileTooltip && selectedItem && (
-                    <div 
+                    <div
                         className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-2xl border border-purple-200/50 dark:border-purple-800/50 bg-background/70 backdrop-blur-xl px-4 py-2 z-[9999] shadow-2xl ring-1 ring-white/10 whitespace-nowrap"
                         onClick={(e) => e.stopPropagation()}
                     >
@@ -157,9 +160,9 @@ export function useTooltipPro(data: TooltipData[] = [], formatValue?: (value: nu
 }
 
 // Legacy component wrapper (kept for compatibility)
-export function TooltipPro({ 
-    data = [], 
-    children, 
+export function TooltipPro({
+    data = [],
+    children,
     formatValue,
     showPercentage = false,
     className = ""

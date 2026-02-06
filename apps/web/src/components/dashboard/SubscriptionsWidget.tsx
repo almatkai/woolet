@@ -71,7 +71,7 @@ export function SubscriptionsWidget({ gridParams }: { gridParams?: { w: number; 
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 
-                let nextBillingDate = new Date(today);
+                const nextBillingDate = new Date(today);
                 
                 if (sub.frequency === 'monthly') {
                     const billingDay = sub.billingDay || new Date(sub.startDate).getDate();

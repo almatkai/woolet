@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { Bell, Check, ExternalLink, AlertCircle, CalendarClock, CreditCard, TrendingUp, Wallet, DollarSign, Trash2 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
-export const Route = (createFileRoute as any)('/notifications')({
+export const Route = (createFileRoute as (path: string) => any)('/notifications')({
     component: NotificationsPage,
 });
 
@@ -59,20 +59,20 @@ const typeIcons = {
 
 export function NotificationsPage() {
     const [activeTab, setActiveTab] = useState<string>('all');
-    
+
     const { data: notificationsData, refetch } = trpc.notification.list.useQuery(
         { limit: 50 },
         { refetchInterval: 30000 }
     );
-    
+
     const markAsReadMutation = trpc.notification.markAsRead.useMutation({
         onSuccess: () => refetch(),
     });
-    
+
     const markAllAsReadMutation = trpc.notification.markAllAsRead.useMutation({
         onSuccess: () => refetch(),
     });
-    
+
     const deleteMutation = trpc.notification.delete.useMutation({
         onSuccess: () => refetch(),
     });
@@ -152,8 +152,8 @@ export function NotificationsPage() {
                                 <Bell className="h-12 w-12 text-muted-foreground mb-4" />
                                 <h3 className="text-lg font-semibold">No notifications</h3>
                                 <p className="text-muted-foreground">
-                                    {activeTab === 'unread' 
-                                        ? 'You have no unread notifications' 
+                                    {activeTab === 'unread'
+                                        ? 'You have no unread notifications'
                                         : 'You have no notifications yet'}
                                 </p>
                             </CardContent>
@@ -163,16 +163,16 @@ export function NotificationsPage() {
                             {filteredNotifications.map((notification: Notification) => {
                                 const Icon = typeIcons[notification.type as keyof typeof typeIcons] || Bell;
                                 const isUnread = !notification.isRead;
-                                
+
                                 return (
-                                    <Card 
+                                    <Card
                                         key={notification.id}
                                         className={cn(
                                             "relative overflow-hidden transition-all hover:shadow-md",
                                             isUnread && "border-primary/30"
                                         )}
                                     >
-                                        <div 
+                                        <div
                                             className={cn(
                                                 "absolute left-0 top-0 bottom-0 w-1",
                                                 priorityColors[notification.priority as keyof typeof priorityColors] || 'bg-muted'
@@ -186,7 +186,7 @@ export function NotificationsPage() {
                                                 )}>
                                                     <Icon className="h-5 w-5 text-white" />
                                                 </div>
-                                                
+
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center justify-between gap-2">
                                                         <div className="flex items-center gap-2">
@@ -196,7 +196,7 @@ export function NotificationsPage() {
                                                             )}>
                                                                 {notification.title}
                                                             </h4>
-                                                            <Badge 
+                                                            <Badge
                                                                 variant="secondary"
                                                                 className={priorityBadgeColors[notification.priority as keyof typeof priorityBadgeColors]}
                                                             >
@@ -207,11 +207,11 @@ export function NotificationsPage() {
                                                             {formatTimeAgo(notification.createdAt)}
                                                         </span>
                                                     </div>
-                                                    
+
                                                     <p className="text-sm text-muted-foreground mt-1">
                                                         {notification.message}
                                                     </p>
-                                                    
+
                                                     <div className="flex items-center gap-2 mt-3">
                                                         {!notification.isRead && (
                                                             <Button
@@ -223,7 +223,7 @@ export function NotificationsPage() {
                                                                 Mark as read
                                                             </Button>
                                                         )}
-                                                        
+
                                                         {notification.links?.web && (
                                                             <a href={notification.links.web}>
                                                                 <Button variant="ghost" size="sm">
@@ -232,7 +232,7 @@ export function NotificationsPage() {
                                                                 </Button>
                                                             </a>
                                                         )}
-                                                        
+
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"

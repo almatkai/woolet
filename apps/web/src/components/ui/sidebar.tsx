@@ -82,15 +82,26 @@ const SidebarProvider = React.forwardRef<
     const open = openProp ?? _open
     const setOpen = React.useCallback(
       (value: boolean | ((value: boolean) => boolean)) => {
-        const openState = typeof value === "function" ? value(open) : value
-        if (setOpenProp) {
-          setOpenProp(openState)
+        // Determine the new state. If 'value' is a function, it should receive the *current* state.
+        // For external control (setOpenProp), we pass the resolved state.
+        // For internal control (_setOpen), we can pass the function directly for React to handle.
+        let newOpenState: boolean;
+        if (typeof value === "function") {
+          // If controlled externally, we need to resolve the function with the current 'open' prop.
+          // If not controlled, _setOpen will handle the function correctly.
+          newOpenState = value(open);
         } else {
-          _setOpen(openState)
+          newOpenState = value;
+        }
+
+        if (setOpenProp) {
+          setOpenProp(newOpenState);
+        } else {
+          _setOpen(value); // Let React handle the function for internal state
         }
 
         // This sets the cookie to keep the sidebar state.
-        document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+        document.cookie = `${SIDEBAR_COOKIE_NAME}=${newOpenState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
       },
       [setOpenProp, open]
     )
@@ -632,7 +643,7 @@ const SidebarMenuAction = React.forwardRef<
         "peer-data-[size=lg]/menu-button:top-2.5",
         "group-data-[collapsible=icon]:hidden",
         showOnHover &&
-          "group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 peer-data-[active=true]/menu-button:text-sidebar-accent-foreground md:opacity-0",
+        "group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 peer-data-[active=true]/menu-button:text-sidebar-accent-foreground md:opacity-0",
         className
       )}
       {...props}
@@ -668,9 +679,9 @@ const SidebarMenuSkeleton = React.forwardRef<
     showIcon?: boolean
   }
 >(({ className, showIcon = false, ...props }, ref) => {
-  // Random width between 50 to 90%.
+  // Use a stable width for the skeleton.
   const width = React.useMemo(() => {
-    return `${Math.floor(Math.random() * 40) + 50}%`
+    return "70%"
   }, [])
 
   return (

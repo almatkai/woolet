@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { PricingSection } from '@/components/landing/PricingSection';
 
-export const Route = (createFileRoute as any)('/pricing')({
+export const Route = (createFileRoute as (path: string) => any)('/pricing')({
     component: PricingPage,
 });
 

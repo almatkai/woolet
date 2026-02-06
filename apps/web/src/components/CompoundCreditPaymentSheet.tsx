@@ -50,7 +50,7 @@ function getMonthsBetween(startDate: string, endDate: string): string[] {
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    let current = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+    const current = new Date(start.getFullYear(), start.getMonth() + 1, 1);
     const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
 
     while (current <= endMonth) {

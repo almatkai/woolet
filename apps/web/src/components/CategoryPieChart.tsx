@@ -23,7 +23,7 @@ function useElementSize<T extends HTMLElement>() {
     const [element, setElement] = useState<T | null>(null);
     const [size, setSize] = useState({ width: 0, height: 0 });
 
-    const ref = useCallback((node: T | null) => {
+    const refCallback = useCallback((node: T | null) => {
         setElement(node);
     }, []);
 
@@ -35,27 +35,28 @@ function useElementSize<T extends HTMLElement>() {
             setSize({ width: rect.width, height: rect.height });
         };
 
-        update();
+        const handle = setTimeout(update, 0);
         const observer = new ResizeObserver(update);
         observer.observe(element);
-        return () => observer.disconnect();
+        return () => {
+            clearTimeout(handle);
+            observer.disconnect();
+        };
     }, [element]);
 
-    return { ref, size };
+    return { ref: refCallback, size };
 }
 
 export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: number } }) {
     const [period, setPeriod] = useState<'weekly' | 'monthly'>('monthly');
     const [enabledCategories, setEnabledCategories] = useState<Set<string>>(new Set());
     const [initialized, setInitialized] = useState(false);
-    const chartArea = useElementSize<HTMLDivElement>();
+    const { ref: chartAreaRef, size: chartAreaSize } = useElementSize<HTMLDivElement>();
 
     const gridW = gridParams?.w ?? 0;
     const showSelector = gridW === 1;
 
     const { data: balanceData } = trpc.account.getTotalBalance.useQuery();
-
-
 
     // Calculate dates
     const dateRange = useMemo(() => {
@@ -80,22 +81,22 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
 
     // Initialize enabled categories when data loads
     useEffect(() => {
-        if (stats?.categoryData && !initialized) {
-            setEnabledCategories(new Set(stats.categoryData.map((c: any) => c.id)));
-            setInitialized(true);
-        }
+        const handle = setTimeout(() => {
+            if (stats?.categoryData && !initialized) {
+                setEnabledCategories(new Set(stats.categoryData.map((c: any) => c.id)));
+                setInitialized(true);
+            }
+        }, 0);
+        return () => clearTimeout(handle);
     }, [stats, initialized]);
 
     const chartSize = useMemo(() => {
-        // User requirement: chart's diagonal should fit within the available box.
-        // A square with side `s` has diagonal `s * sqrt(2)`.
-        // So if the available min dimension is `minDim`, we want `s = minDim / sqrt(2)`.
-        const minDim = Math.min(chartArea.size.width, chartArea.size.height);
+        const minDim = Math.min(chartAreaSize.width, chartAreaSize.height);
         if (!Number.isFinite(minDim) || minDim <= 0) return 0;
         const sideFromDiagonal = minDim / Math.SQRT2;
         const padding = 8;
         return Math.max(60, Math.floor(sideFromDiagonal - padding));
-    }, [chartArea.size.height, chartArea.size.width]);
+    }, [chartAreaSize]);
 
     const strokeWidth = 3;
     const { outerRadius, innerRadius } = useMemo(() => {
@@ -145,8 +146,6 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
 
     // Initialize tooltip hook
     const tooltip = useTooltipPro(filteredData, (value: number) => formatCurrency(value), true);
-
-
 
     if (isLoading) {
         return (
@@ -232,65 +231,65 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
                         </div>
 
                         <div
-                            ref={chartArea.ref}
+                            ref={chartAreaRef}
                             className="flex-1 min-h-0 min-w-0 flex items-center justify-center overflow-hidden"
                         >
                             {chartSize <= 0 ? (
                                 <Skeleton className="h-24 w-24 rounded-full" />
                             ) : (
-                            <div
-                                className="relative"
-                                style={{ width: chartSize, height: chartSize }}
-                                onMouseMove={tooltip.handleMouseMove}
-                                onMouseLeave={tooltip.handleMouseLeave}
-                            >
-                                <PieChart width={chartSize} height={chartSize} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-                                    <Pie
-                                        data={filteredData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={innerRadius}
-                                        outerRadius={outerRadius}
-                                        paddingAngle={2}
-                                        dataKey="value"
-                                        strokeWidth={strokeWidth}
-                                        onClick={(_, index) => tooltip.handleItemClick(filteredData[index])}
-                                        onMouseEnter={(_, index) => tooltip.handleItemHover(filteredData[index])}
-                                        onMouseLeave={() => tooltip.handleItemHover(null)}
-                                    >
-                                        {filteredData.map((entry: any, index: number) => (
-                                            <Cell
-                                                key={`cell-${index}`}
-                                                fill={entry.color || COLORS[index % COLORS.length]}
-                                                stroke={entry.color || COLORS[index % COLORS.length]}
-                                                fillOpacity={1}
-                                            />
-                                        ))}
-                                    </Pie>
-                                </PieChart>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                    <span
-                                        className="font-bold tracking-tight text-foreground"
-                                        style={{ fontSize: Math.max(chartSize * 0.12, 10) }}
-                                    >
-                                        {formatAmountAbbreviated(filteredTotal)}
-                                    </span>
-                                    <span
-                                        className="text-muted-foreground uppercase font-medium tracking-widest leading-none mt-1"
-                                        style={{ fontSize: Math.max(chartSize * 0.05, 7) }}
-                                    >
-                                        {enabledCategories.size} Categories
-                                    </span>
-                                    <span
-                                        className="text-muted-foreground font-medium mt-0.5"
-                                        style={{ fontSize: Math.max(chartSize * 0.05, 8) }}
-                                    >
-                                        {formatCurrency(filteredTotal)}
-                                    </span>
-                                </div>
+                                <div
+                                    className="relative"
+                                    style={{ width: chartSize, height: chartSize }}
+                                    onMouseMove={tooltip.handleMouseMove}
+                                    onMouseLeave={tooltip.handleMouseLeave}
+                                >
+                                    <PieChart width={chartSize} height={chartSize} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                                        <Pie
+                                            data={filteredData}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={innerRadius}
+                                            outerRadius={outerRadius}
+                                            paddingAngle={2}
+                                            dataKey="value"
+                                            strokeWidth={strokeWidth}
+                                            onClick={(_, index) => tooltip.handleItemClick(filteredData[index])}
+                                            onMouseEnter={(_, index) => tooltip.handleItemHover(filteredData[index])}
+                                            onMouseLeave={() => tooltip.handleItemHover(null)}
+                                        >
+                                            {filteredData.map((entry: any, index: number) => (
+                                                <Cell
+                                                    key={`cell-${index}`}
+                                                    fill={entry.color || COLORS[index % COLORS.length]}
+                                                    stroke={entry.color || COLORS[index % COLORS.length]}
+                                                    fillOpacity={1}
+                                                />
+                                            ))}
+                                        </Pie>
+                                    </PieChart>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                        <span
+                                            className="font-bold tracking-tight text-foreground"
+                                            style={{ fontSize: Math.max(chartSize * 0.12, 10) }}
+                                        >
+                                            {formatAmountAbbreviated(filteredTotal)}
+                                        </span>
+                                        <span
+                                            className="text-muted-foreground uppercase font-medium tracking-widest leading-none mt-1"
+                                            style={{ fontSize: Math.max(chartSize * 0.05, 7) }}
+                                        >
+                                            {enabledCategories.size} Categories
+                                        </span>
+                                        <span
+                                            className="text-muted-foreground font-medium mt-0.5"
+                                            style={{ fontSize: Math.max(chartSize * 0.05, 8) }}
+                                        >
+                                            {formatCurrency(filteredTotal)}
+                                        </span>
+                                    </div>
 
-                                {tooltip.renderTooltip()}
-                            </div>
+                                    {tooltip.renderTooltip()}
+                                </div>
                             )}
                         </div>
                     </>
@@ -298,65 +297,65 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
                     <div className="flex-1 min-h-0 flex gap-2 sm:gap-6">
                         {/* Left: Pie Chart centered vertically */}
                         <div
-                            ref={chartArea.ref}
+                            ref={chartAreaRef}
                             className="flex-1 min-h-0 min-w-0 flex items-center justify-center overflow-hidden"
                         >
                             {chartSize <= 0 ? (
                                 <Skeleton className="h-24 w-24 rounded-full" />
                             ) : (
-                            <div
-                                className="relative"
-                                style={{ width: chartSize, height: chartSize }}
-                                onMouseMove={tooltip.handleMouseMove}
-                                onMouseLeave={tooltip.handleMouseLeave}
-                            >
-                                <PieChart width={chartSize} height={chartSize} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-                                    <Pie
-                                        data={filteredData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={innerRadius}
-                                        outerRadius={outerRadius}
-                                        paddingAngle={2}
-                                        dataKey="value"
-                                        strokeWidth={strokeWidth}
-                                        onClick={(_, index) => tooltip.handleItemClick(filteredData[index])}
-                                        onMouseEnter={(_, index) => tooltip.handleItemHover(filteredData[index])}
-                                        onMouseLeave={() => tooltip.handleItemHover(null)}
-                                    >
-                                        {filteredData.map((entry: any, index: number) => (
-                                            <Cell
-                                                key={`cell-${index}`}
-                                                fill={entry.color || COLORS[index % COLORS.length]}
-                                                stroke={entry.color || COLORS[index % COLORS.length]}
-                                                fillOpacity={1}
-                                            />
-                                        ))}
-                                    </Pie>
-                                </PieChart>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                    <span
-                                        className="font-bold tracking-tight text-foreground"
-                                        style={{ fontSize: Math.max(chartSize * 0.12, 10) }}
-                                    >
-                                        {formatAmountAbbreviated(filteredTotal)}
-                                    </span>
-                                    <span
-                                        className="text-muted-foreground uppercase font-medium tracking-widest leading-none mt-1"
-                                        style={{ fontSize: Math.max(chartSize * 0.05, 7) }}
-                                    >
-                                        {enabledCategories.size} Categories
-                                    </span>
-                                    <span
-                                        className="text-muted-foreground font-medium mt-0.5"
-                                        style={{ fontSize: Math.max(chartSize * 0.05, 8) }}
-                                    >
-                                        {formatCurrency(filteredTotal)}
-                                    </span>
-                                </div>
+                                <div
+                                    className="relative"
+                                    style={{ width: chartSize, height: chartSize }}
+                                    onMouseMove={tooltip.handleMouseMove}
+                                    onMouseLeave={tooltip.handleMouseLeave}
+                                >
+                                    <PieChart width={chartSize} height={chartSize} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                                        <Pie
+                                            data={filteredData}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={innerRadius}
+                                            outerRadius={outerRadius}
+                                            paddingAngle={2}
+                                            dataKey="value"
+                                            strokeWidth={strokeWidth}
+                                            onClick={(_, index) => tooltip.handleItemClick(filteredData[index])}
+                                            onMouseEnter={(_, index) => tooltip.handleItemHover(filteredData[index])}
+                                            onMouseLeave={() => tooltip.handleItemHover(null)}
+                                        >
+                                            {filteredData.map((entry: any, index: number) => (
+                                                <Cell
+                                                    key={`cell-${index}`}
+                                                    fill={entry.color || COLORS[index % COLORS.length]}
+                                                    stroke={entry.color || COLORS[index % COLORS.length]}
+                                                    fillOpacity={1}
+                                                />
+                                            ))}
+                                        </Pie>
+                                    </PieChart>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                        <span
+                                            className="font-bold tracking-tight text-foreground"
+                                            style={{ fontSize: Math.max(chartSize * 0.12, 10) }}
+                                        >
+                                            {formatAmountAbbreviated(filteredTotal)}
+                                        </span>
+                                        <span
+                                            className="text-muted-foreground uppercase font-medium tracking-widest leading-none mt-1"
+                                            style={{ fontSize: Math.max(chartSize * 0.05, 7) }}
+                                        >
+                                            {enabledCategories.size} Categories
+                                        </span>
+                                        <span
+                                            className="text-muted-foreground font-medium mt-0.5"
+                                            style={{ fontSize: Math.max(chartSize * 0.05, 8) }}
+                                        >
+                                            {formatCurrency(filteredTotal)}
+                                        </span>
+                                    </div>
 
-                                {tooltip.renderTooltip()}
-                            </div>
+                                    {tooltip.renderTooltip()}
+                                </div>
                             )}
                         </div>
 

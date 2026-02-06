@@ -1,7 +1,7 @@
 'use client';
 
 import { Link, useRouterState } from '@tanstack/react-router';
-import { useUser, SignOutButton, UserProfile } from '@clerk/clerk-react';
+import { useUser } from '@clerk/clerk-react';
 import { dark } from '@clerk/themes';
 import {
     LayoutDashboard,
@@ -10,9 +10,7 @@ import {
     Users,
     CreditCard,
     TrendingUp,
-    Bitcoin,
     Settings,
-    LogOut,
     ChevronUp,
     PiggyBank,
     Home,
@@ -33,7 +31,6 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarMenuBadge,
 } from '@/components/ui/sidebar';
 import {
     DropdownMenu,
@@ -42,12 +39,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-    Dialog,
-    DialogContent,
-    DialogTitle,
-    DialogDescription,
-} from '@/components/ui/dialog';
+// Dialog components removed (unused)
+
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AiChatSidebarItem } from '@/components/AiChatWidget';
 import { PricingCtaBanner } from '@/components/PricingCtaBanner';
@@ -71,9 +64,7 @@ const investingItems = [
     { title: 'Investing', url: '/investing', icon: TrendingUp },
 ];
 
-const comingSoonItems = [
-    { title: 'Crypto', url: '/coming-soon/crypto', icon: Bitcoin, badge: 'Soon' },
-];
+// comingSoonItems removed (unused)
 
 export function AppSidebar() {
     const router = useRouterState();

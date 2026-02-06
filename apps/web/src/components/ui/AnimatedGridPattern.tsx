@@ -62,14 +62,17 @@ export function AnimatedGridPattern({
     };
 
     useEffect(() => {
-        if (dimensions.width && dimensions.height) {
-            setSquares(generateSquares(numSquares));
-        }
+        const handle = setTimeout(() => {
+            if (dimensions.width && dimensions.height) {
+                setSquares(generateSquares(numSquares));
+            }
+        }, 0);
+        return () => clearTimeout(handle);
     }, [dimensions, numSquares]);
 
     useEffect(() => {
         const resizeObserver = new ResizeObserver((entries) => {
-            for (let entry of entries) {
+            for (const entry of entries) {
                 setDimensions({
                     width: entry.contentRect.width,
                     height: entry.contentRect.height,

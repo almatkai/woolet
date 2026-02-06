@@ -46,7 +46,7 @@ function getMonthsBetween(startDate: string, endDate: string): string[] {
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    let current = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+    const current = new Date(start.getFullYear(), start.getMonth() + 1, 1);
     const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
 
     while (current <= endMonth) {
@@ -93,13 +93,13 @@ export function CreditPaymentSheet({ open, onOpenChange, credit }: CreditPayment
     const allMonths = useMemo(() => {
         if (!credit) return [];
         return getMonthsBetween(credit.startDate, credit.endDate);
-    }, [credit?.startDate, credit?.endDate]);
+    }, [credit]);
 
     // Get paid months
     const paidMonths = useMemo(() => {
         if (!credit) return new Set<string>();
         return new Set(credit.payments.map(p => p.monthYear));
-    }, [credit?.payments]);
+    }, [credit]);
 
     // Get unpaid months
     const unpaidMonths = useMemo(() => {

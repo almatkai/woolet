@@ -4,13 +4,6 @@ import { trpc } from '@/lib/trpc';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from '@tanstack/react-router';
@@ -33,7 +26,6 @@ import {
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PushNotificationSettings, usePushNotifications } from '@/hooks/usePushNotifications';
-import { cn } from '@/lib/utils';
 import {
     Select,
     SelectContent,
@@ -52,18 +44,17 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Bell, BellRing, Check } from 'lucide-react';
+import { Bell, BellRing } from 'lucide-react';
 import { SignOutButton } from '@clerk/clerk-react';
 
 export function SettingsPage() {
     const { theme, setTheme } = useTheme();
-    const { data: user } = trpc.user.me.useQuery();
+    trpc.user.me.useQuery();
     const { data: settings } = trpc.settings.getUserSettings.useQuery();
     const [isExporting, setIsExporting] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [pushSettingsOpen, setPushSettingsOpen] = useState(false);
-    const navigate = useNavigate();
 
     const { isSupported, isSubscribed, subscribe, unsubscribe } = usePushNotifications();
 
@@ -74,7 +65,7 @@ export function SettingsPage() {
             toast.success('Settings updated');
             utils.settings.getUserSettings.invalidate();
         },
-        onError: (error: any) => {
+        onError: (error: { message?: string }) => {
             toast.error(error.message || 'Failed to update settings');
         }
     });
@@ -84,7 +75,7 @@ export function SettingsPage() {
             toast.success('All data deleted successfully');
             utils.invalidate();
         },
-        onError: (error: any) => {
+        onError: (error: { message?: string }) => {
             toast.error(error.message || 'Failed to delete data');
         }
     });
@@ -112,7 +103,7 @@ export function SettingsPage() {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             toast.success('Data exported successfully');
-        } catch (error: any) {
+        } catch (error: unknown) {
             toast.error('Failed to export data');
         } finally {
             setIsExporting(false);
@@ -130,7 +121,7 @@ export function SettingsPage() {
             await utils.user.importData.fetch({ data });
             toast.success('Data imported successfully');
             utils.invalidate();
-        } catch (error) {
+        } catch {
             toast.error('Failed to import data. Please ensure the file is valid.');
         } finally {
             setIsImporting(false);
@@ -267,7 +258,7 @@ export function SettingsPage() {
                             </div>
                             <Select
                                 value={globalStatusLogic}
-                                onValueChange={(val: any) => updateSettings.mutate({ paymentStatusLogic: val })}
+                                onValueChange={(val: 'monthly' | 'period') => updateSettings.mutate({ paymentStatusLogic: val })}
                             >
                                 <SelectTrigger className="w-[180px] bg-background border-border">
                                     <SelectValue placeholder="Select logic" />
@@ -288,7 +279,7 @@ export function SettingsPage() {
                                 <div className="flex items-center gap-2">
                                     <Select
                                         value={globalStatusPeriod}
-                                        onValueChange={(val: any) => updateSettings.mutate({ paymentStatusPeriod: val })}
+                                        onValueChange={(val: string) => updateSettings.mutate({ paymentStatusPeriod: val })}
                                     >
                                         <SelectTrigger className="w-[100px] bg-background border-border">
                                             <SelectValue />
@@ -318,7 +309,7 @@ export function SettingsPage() {
                                     <div className="flex items-center gap-2">
                                         <Select
                                             value={creditStatusLogic}
-                                            onValueChange={(val: any) => updateSettings.mutate({ creditStatusLogic: val === 'global' ? null : val })}
+                                            onValueChange={(val: 'global' | 'monthly' | 'period') => updateSettings.mutate({ creditStatusLogic: val === 'global' ? null : val })}
                                         >
                                             <SelectTrigger className="w-[180px] bg-background border-border">
                                                 <SelectValue />
@@ -331,7 +322,7 @@ export function SettingsPage() {
                                         </Select>
                                         <Select
                                             value={creditStatusLogic === 'period' ? creditStatusPeriod : 'global'}
-                                            onValueChange={(val: any) => updateSettings.mutate({ creditStatusPeriod: val === 'global' ? null : val })}
+                                            onValueChange={(val: string) => updateSettings.mutate({ creditStatusPeriod: val === 'global' ? null : val })}
                                             disabled={creditStatusLogic !== 'period'}
                                         >
                                             <SelectTrigger className="w-[100px] bg-background border-border">
@@ -359,7 +350,7 @@ export function SettingsPage() {
                                     <div className="flex items-center gap-2">
                                         <Select
                                             value={mortgageStatusLogic}
-                                            onValueChange={(val: any) => updateSettings.mutate({ mortgageStatusLogic: val === 'global' ? null : val })}
+                                            onValueChange={(val: 'global' | 'monthly' | 'period') => updateSettings.mutate({ mortgageStatusLogic: val === 'global' ? null : val })}
                                         >
                                             <SelectTrigger className="w-[180px] bg-background border-border">
                                                 <SelectValue />
@@ -372,7 +363,7 @@ export function SettingsPage() {
                                         </Select>
                                         <Select
                                             value={mortgageStatusLogic === 'period' ? mortgageStatusPeriod : 'global'}
-                                            onValueChange={(val: any) => updateSettings.mutate({ mortgageStatusPeriod: val === 'global' ? null : val })}
+                                            onValueChange={(val: string) => updateSettings.mutate({ mortgageStatusPeriod: val === 'global' ? null : val })}
                                             disabled={mortgageStatusLogic !== 'period'}
                                         >
                                             <SelectTrigger className="w-[100px] bg-background border-border">
@@ -400,7 +391,7 @@ export function SettingsPage() {
                                     <div className="flex items-center gap-2">
                                         <Select
                                             value={subscriptionStatusLogic}
-                                            onValueChange={(val: any) => updateSettings.mutate({ subscriptionStatusLogic: val === 'global' ? null : val })}
+                                            onValueChange={(val: 'global' | 'monthly' | 'period') => updateSettings.mutate({ subscriptionStatusLogic: val === 'global' ? null : val })}
                                         >
                                             <SelectTrigger className="w-[180px] bg-background border-border">
                                                 <SelectValue />
@@ -413,7 +404,7 @@ export function SettingsPage() {
                                         </Select>
                                         <Select
                                             value={subscriptionStatusLogic === 'period' ? subscriptionStatusPeriod : 'global'}
-                                            onValueChange={(val: any) => updateSettings.mutate({ subscriptionStatusPeriod: val === 'global' ? null : val })}
+                                            onValueChange={(val: string) => updateSettings.mutate({ subscriptionStatusPeriod: val === 'global' ? null : val })}
                                             disabled={subscriptionStatusLogic !== 'period'}
                                         >
                                             <SelectTrigger className="w-[100px] bg-background border-border">

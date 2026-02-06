@@ -315,60 +315,63 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
         });
 
         useEffect(() => {
-            if (savedLayout !== undefined) {
-                const { layouts: loadedLayouts, hiddenWidgets: loadedHiddenWidgets } = migrateLayoutData(savedLayout);
+            const handle = setTimeout(() => {
+                if (savedLayout !== undefined) {
+                    const { layouts: loadedLayouts, hiddenWidgets: loadedHiddenWidgets } = migrateLayoutData(savedLayout);
 
-                // Check if user has no saved layout (null means new user or reset)
-                const isNewUser = savedLayout === null;
-                
-                if (isNewUser) {
-                    // New user: use default layouts with all widgets visible
-                    setLayouts(normalizeLayoutsForSmallHeights(defaultLayouts));
-                    setHiddenWidgets([]);
-                    setIsLayoutReady(true);
-                    return;
-                }
+                    // Check if user has no saved layout (null means new user or reset)
+                    const isNewUser = savedLayout === null;
 
-                // Existing user with saved layout
-                const defaultWidgetIds = new Set((defaultLayouts.lg || []).map(l => l.i));
-                const savedWidgetIds = new Set((loadedLayouts.lg || []).map(l => l.i));
-                const allKnownWidgetIds = new Set([...savedWidgetIds, ...loadedHiddenWidgets]);
-                
-                // Find newly added widgets (in defaults but not in saved layout or hidden)
-                const newWidgets = Array.from(defaultWidgetIds).filter(id => !allKnownWidgetIds.has(id));
-                
-                // For existing users, hide any new widgets by default
-                const updatedHiddenWidgets = [...loadedHiddenWidgets, ...newWidgets];
-                
-                // Ensure all widgets from defaults are present in each breakpoint
-                const breakpoints: Breakpoint[] = ['lg', 'md', 'sm', 'xs'];
-                const completeLayouts: Layouts = {};
+                    if (isNewUser) {
+                        // New user: use default layouts with all widgets visible
+                        setLayouts(normalizeLayoutsForSmallHeights(defaultLayouts));
+                        setHiddenWidgets([]);
+                        setIsLayoutReady(true);
+                        return;
+                    }
 
-                breakpoints.forEach(bp => {
-                    const bpLayout = (loadedLayouts[bp] || defaultLayouts[bp]) as InternalLayout[];
-                    
-                    // Remove duplicate widgets (keep first occurrence)
-                    const seenKeys = new Set<string>();
-                    const deduplicatedLayout = bpLayout.filter((item) => {
-                        if (seenKeys.has(item.i)) {
-                            return false;
-                        }
-                        seenKeys.add(item.i);
-                        return true;
+                    // Existing user with saved layout
+                    const defaultWidgetIds = new Set((defaultLayouts.lg || []).map(l => l.i));
+                    const savedWidgetIds = new Set((loadedLayouts.lg || []).map(l => l.i));
+                    const allKnownWidgetIds = new Set([...savedWidgetIds, ...loadedHiddenWidgets]);
+
+                    // Find newly added widgets (in defaults but not in saved layout or hidden)
+                    const newWidgets = Array.from(defaultWidgetIds).filter(id => !allKnownWidgetIds.has(id));
+
+                    // For existing users, hide any new widgets by default
+                    const updatedHiddenWidgets = [...loadedHiddenWidgets, ...newWidgets];
+
+                    // Ensure all widgets from defaults are present in each breakpoint
+                    const breakpoints: Breakpoint[] = ['lg', 'md', 'sm', 'xs'];
+                    const completeLayouts: Layouts = {};
+
+                    breakpoints.forEach(bp => {
+                        const bpLayout = (loadedLayouts[bp] || defaultLayouts[bp]) as InternalLayout[];
+
+                        // Remove duplicate widgets (keep first occurrence)
+                        const seenKeys = new Set<string>();
+                        const deduplicatedLayout = bpLayout.filter((item) => {
+                            if (seenKeys.has(item.i)) {
+                                return false;
+                            }
+                            seenKeys.add(item.i);
+                            return true;
+                        });
+
+                        // Only include widgets that are not hidden
+                        const visibleLayout = deduplicatedLayout.filter(
+                            (item) => !updatedHiddenWidgets.includes(item.i)
+                        );
+
+                        completeLayouts[bp] = visibleLayout;
                     });
-                    
-                    // Only include widgets that are not hidden
-                    const visibleLayout = deduplicatedLayout.filter(
-                        (item) => !updatedHiddenWidgets.includes(item.i)
-                    );
-                    
-                    completeLayouts[bp] = visibleLayout;
-                });
 
-                setLayouts(normalizeLayoutsForSmallHeights(completeLayouts));
-                setHiddenWidgets(updatedHiddenWidgets);
-                setIsLayoutReady(true);
-            }
+                    setLayouts(normalizeLayoutsForSmallHeights(completeLayouts));
+                    setHiddenWidgets(updatedHiddenWidgets);
+                    setIsLayoutReady(true);
+                }
+            }, 0);
+            return () => clearTimeout(handle);
         }, [savedLayout]);
 
         const onLayoutChange = useCallback((currentLayout: Layout[], allLayouts: Layouts) => {
@@ -446,7 +449,7 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
             Object.keys(layouts).forEach(bp => {
                 const currentBp = bp as Breakpoint;
                 const bpLayout = (layouts[currentBp] || []) as InternalLayout[];
-                
+
                 // Check if widget already exists in this breakpoint
                 const existingIndex = bpLayout.findIndex(item => item.i === widgetId);
                 if (existingIndex !== -1) {
@@ -454,7 +457,7 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                     newLayouts[currentBp] = bpLayout;
                     return;
                 }
-                
+
                 const defaultItem = (defaultLayouts[currentBp] as InternalLayout[])?.find(item => item.i === widgetId);
                 if (defaultItem) {
                     const maxY = Math.max(...(bpLayout || []).map(l => (l.y || 0) + (l.h || 0)), 0);
@@ -472,13 +475,15 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
             if (Array.isArray(children)) {
                 return children.find((child: any) => child && child.key === key);
             }
-            // @ts-ignore
-            return children.key === key ? children : null;
+            if (React.isValidElement(children) && children.key === key) {
+                return children;
+            }
+            return null;
         };
 
         const visibleWidgetIds = React.useMemo(() => {
             if (!layouts) return [];
-            
+
             const ids = new Set<string>();
             Object.values(layouts).forEach((layout) => {
                 (layout || []).forEach((item) => ids.add(item.i));
@@ -527,7 +532,7 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                                 const getDisplayName = (id: string) => {
                                     const names: Record<string, string> = {
                                         totalBalance: 'Total Balance',
-                                        monthlyIncome: 'Monthly Income', 
+                                        monthlyIncome: 'Monthly Income',
                                         monthlyExpenses: 'Monthly Expenses',
                                         debts: 'Debts',
                                         credits: 'Credits',
@@ -550,7 +555,7 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                                     const icons: Record<string, string> = {
                                         totalBalance: '💰',
                                         monthlyIncome: '📈',
-                                        monthlyExpenses: '📉', 
+                                        monthlyExpenses: '📉',
                                         debts: '💸',
                                         credits: '💳',
                                         deposits: '🏦',
@@ -634,10 +639,11 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                             (layouts.lg || []).find((item) => item.i === widgetId);
 
                         // Pass grid item dimensions to child
-                        // @ts-ignore - cloning to inject props
-                        const childWithProps = React.cloneElement(child, {
-                            gridParams: { w: layoutItem?.w ?? 1, h: layoutItem?.h ?? 1, breakpoint: currentBreakpoint }
-                        });
+                        const childWithProps = React.isValidElement(child)
+                            ? React.cloneElement(child as React.ReactElement, {
+                                gridParams: { w: layoutItem?.w ?? 1, h: layoutItem?.h ?? 1, breakpoint: currentBreakpoint }
+                            })
+                            : child;
 
                         return (
                             <div key={widgetId} className={isEditing ? "border-2 border-dashed border-primary/50 rounded-lg relative bg-background/50" : "relative"}>

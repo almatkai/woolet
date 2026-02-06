@@ -19,8 +19,22 @@ import { Save, Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DeleteConfirm } from '@/components/DeleteConfirm';
 
+interface CurrencyBalance {
+    id: string;
+    currencyCode: string;
+    balance: string | number;
+}
+
+interface Account {
+    id: string;
+    name: string;
+    last4Digits?: string | null;
+    icon?: string | null;
+    currencyBalances: CurrencyBalance[];
+}
+
 interface AccountActionSheetProps {
-    account: any; // Using any for simplicity as types are inferred or need full definition
+    account: Account | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }
@@ -40,10 +54,8 @@ type EditAccountForm = z.infer<typeof editAccountSchema>;
 type AdjustBalanceForm = z.infer<typeof adjustBalanceSchema>;
 
 export function AccountActionSheet({ account, open, onOpenChange }: AccountActionSheetProps) {
-    if (!account) return null;
-
     const utils = trpc.useUtils();
-    const [selectedBalanceId, setSelectedBalanceId] = useState<string>(account.currencyBalances[0]?.id || '');
+    const [selectedBalanceId, setSelectedBalanceId] = useState<string>(account?.currencyBalances[0]?.id || '');
     const [activeTab, setActiveTab] = useState('details');
 
     // Account Mutation
@@ -52,7 +64,7 @@ export function AccountActionSheet({ account, open, onOpenChange }: AccountActio
             utils.bank.getHierarchy.invalidate();
             toast.success('Account updated');
         },
-        onError: (err: any) => toast.error(err.message),
+        onError: (err: { message: string }) => toast.error(err.message),
     });
 
     // Balance Mutation
@@ -61,7 +73,7 @@ export function AccountActionSheet({ account, open, onOpenChange }: AccountActio
             utils.bank.getHierarchy.invalidate();
             toast.success('Balance adjusted');
         },
-        onError: (err: any) => toast.error(err.message),
+        onError: (err: { message: string }) => toast.error(err.message),
     });
 
     const deleteAccount = trpc.account.delete.useMutation({
@@ -70,22 +82,40 @@ export function AccountActionSheet({ account, open, onOpenChange }: AccountActio
             toast.success('Account deleted');
             onOpenChange(false);
         },
-        onError: (err: any) => toast.error(err.message || 'Failed to delete account'),
+        onError: (err: { message: string }) => toast.error(err.message || 'Failed to delete account'),
     });
 
     // Forms
     const { register: registerAccount, handleSubmit: submitAccount } = useForm<EditAccountForm>({
         resolver: zodResolver(editAccountSchema),
-        values: {
+        values: account ? {
             name: account.name,
             last4Digits: account.last4Digits || '',
             icon: account.icon || '',
+        } : {
+            name: '',
+            last4Digits: '',
+            icon: '',
         }
     });
 
     const { register: registerBalance, handleSubmit: submitBalance, reset: resetBalance } = useForm<AdjustBalanceForm>({
         resolver: zodResolver(adjustBalanceSchema),
     });
+
+    // History (Transactions)
+    const { data: history } = trpc.transaction.list.useQuery(
+        {
+            currencyBalanceId: selectedBalanceId,
+            limit: 20
+        },
+        {
+            enabled: activeTab === 'history' && !!selectedBalanceId,
+            staleTime: 1000
+        }
+    );
+
+    if (!account) return null;
 
     const onAccountSubmit = (data: EditAccountForm) => {
         updateAccount.mutate({
@@ -107,19 +137,8 @@ export function AccountActionSheet({ account, open, onOpenChange }: AccountActio
         });
     };
 
-    // History (Transactions)
-    const { data: history } = trpc.transaction.list.useQuery(
-        {
-            currencyBalanceId: selectedBalanceId,
-            limit: 20
-        },
-        {
-            enabled: activeTab === 'history' && !!selectedBalanceId,
-            staleTime: 1000
-        }
-    );
 
-    const selectedBalance = account.currencyBalances.find((cb: any) => cb.id === selectedBalanceId);
+    const selectedBalance = account.currencyBalances.find((cb: CurrencyBalance) => cb.id === selectedBalanceId);
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -181,7 +200,7 @@ export function AccountActionSheet({ account, open, onOpenChange }: AccountActio
                         <div className="space-y-2">
                             <Label>Select Currency</Label>
                             <div className="flex gap-2 flex-wrap">
-                                {account.currencyBalances.map((cb: any) => (
+                                {account.currencyBalances.map((cb: CurrencyBalance) => (
                                     <Button
                                         key={cb.id}
                                         variant={selectedBalanceId === cb.id ? "default" : "outline"}
@@ -240,7 +259,7 @@ export function AccountActionSheet({ account, open, onOpenChange }: AccountActio
                         <div className="mb-4 space-y-2">
                             <Label>Select Currency View</Label>
                             <div className="flex gap-2 overflow-x-auto pb-2">
-                                {account.currencyBalances.map((cb: any) => (
+                                {account.currencyBalances.map((cb: CurrencyBalance) => (
                                     <Button
                                         key={cb.id}
                                         variant={selectedBalanceId === cb.id ? "secondary" : "ghost"}

@@ -61,7 +61,7 @@ export function getTargetMonthStr(
     }
 
     // Logic for 'period' (Threshold)
-    let nextDue = new Date(today.getFullYear(), today.getMonth(), day);
+    const nextDue = new Date(today.getFullYear(), today.getMonth(), day);
     
     // If today is past the billing day, the next due date is in the next month
     if (today.getDate() > day) {
@@ -76,7 +76,7 @@ export function getTargetMonthStr(
         return formatMonthYear(nextDue);
     } else {
         // Otherwise, we are still in the "window" of the previous payment
-        let prevDue = new Date(nextDue);
+        const prevDue = new Date(nextDue);
         prevDue.setMonth(prevDue.getMonth() - 1);
         return formatMonthYear(prevDue);
     }

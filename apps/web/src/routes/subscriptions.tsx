@@ -13,17 +13,15 @@ import {
     ChevronRight,
     Wallet,
     CheckCircle2,
-    Circle,
-    Info
+    Circle
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AddSubscriptionSheet } from '@/components/AddSubscriptionSheet';
 import { SubscriptionPaymentSheet } from '@/components/SubscriptionPaymentSheet';
 
 import { getPaymentStatusOptions, getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
 
-export const Route = (createFileRoute as any)('/subscriptions')({
+export const Route = (createFileRoute as (path: string) => any)('/subscriptions')({
     component: SubscriptionsPage,
 });
 
@@ -72,13 +70,12 @@ export function SubscriptionsPage() {
     const { data: subscriptionsData, isLoading: isLoadingSubscriptions } = trpc.subscription.list.useQuery({
         includeLinkedEntities: true
     });
-    const { data: upcomingData, isLoading: isLoadingUpcoming } = trpc.subscription.getUpcoming.useQuery({ days: 30 });
+    const { data: upcomingData } = trpc.subscription.getUpcoming.useQuery({ days: 30 });
     const { data: calendarData, isLoading: isLoadingCalendar } = trpc.subscription.getCalendarView.useQuery({
         year: calendarYear,
         month: calendarMonth
     });
 
-    const utils = trpc.useUtils();
 
     const allItems = useMemo(() => {
         if (!subscriptionsData) return [];
@@ -155,9 +152,6 @@ export function SubscriptionsPage() {
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'];
 
-    // Get current month for payment status
-    const currentMonthStr = new Date().toISOString().slice(0, 7);
-    const currentDate = new Date();
 
     if (isLoadingSubscriptions) {
         return (
@@ -382,7 +376,7 @@ export function SubscriptionsPage() {
                                             >
                                                 <div className="text-xs font-medium mb-1">{day}</div>
                                                 <div className="space-y-0.5">
-                                                    {dayData.slice(0, 3).map((item: any, idx: number) => (
+                                                    {dayData.slice(0, 3).map((item: { subscription: Subscription; isPaid: boolean }, idx: number) => (
                                                         <Popover key={idx}>
                                                             <PopoverTrigger asChild>
                                                                 <div
@@ -492,7 +486,7 @@ export function SubscriptionsPage() {
                                         : 'subscription';
                                 const { logic, period } = getPaymentStatusOptions(settings, settingsType);
                                 const targetMonthStr = getTargetMonthStr(sub.billingDay, { logic, period });
-                                const isPaidThisMonth = isPaidForTargetMonth(sub.payments as any, targetMonthStr, sub.type === 'mortgage');
+                                const isPaidThisMonth = isPaidForTargetMonth(sub.payments || [], targetMonthStr, sub.type === 'mortgage');
 
                                 return (
                                     <Card key={sub.id} className="relative overflow-hidden hover:shadow-md transition-shadow">
