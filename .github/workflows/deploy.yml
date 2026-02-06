@@ -85,6 +85,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           envs: DB_PASSWORD,GLITCHTIP_DB_PASSWORD,GLITCHTIP_DOMAIN,GLITCHTIP_FROM_EMAIL,GLITCHTIP_SECRET_KEY,REDIS_PASSWORD
+          debug: true
           script: |
             cd ~/woolet
             ./deploy.sh
