@@ -18,7 +18,7 @@ RUN bun run build --filter=@woolet/api
 # Stage 3: Production runner
 FROM base AS runner
 # Add a non-root user for security
-RUN adduser -D woolet-api
+RUN useradd -m -s /bin/bash woolet-api
 USER woolet-api
 
 COPY --from=install --chown=woolet-api:woolet-api /app/node_modules ./node_modules
