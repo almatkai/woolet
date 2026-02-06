@@ -37,10 +37,10 @@ describe("Subscription System - Bank Limits", () => {
                 }))
             };
 
-            const ctx = createMockContext({ 
+            const ctx = createMockContext({
                 userId: "free-user",
                 user: mockUser,
-                db: mockDb as any 
+                db: mockDb as any
             });
             const caller = bankRouter.createCaller(ctx);
 
@@ -72,10 +72,10 @@ describe("Subscription System - Bank Limits", () => {
                 })),
             };
 
-            const ctx = createMockContext({ 
+            const ctx = createMockContext({
                 userId: "free-user",
                 user: mockUser,
-                db: mockDb as any 
+                db: mockDb as any
             });
             const caller = bankRouter.createCaller(ctx);
 
@@ -124,10 +124,10 @@ describe("Subscription System - Bank Limits", () => {
                 }))
             };
 
-            const ctx = createMockContext({ 
+            const ctx = createMockContext({
                 userId: "pro-user",
                 user: mockUser,
-                db: mockDb as any 
+                db: mockDb as any
             });
             const caller = bankRouter.createCaller(ctx);
 
@@ -171,10 +171,10 @@ describe("Subscription System - Bank Limits", () => {
                 }))
             };
 
-            const ctx = createMockContext({ 
+            const ctx = createMockContext({
                 userId: "premium-user",
                 user: mockUser,
-                db: mockDb as any 
+                db: mockDb as any
             });
             const caller = bankRouter.createCaller(ctx);
 
@@ -206,15 +206,15 @@ describe("Subscription System - Bank Limits", () => {
                 })),
             };
 
-            const ctx = createMockContext({ 
+            const ctx = createMockContext({
                 userId: "free-user",
                 user: mockUser,
-                db: mockDb as any 
+                db: mockDb as any
             });
             const caller = bankRouter.createCaller(ctx);
 
             const result = await caller.getLimitsAndUsage();
-            
+
             expect(result.tier).toBe("free");
             expect(result.limits.banks).toBe("2");
             expect(result.limits.accountsPerBank).toBe("2");
@@ -249,15 +249,15 @@ describe("Subscription System - Bank Limits", () => {
                 })),
             };
 
-            const ctx = createMockContext({ 
+            const ctx = createMockContext({
                 userId: "pro-user",
                 user: mockUser,
-                db: mockDb as any 
+                db: mockDb as any
             });
             const caller = bankRouter.createCaller(ctx);
 
             const result = await caller.getLimitsAndUsage();
-            
+
             expect(result.tier).toBe("pro");
             expect(result.limits.banks).toBe("unlimited");
             expect(result.limits.accountsPerBank).toBe("unlimited");
@@ -293,21 +293,21 @@ describe("Subscription System - Bank Limits", () => {
                 })),
             };
 
-            const ctx = createMockContext({ 
+            const ctx = createMockContext({
                 userId: "premium-user",
                 user: mockUser,
-                db: mockDb as any 
+                db: mockDb as any
             });
             const caller = bankRouter.createCaller(ctx);
 
             const result = await caller.getLimitsAndUsage();
-            
+
             expect(result.tier).toBe("premium");
             expect(result.limits.banks).toBe("unlimited");
             expect(result.limits.accountsPerBank).toBe("unlimited");
             expect(result.limits.currenciesPerAccount).toBe("unlimited");
             expect(result.limits.totalStocks).toBe(1000);
-            expect(result.limits.aiQuestionsPerDay).toBe(20);
+            expect(result.limits.aiQuestionsPerDay).toBe(25);
             expect(result.features.hasCurrencyWidget).toBe(true);
             expect(result.features.hasAiMarketDigest).toBe(true);
             expect(result.limits.aiDigestLength).toBe("complete");

@@ -58,6 +58,9 @@ const createTransactionFormSchema = z.object({
 type CreateTransactionFormValues = z.infer<typeof createTransactionFormSchema>;
 
 interface ShortcutData {
+    id: string;
+    name?: string;
+    icon?: string;
     type: 'income' | 'expense' | 'transfer';
     currencyBalanceId: string;
     categoryId: string;
@@ -74,10 +77,10 @@ interface AddTransactionSheetProps {
     preselectedAmount?: number;
     preselectedDescription?: string;
     trigger?: ReactNode | null;
-    onSaveAsShortcut?: (data: ShortcutData) => void;
+    onSaveAsShortcut?: (data: Omit<ShortcutData, 'id'>) => void;
     selectedShortcut?: ShortcutData | null;
-    favoriteShortcuts?: any[];
-    onOpenShortcut?: (shortcut: any) => void;
+    favoriteShortcuts?: ShortcutData[];
+    onOpenShortcut?: (shortcut: ShortcutData) => void;
 }
 
 export function AddTransactionSheet({
@@ -176,13 +179,13 @@ export function AddTransactionSheet({
 
     const categoryId = watch('categoryId');
     const selectedCategory = useMemo(() =>
-        categories?.find((c: any) => c.id === categoryId),
+        categories?.find((c: Category) => c.id === categoryId),
         [categories, categoryId]);
 
     // Filter categories by transaction type
     const filteredCategories = useMemo(() => {
         if (!categories) return [];
-        return categories.filter((cat: any) => {
+        return categories.filter((cat: Category) => {
             if (transactionType === 'transfer') return true;
             return cat.type === transactionType;
         });
@@ -190,7 +193,7 @@ export function AddTransactionSheet({
 
     useEffect(() => {
         if (!categoryId) return;
-        const isValid = filteredCategories.some((cat: any) => cat.id === categoryId);
+        const isValid = filteredCategories.some((cat: Category) => cat.id === categoryId);
         if (!isValid) {
             setValue('categoryId', '');
         }
@@ -199,7 +202,7 @@ export function AddTransactionSheet({
     const canSaveAsShortcut = !selectedShortcut;
 
     const createTransaction = trpc.transaction.create.useMutation({
-        onSuccess: (_data, variables) => {
+        onSuccess: (_data: any, variables: any) => {
             utils.transaction.list.invalidate();
             utils.account.getTotalBalance.invalidate();
             setOpen(false);
@@ -314,314 +317,314 @@ export function AddTransactionSheet({
                             toast.error(`Please fill required fields: ${errorMessages.join(', ')}`);
                         }
                     })} className="space-y-6 pt-6 pb-10">
-                    <Tabs defaultValue={watch('type') || 'expense'} onValueChange={(val: any) => setValue('type', val)} className="w-full">
-                        <TabsList className="grid w-full grid-cols-3">
-                            <TabsTrigger value="expense">Expense</TabsTrigger>
-                            <TabsTrigger value="income">Income</TabsTrigger>
-                            <TabsTrigger value="transfer">Transfer</TabsTrigger>
-                        </TabsList>
-                    </Tabs>
+                        <Tabs defaultValue={watch('type') || 'expense'} onValueChange={(val) => setValue('type', val as 'income' | 'expense' | 'transfer')} className="w-full">
+                            <TabsList className="grid w-full grid-cols-3">
+                                <TabsTrigger value="expense">Expense</TabsTrigger>
+                                <TabsTrigger value="income">Income</TabsTrigger>
+                                <TabsTrigger value="transfer">Transfer</TabsTrigger>
+                            </TabsList>
+                        </Tabs>
 
-                    <div className="p-4 rounded-xl bg-muted/30 border space-y-3 transition-all duration-200">
-                        <div className="flex items-center justify-between">
-                            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                {transactionType === 'transfer' ? 'From Account' : 'Account'}
-                            </Label>
-                            {selectedAccount && (
-                                <span className="text-xs font-medium px-2 py-0.5 rounded bg-background border animate-in fade-in zoom-in duration-300">
-                                    Balance: {selectedAccount.balance.toLocaleString()} {selectedAccount.currencyCode}
-                                </span>
-                            )}
-                        </div>
-                        <Select
-                            onValueChange={(val) => {
-                                setValue('currencyBalanceId', val);
-                                const opt = currencyOptions.find(o => o.id === val);
-                                if (opt) setValue('currencyCode', opt.currencyCode);
-                            }}
-                            value={watch('currencyBalanceId') || ''}
-                        >
-                            <SelectTrigger className="h-14 bg-background">
-                                <SelectValue placeholder="Select Account" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {currencyOptions.map(opt => (
-                                    <SelectItem key={opt.id} value={opt.id}>
-                                        <div className="flex flex-col items-start py-1">
-                                            <span className="font-medium text-sm">{opt.label}</span>
-                                            <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
-                                        </div>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {errors.currencyBalanceId && <p className="text-sm text-red-500 mt-1">{errors.currencyBalanceId.message}</p>}
-                    </div>
-
-                    {transactionType === 'transfer' && (
-                        <div className="p-4 rounded-xl bg-muted/30 border space-y-3 transition-all duration-200 animate-in fade-in slide-in-from-top-2">
+                        <div className="p-4 rounded-xl bg-muted/30 border space-y-3 transition-all duration-200">
                             <div className="flex items-center justify-between">
                                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                    To Account
+                                    {transactionType === 'transfer' ? 'From Account' : 'Account'}
                                 </Label>
-                                {selectedToAccount && (
+                                {selectedAccount && (
                                     <span className="text-xs font-medium px-2 py-0.5 rounded bg-background border animate-in fade-in zoom-in duration-300">
-                                        Balance: {selectedToAccount.balance.toLocaleString()} {selectedToAccount.currencyCode}
+                                        Balance: {selectedAccount.balance.toLocaleString()} {selectedAccount.currencyCode}
                                     </span>
                                 )}
                             </div>
                             <Select
-                                onValueChange={(val) => setValue('toCurrencyBalanceId', val)}
-                                value={watch('toCurrencyBalanceId') || ''}
+                                onValueChange={(val) => {
+                                    setValue('currencyBalanceId', val);
+                                    const opt = currencyOptions.find(o => o.id === val);
+                                    if (opt) setValue('currencyCode', opt.currencyCode);
+                                }}
+                                value={watch('currencyBalanceId') || ''}
                             >
                                 <SelectTrigger className="h-14 bg-background">
-                                    <SelectValue placeholder="Select Target Account" />
+                                    <SelectValue placeholder="Select Account" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {currencyOptions
-                                        .filter(opt => opt.id !== currencyBalanceId)
-                                        .map(opt => (
-                                            <SelectItem key={opt.id} value={opt.id}>
-                                                <div className="flex flex-col items-start py-1">
-                                                    <span className="font-medium text-sm">{opt.label}</span>
-                                                    <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
-                                                </div>
-                                            </SelectItem>
-                                        ))}
+                                    {currencyOptions.map(opt => (
+                                        <SelectItem key={opt.id} value={opt.id}>
+                                            <div className="flex flex-col items-start py-1">
+                                                <span className="font-medium text-sm">{opt.label}</span>
+                                                <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
-                            {errors.toCurrencyBalanceId && <p className="text-sm text-red-500 mt-1">{errors.toCurrencyBalanceId.message}</p>}
+                            {errors.currencyBalanceId && <p className="text-sm text-red-500 mt-1">{errors.currencyBalanceId.message}</p>}
                         </div>
-                    )}
 
-
-
-                    <div className="p-4 rounded-xl bg-muted/30 border space-y-3 transition-all duration-200">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
-                                <ManageCategoriesSheet
-                                    defaultType={transactionType === 'transfer' ? undefined : transactionType}
-                                    trigger={
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            type="button"
-                                            className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors"
-                                        >
-                                            <Settings2 className="h-3 w-3" />
-                                        </Button>
-                                    }
-                                />
-                            </div>
-                            {selectedCategory && (
-                                <span
-                                    className="text-[10px] font-bold px-2 py-0.5 rounded border animate-in fade-in zoom-in duration-300 flex items-center gap-1.5"
-                                    style={{
-                                        backgroundColor: `${selectedCategory.color}15`,
-                                        borderColor: `${selectedCategory.color}40`,
-                                        color: selectedCategory.color
-                                    }}
-                                >
-                                    <span className="text-xs">{selectedCategory.icon}</span>
-                                    {selectedCategory.name}
-                                </span>
-                            )}
-                        </div>
-                        <Select onValueChange={(val) => setValue('categoryId', val)} value={watch('categoryId') || ''}>
-                            <SelectTrigger className="h-12 bg-background border-muted-foreground/20">
-                                <SelectValue placeholder="Select Category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {filteredCategories?.map((cat: any) => (
-                                    <SelectItem key={cat.id} value={cat.id}>
-                                        <div className="flex items-center gap-2.5 py-0.5">
-                                            <div
-                                                className="flex h-7 w-7 items-center justify-center rounded-md text-sm shadow-sm border border-transparent"
-                                                style={{ backgroundColor: `${cat.color}20` }}
-                                            >
-                                                {cat.icon}
-                                            </div>
-                                            <span className="font-medium text-sm">{cat.name}</span>
-                                        </div>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {errors.categoryId && <p className="text-sm text-red-500 mt-1">{errors.categoryId.message}</p>}
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-muted/30 border space-y-3 transition-all duration-200">
-                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Amount</Label>
-                        <div className="relative group">
-                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-foreground transition-colors">
-                                <span className="text-lg font-semibold">{selectedAccount?.currencyCode || '$'}</span>
-                            </div>
-                            <Input
-                                id="amount"
-                                type="number"
-                                step="0.01"
-                                placeholder="0.00"
-                                {...register('amount')}
-                                className="h-12 pl-14 text-lg font-semibold bg-background border-muted-foreground/20"
-                            />
-                        </div>
-                        {errors.amount && <p className="text-sm text-red-500 mt-1">{errors.amount.message}</p>}
-                    </div>
-
-                    {transactionType === 'transfer' && (
-                        <div className="space-y-2">
-                            <Label htmlFor="fee" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground ml-1">Transfer Fee (Optional)</Label>
-                            <Input id="fee" type="number" step="0.01" placeholder="0.00" {...register('fee')} className="h-10 bg-background border-muted-foreground/20" />
-                            {errors.fee && <p className="text-sm text-red-500 mt-1">{errors.fee.message}</p>}
-                        </div>
-                    )}
-
-                    {transactionType === 'expense' && (
-                        <div className="space-y-3 border p-3 rounded-md bg-muted/20">
-                            <div className="flex items-center justify-between">
-                                <Label>Cashback</Label>
-                                <div className="flex bg-muted rounded-lg p-1">
-                                    <button
-                                        type="button"
-                                        onClick={() => setValue('cashbackMode', 'amount')}
-                                        className={`text-xs px-2 py-1 rounded-md transition-all ${watch('cashbackMode') === 'amount' ? 'bg-background shadow font-medium' : 'text-muted-foreground'}`}
-                                    >
-                                        Amount
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setValue('cashbackMode', 'percent')}
-                                        className={`text-xs px-2 py-1 rounded-md transition-all ${watch('cashbackMode') === 'percent' ? 'bg-background shadow font-medium' : 'text-muted-foreground'}`}
-                                    >
-                                        Percent %
-                                    </button>
+                        {transactionType === 'transfer' && (
+                            <div className="p-4 rounded-xl bg-muted/30 border space-y-3 transition-all duration-200 animate-in fade-in slide-in-from-top-2">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                        To Account
+                                    </Label>
+                                    {selectedToAccount && (
+                                        <span className="text-xs font-medium px-2 py-0.5 rounded bg-background border animate-in fade-in zoom-in duration-300">
+                                            Balance: {selectedToAccount.balance.toLocaleString()} {selectedToAccount.currencyCode}
+                                        </span>
+                                    )}
                                 </div>
+                                <Select
+                                    onValueChange={(val) => setValue('toCurrencyBalanceId', val)}
+                                    value={watch('toCurrencyBalanceId') || ''}
+                                >
+                                    <SelectTrigger className="h-14 bg-background">
+                                        <SelectValue placeholder="Select Target Account" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {currencyOptions
+                                            .filter(opt => opt.id !== currencyBalanceId)
+                                            .map(opt => (
+                                                <SelectItem key={opt.id} value={opt.id}>
+                                                    <div className="flex flex-col items-start py-1">
+                                                        <span className="font-medium text-sm">{opt.label}</span>
+                                                        <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                    </SelectContent>
+                                </Select>
+                                {errors.toCurrencyBalanceId && <p className="text-sm text-red-500 mt-1">{errors.toCurrencyBalanceId.message}</p>}
                             </div>
+                        )}
 
-                            <div className="flex gap-2">
-                                <div className="flex-1">
-                                    <Input
-                                        type="number"
-                                        step="0.01"
-                                        placeholder={watch('cashbackMode') === 'percent' ? "e.g. 5%" : "0.00"}
-                                        {...register('cashbackValue')}
+
+
+                        <div className="p-4 rounded-xl bg-muted/30 border space-y-3 transition-all duration-200">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
+                                    <ManageCategoriesSheet
+                                        defaultType={transactionType === 'transfer' ? undefined : transactionType}
+                                        trigger={
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                type="button"
+                                                className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors"
+                                            >
+                                                <Settings2 className="h-3 w-3" />
+                                            </Button>
+                                        }
                                     />
                                 </div>
-                                {watch('cashbackMode') === 'percent' && (
-                                    <div className="w-1/3">
-                                        <Input
-                                            type="number"
-                                            step="1"
-                                            placeholder="Max"
-                                            title="Max Limit"
-                                            {...register('cashbackMax')}
-                                        />
-                                    </div>
+                                {selectedCategory && (
+                                    <span
+                                        className="text-[10px] font-bold px-2 py-0.5 rounded border animate-in fade-in zoom-in duration-300 flex items-center gap-1.5"
+                                        style={{
+                                            backgroundColor: `${selectedCategory.color}15`,
+                                            borderColor: `${selectedCategory.color}40`,
+                                            color: selectedCategory.color
+                                        }}
+                                    >
+                                        <span className="text-xs">{selectedCategory.icon}</span>
+                                        {selectedCategory.name}
+                                    </span>
                                 )}
                             </div>
-
-                            {watch('cashbackMode') === 'percent' && watch('amount') && watch('cashbackValue') && (
-                                <p className="text-xs text-muted-foreground text-right">
-                                    = {Math.min(
-                                        (Number(watch('amount')) * Number(watch('cashbackValue'))) / 100,
-                                        Number(watch('cashbackMax')) || Infinity
-                                    ).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                </p>
-                            )}
+                            <Select onValueChange={(val) => setValue('categoryId', val)} value={watch('categoryId') || ''}>
+                                <SelectTrigger className="h-12 bg-background border-muted-foreground/20">
+                                    <SelectValue placeholder="Select Category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {filteredCategories?.map((cat: Category) => (
+                                        <SelectItem key={cat.id} value={cat.id}>
+                                            <div className="flex items-center gap-2.5 py-0.5">
+                                                <div
+                                                    className="flex h-7 w-7 items-center justify-center rounded-md text-sm shadow-sm border border-transparent"
+                                                    style={{ backgroundColor: `${cat.color}20` }}
+                                                >
+                                                    {cat.icon}
+                                                </div>
+                                                <span className="font-medium text-sm">{cat.name}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.categoryId && <p className="text-sm text-red-500 mt-1">{errors.categoryId.message}</p>}
                         </div>
-                    )}
 
-                    {transactionType === 'expense' && (
-                        <div className="space-y-3 border p-3 rounded-md bg-muted/20">
-                            <div className="flex items-center justify-between">
-                                <Label>Split with others</Label>
+                        <div className="p-4 rounded-xl bg-muted/30 border space-y-3 transition-all duration-200">
+                            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Amount</Label>
+                            <div className="relative group">
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-foreground transition-colors">
+                                    <span className="text-lg font-semibold">{selectedAccount?.currencyCode || '$'}</span>
+                                </div>
+                                <Input
+                                    id="amount"
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    {...register('amount')}
+                                    className="h-12 pl-14 text-lg font-semibold bg-background border-muted-foreground/20"
+                                />
+                            </div>
+                            {errors.amount && <p className="text-sm text-red-500 mt-1">{errors.amount.message}</p>}
+                        </div>
+
+                        {transactionType === 'transfer' && (
+                            <div className="space-y-2">
+                                <Label htmlFor="fee" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground ml-1">Transfer Fee (Optional)</Label>
+                                <Input id="fee" type="number" step="0.01" placeholder="0.00" {...register('fee')} className="h-10 bg-background border-muted-foreground/20" />
+                                {errors.fee && <p className="text-sm text-red-500 mt-1">{errors.fee.message}</p>}
+                            </div>
+                        )}
+
+                        {transactionType === 'expense' && (
+                            <div className="space-y-3 border p-3 rounded-md bg-muted/20">
+                                <div className="flex items-center justify-between">
+                                    <Label>Cashback</Label>
+                                    <div className="flex bg-muted rounded-lg p-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => setValue('cashbackMode', 'amount')}
+                                            className={`text-xs px-2 py-1 rounded-md transition-all ${watch('cashbackMode') === 'amount' ? 'bg-background shadow font-medium' : 'text-muted-foreground'}`}
+                                        >
+                                            Amount
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setValue('cashbackMode', 'percent')}
+                                            className={`text-xs px-2 py-1 rounded-md transition-all ${watch('cashbackMode') === 'percent' ? 'bg-background shadow font-medium' : 'text-muted-foreground'}`}
+                                        >
+                                            Percent %
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <div className="flex-1">
+                                        <Input
+                                            type="number"
+                                            step="0.01"
+                                            placeholder={watch('cashbackMode') === 'percent' ? "e.g. 5%" : "0.00"}
+                                            {...register('cashbackValue')}
+                                        />
+                                    </div>
+                                    {watch('cashbackMode') === 'percent' && (
+                                        <div className="w-1/3">
+                                            <Input
+                                                type="number"
+                                                step="1"
+                                                placeholder="Max"
+                                                title="Max Limit"
+                                                {...register('cashbackMax')}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {watch('cashbackMode') === 'percent' && watch('amount') && watch('cashbackValue') && (
+                                    <p className="text-xs text-muted-foreground text-right">
+                                        = {Math.min(
+                                            (Number(watch('amount')) * Number(watch('cashbackValue'))) / 100,
+                                            Number(watch('cashbackMax')) || Infinity
+                                        ).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {transactionType === 'expense' && (
+                            <div className="space-y-3 border p-3 rounded-md bg-muted/20">
+                                <div className="flex items-center justify-between">
+                                    <Label>Split with others</Label>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-auto py-1 px-2 text-xs"
+                                        onClick={() => setSplitEnabled(!splitEnabled)}
+                                    >
+                                        {splitEnabled ? 'Enabled' : 'Disabled'}
+                                    </Button>
+                                </div>
+                                {splitEnabled && (
+                                    <SplitSelector
+                                        selectedParticipants={selectedParticipants}
+                                        onSelectionChange={setSelectedParticipants}
+                                        equalSplit={equalSplit}
+                                        onEqualSplitChange={setEqualSplit}
+                                        customAmounts={customAmounts}
+                                        onCustomAmountsChange={setCustomAmounts}
+                                        participantAccounts={participantAccounts}
+                                        onParticipantAccountsChange={setParticipantAccounts}
+                                        transactionAmount={Number(watch('amount')) || 0}
+                                        includeSelf={includeSelf}
+                                        onIncludeSelfChange={setIncludeSelf}
+                                        instantMoneyBack={instantMoneyBack}
+                                        onInstantMoneyBackChange={setInstantMoneyBack}
+                                        paybackCurrencyBalanceId={paybackCurrencyBalanceId}
+                                        onPaybackCurrencyBalanceIdChange={setPaybackCurrencyBalanceId}
+                                        currencyOptions={currencyOptions}
+                                    />
+                                )}
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="date" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground ml-1">Date</Label>
+                                <div className="relative">
+                                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/70" />
+                                    <Input id="date" type="date" {...register('date')} className="h-10 pl-9 bg-background border-muted-foreground/20" />
+                                </div>
+                                {errors.date && <p className="text-sm text-red-500 mt-1">{(errors.date as any).message}</p>}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="description" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground ml-1">Description</Label>
+                                <div className="relative">
+                                    <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input id="description" placeholder="Notes..." {...register('description')} className="h-10 pl-9 bg-background border-muted-foreground/20" />
+                                </div>
+                                {errors.description && <p className="text-sm text-red-500 mt-1">{(errors.description as any).message}</p>}
+                            </div>
+                        </div>
+
+                        <SheetFooter>
+                            {onSaveAsShortcut && (
                                 <Button
                                     type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-auto py-1 px-2 text-xs"
-                                    onClick={() => setSplitEnabled(!splitEnabled)}
+                                    variant={canSaveAsShortcut ? "default" : "ghost"}
+                                    className="gap-2"
+                                    disabled={!canSaveAsShortcut}
+                                    onClick={() => {
+                                        const currencyBalanceId = watch('currencyBalanceId');
+                                        const categoryId = watch('categoryId');
+                                        if (!currencyBalanceId || !categoryId) {
+                                            toast.error('Please select account and category first');
+                                            return;
+                                        }
+                                        onSaveAsShortcut({
+                                            type: watch('type'),
+                                            currencyBalanceId,
+                                            categoryId,
+                                            amount: watch('amount') ? Number(watch('amount')) : undefined,
+                                            description: watch('description') || undefined,
+                                        });
+                                    }}
                                 >
-                                    {splitEnabled ? 'Enabled' : 'Disabled'}
+                                    <Bookmark className="h-4 w-4" />
+                                    Save as Shortcut
                                 </Button>
-                            </div>
-                            {splitEnabled && (
-                                <SplitSelector
-                                    selectedParticipants={selectedParticipants}
-                                    onSelectionChange={setSelectedParticipants}
-                                    equalSplit={equalSplit}
-                                    onEqualSplitChange={setEqualSplit}
-                                    customAmounts={customAmounts}
-                                    onCustomAmountsChange={setCustomAmounts}
-                                    participantAccounts={participantAccounts}
-                                    onParticipantAccountsChange={setParticipantAccounts}
-                                    transactionAmount={Number(watch('amount')) || 0}
-                                    includeSelf={includeSelf}
-                                    onIncludeSelfChange={setIncludeSelf}
-                                    instantMoneyBack={instantMoneyBack}
-                                    onInstantMoneyBackChange={setInstantMoneyBack}
-                                    paybackCurrencyBalanceId={paybackCurrencyBalanceId}
-                                    onPaybackCurrencyBalanceIdChange={setPaybackCurrencyBalanceId}
-                                    currencyOptions={currencyOptions}
-                                />
                             )}
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="date" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground ml-1">Date</Label>
-                            <div className="relative">
-                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/70" />
-                                <Input id="date" type="date" {...register('date')} className="h-10 pl-9 bg-background border-muted-foreground/20" />
-                            </div>
-                            {errors.date && <p className="text-sm text-red-500 mt-1">{(errors.date as any).message}</p>}
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="description" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground ml-1">Description</Label>
-                            <div className="relative">
-                                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input id="description" placeholder="Notes..." {...register('description')} className="h-10 pl-9 bg-background border-muted-foreground/20" />
-                            </div>
-                            {errors.description && <p className="text-sm text-red-500 mt-1">{(errors.description as any).message}</p>}
-                        </div>
-                    </div>
-
-                    <SheetFooter>
-                        {onSaveAsShortcut && (
-                            <Button
-                                type="button"
-                                variant={canSaveAsShortcut ? "default" : "ghost"}
-                                className="gap-2"
-                                disabled={!canSaveAsShortcut}
-                                onClick={() => {
-                                    const currencyBalanceId = watch('currencyBalanceId');
-                                    const categoryId = watch('categoryId');
-                                    if (!currencyBalanceId || !categoryId) {
-                                        toast.error('Please select account and category first');
-                                        return;
-                                    }
-                                    onSaveAsShortcut({
-                                        type: watch('type'),
-                                        currencyBalanceId,
-                                        categoryId,
-                                        amount: watch('amount') ? Number(watch('amount')) : undefined,
-                                        description: watch('description') || undefined,
-                                    });
-                                }}
-                            >
-                                <Bookmark className="h-4 w-4" />
-                                Save as Shortcut
+                            <Button type="submit" className="gap-2 font-semibold" disabled={createTransaction.isLoading}>
+                                {!createTransaction.isLoading && <Plus className="h-4 w-4" />}
+                                {createTransaction.isLoading ? 'Adding...' : 'Add Transaction'}
                             </Button>
-                        )}
-                        <Button type="submit" className="gap-2 font-semibold" disabled={createTransaction.isLoading}>
-                            {!createTransaction.isLoading && <Plus className="h-4 w-4" />}
-                            {createTransaction.isLoading ? 'Adding...' : 'Add Transaction'}
-                        </Button>
-                    </SheetFooter>
-                </form>
+                        </SheetFooter>
+                    </form>
                 </div>
             </SheetContent>
         </Sheet>

@@ -22,18 +22,18 @@ export interface FeatureFlags {
     hasAiMarketDigest: boolean;
     hasAiSpendingAnalysis: boolean;
     hasAiDigestRegeneration: boolean;
-    
+
     // Banking Features
     hasCurrencyWidget: boolean;
     hasUnlimitedBanks: boolean;
     hasUnlimitedAccounts: boolean;
     hasExportData: boolean;
-    
+
     // Investing Features
     hasAdvancedCharts: boolean;
     hasPortfolioBenchmark: boolean;
     hasStockAlerts: boolean;
-    
+
     // General
     hasPrioritySupport: boolean;
     hasCustomCategories: boolean;
@@ -287,7 +287,7 @@ export function hasFeature(tier: SubscriptionTier | string, feature: keyof Featu
  * Get credit limit for a specific feature
  */
 export function getCreditLimit(
-    tier: SubscriptionTier | string, 
+    tier: SubscriptionTier | string,
     creditType: keyof CreditLimits
 ): CreditConfig {
     const config = getSubscriptionConfig(tier);
@@ -313,17 +313,17 @@ export function canAccessFeature(
     feature: keyof FeatureFlags
 ): { allowed: boolean; reason?: string; upgradeTarget?: SubscriptionTier } {
     const config = getSubscriptionConfig(tier);
-    
+
     if (config.features[feature]) {
         return { allowed: true };
     }
-    
+
     // Determine upgrade target
-    const upgradeTarget: SubscriptionTier = 
+    const upgradeTarget: SubscriptionTier =
         config.tier === 'free' ? 'pro' : 'premium';
-    
+
     const upgradeConfig = getSubscriptionConfig(upgradeTarget);
-    
+
     return {
         allowed: false,
         reason: `${feature.replace(/^has/, '')} is a ${upgradeConfig.display.name} feature`,
@@ -335,7 +335,7 @@ export function canAccessFeature(
  * Format limit value for display
  */
 export function formatLimit(value: number): string {
-    if (value === Infinity) return 'Unlimited';
+    if (value === Infinity) return 'unlimited';
     return value.toString();
 }
 

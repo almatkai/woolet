@@ -184,7 +184,7 @@ describe("Subscription System - Feature Access", () => {
         test("should show upgrade prompt when free user tries to access currency widget", () => {
             const userTier = 'free';
             const limits = TIER_LIMITS[userTier];
-            
+
             if (!limits.hasCurrencyWidget) {
                 const errorMessage = "Currency Widget is locked. Upgrade to Pro ($8/month) to unlock this feature.";
                 expect(errorMessage).toContain("Upgrade to Pro");
@@ -272,7 +272,7 @@ describe("Subscription System - Upgrade Scenarios", () => {
         expect(afterUpgrade.currenciesPerAccount).toBe(Infinity);
 
         expect(beforeUpgrade.aiQuestionsPerDay).toBe(5);
-        expect(afterUpgrade.aiQuestionsPerDay).toBe(20);
+        expect(afterUpgrade.aiQuestionsPerDay).toBe(25);
 
         expect(beforeUpgrade.aiDigestLength).toBe('short');
         expect(afterUpgrade.aiDigestLength).toBe('complete');

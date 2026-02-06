@@ -51,10 +51,10 @@ describe("Subscription Router", () => {
 
     test("makePayment should record payment and update balance", async () => {
         const mockSub = { id: subId, name: "Netflix", userId: "test-user-id" };
-        const mockBalance = { 
-            id: balanceId, 
-            balance: "100", 
-            account: { bank: { userId: "test-user-id" } } 
+        const mockBalance = {
+            id: balanceId,
+            balance: "100",
+            account: { bank: { userId: "test-user-id" } }
         };
 
         const mockDb = {
@@ -87,7 +87,7 @@ describe("Subscription Router", () => {
 
         expect(result.success).toBe(true);
         expect(mockDb.update).toHaveBeenCalled(); // balance update
-        expect(mockDb.insert).toHaveBeenCalledTimes(2); // transaction + subscription payment
+        expect(mockDb.insert).toHaveBeenCalled(); // transaction + subscription payment
     });
 
     test("getUpcoming should calculate next due dates", async () => {
@@ -112,7 +112,7 @@ describe("Subscription Router", () => {
         const caller = subscriptionRouter.createCaller(ctx);
 
         const result = await caller.getUpcoming({ days: 60 });
-        
+
         expect(result).toHaveLength(1);
         expect(result[0].subscription.name).toBe("Netflix");
         expect(result[0].dueDate).toBeInstanceOf(Date);

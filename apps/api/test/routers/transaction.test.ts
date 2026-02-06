@@ -168,6 +168,13 @@ describe("Transaction Router", () => {
             type: "income",
             amount: "100",
             currencyBalanceId: balanceId,
+            currencyBalance: {
+                account: {
+                    bank: {
+                        userId: "test-user-id"
+                    }
+                }
+            }
         };
 
         const mockDb = {

@@ -74,7 +74,7 @@ export function SettingsPage() {
             toast.success('Settings updated');
             utils.settings.getUserSettings.invalidate();
         },
-        onError: (error) => {
+        onError: (error: any) => {
             toast.error(error.message || 'Failed to update settings');
         }
     });
@@ -84,7 +84,7 @@ export function SettingsPage() {
             toast.success('All data deleted successfully');
             utils.invalidate();
         },
-        onError: (error) => {
+        onError: (error: any) => {
             toast.error(error.message || 'Failed to delete data');
         }
     });
@@ -112,7 +112,7 @@ export function SettingsPage() {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             toast.success('Data exported successfully');
-        } catch (error) {
+        } catch (error: any) {
             toast.error('Failed to export data');
         } finally {
             setIsExporting(false);
@@ -161,8 +161,8 @@ export function SettingsPage() {
                         <button
                             onClick={() => setTheme('light')}
                             className={`flex flex-1 min-w-[120px] items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all ${theme === 'light'
-                                    ? 'border-primary bg-primary/10 text-primary'
-                                    : 'border-border/50 hover:border-border text-muted-foreground'
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-border/50 hover:border-border text-muted-foreground'
                                 }`}
                         >
                             <Sun className="size-4" />
@@ -171,8 +171,8 @@ export function SettingsPage() {
                         <button
                             onClick={() => setTheme('dark')}
                             className={`flex flex-1 min-w-[120px] items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all ${theme === 'dark'
-                                    ? 'border-primary bg-primary/10 text-primary'
-                                    : 'border-border/50 hover:border-border text-muted-foreground'
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-border/50 hover:border-border text-muted-foreground'
                                 }`}
                         >
                             <Moon className="size-4" />
@@ -181,8 +181,8 @@ export function SettingsPage() {
                         <button
                             onClick={() => setTheme('super-dark')}
                             className={`flex flex-1 min-w-[120px] items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all ${theme === 'super-dark'
-                                    ? 'border-primary bg-primary/10 text-primary'
-                                    : 'border-border/50 hover:border-border text-muted-foreground'
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-border/50 hover:border-border text-muted-foreground'
                                 }`}
                         >
                             <MoonStar className="size-4" />
@@ -240,9 +240,9 @@ export function SettingsPage() {
                             </div>
                             <p className="text-sm text-muted-foreground">Currency exchange rates will be shown relative to this currency</p>
                         </div>
-                        <Select 
-                            value={settings?.defaultCurrency || 'USD'} 
-                            onValueChange={(val) => updateSettings.mutate({ defaultCurrency: val })}
+                        <Select
+                            value={settings?.defaultCurrency || 'USD'}
+                            onValueChange={(val: string) => updateSettings.mutate({ defaultCurrency: val })}
                         >
                             <SelectTrigger className="w-[120px] bg-background border-border">
                                 <SelectValue placeholder="Currency" />
@@ -265,9 +265,9 @@ export function SettingsPage() {
                                 </div>
                                 <p className="text-sm text-muted-foreground">How paid/unpaid is calculated</p>
                             </div>
-                            <Select 
-                                value={globalStatusLogic} 
-                                onValueChange={(val) => updateSettings.mutate({ paymentStatusLogic: val })}
+                            <Select
+                                value={globalStatusLogic}
+                                onValueChange={(val: any) => updateSettings.mutate({ paymentStatusLogic: val })}
                             >
                                 <SelectTrigger className="w-[180px] bg-background border-border">
                                     <SelectValue placeholder="Select logic" />
@@ -286,9 +286,9 @@ export function SettingsPage() {
                                     <p className="text-xs text-muted-foreground">Show "Unpaid" if due date is within these many days</p>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <Select 
-                                        value={globalStatusPeriod} 
-                                        onValueChange={(val) => updateSettings.mutate({ paymentStatusPeriod: val })}
+                                    <Select
+                                        value={globalStatusPeriod}
+                                        onValueChange={(val: any) => updateSettings.mutate({ paymentStatusPeriod: val })}
                                     >
                                         <SelectTrigger className="w-[100px] bg-background border-border">
                                             <SelectValue />
@@ -316,9 +316,9 @@ export function SettingsPage() {
                                         <p className="text-xs text-muted-foreground">Use global or override</p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Select 
+                                        <Select
                                             value={creditStatusLogic}
-                                            onValueChange={(val) => updateSettings.mutate({ creditStatusLogic: val === 'global' ? null : val })}
+                                            onValueChange={(val: any) => updateSettings.mutate({ creditStatusLogic: val === 'global' ? null : val })}
                                         >
                                             <SelectTrigger className="w-[180px] bg-background border-border">
                                                 <SelectValue />
@@ -329,9 +329,9 @@ export function SettingsPage() {
                                                 <SelectItem value="period">Time Period (Threshold)</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        <Select 
+                                        <Select
                                             value={creditStatusLogic === 'period' ? creditStatusPeriod : 'global'}
-                                            onValueChange={(val) => updateSettings.mutate({ creditStatusPeriod: val === 'global' ? null : val })}
+                                            onValueChange={(val: any) => updateSettings.mutate({ creditStatusPeriod: val === 'global' ? null : val })}
                                             disabled={creditStatusLogic !== 'period'}
                                         >
                                             <SelectTrigger className="w-[100px] bg-background border-border">
@@ -357,9 +357,9 @@ export function SettingsPage() {
                                         <p className="text-xs text-muted-foreground">Use global or override</p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Select 
+                                        <Select
                                             value={mortgageStatusLogic}
-                                            onValueChange={(val) => updateSettings.mutate({ mortgageStatusLogic: val === 'global' ? null : val })}
+                                            onValueChange={(val: any) => updateSettings.mutate({ mortgageStatusLogic: val === 'global' ? null : val })}
                                         >
                                             <SelectTrigger className="w-[180px] bg-background border-border">
                                                 <SelectValue />
@@ -370,9 +370,9 @@ export function SettingsPage() {
                                                 <SelectItem value="period">Time Period (Threshold)</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        <Select 
+                                        <Select
                                             value={mortgageStatusLogic === 'period' ? mortgageStatusPeriod : 'global'}
-                                            onValueChange={(val) => updateSettings.mutate({ mortgageStatusPeriod: val === 'global' ? null : val })}
+                                            onValueChange={(val: any) => updateSettings.mutate({ mortgageStatusPeriod: val === 'global' ? null : val })}
                                             disabled={mortgageStatusLogic !== 'period'}
                                         >
                                             <SelectTrigger className="w-[100px] bg-background border-border">
@@ -398,9 +398,9 @@ export function SettingsPage() {
                                         <p className="text-xs text-muted-foreground">Use global or override</p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Select 
+                                        <Select
                                             value={subscriptionStatusLogic}
-                                            onValueChange={(val) => updateSettings.mutate({ subscriptionStatusLogic: val === 'global' ? null : val })}
+                                            onValueChange={(val: any) => updateSettings.mutate({ subscriptionStatusLogic: val === 'global' ? null : val })}
                                         >
                                             <SelectTrigger className="w-[180px] bg-background border-border">
                                                 <SelectValue />
@@ -411,9 +411,9 @@ export function SettingsPage() {
                                                 <SelectItem value="period">Time Period (Threshold)</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        <Select 
+                                        <Select
                                             value={subscriptionStatusLogic === 'period' ? subscriptionStatusPeriod : 'global'}
-                                            onValueChange={(val) => updateSettings.mutate({ subscriptionStatusPeriod: val === 'global' ? null : val })}
+                                            onValueChange={(val: any) => updateSettings.mutate({ subscriptionStatusPeriod: val === 'global' ? null : val })}
                                             disabled={subscriptionStatusLogic !== 'period'}
                                         >
                                             <SelectTrigger className="w-[100px] bg-background border-border">
@@ -595,10 +595,10 @@ export function SettingsPage() {
             </Card>
             <div className="pt-8 border-t border-border/50 flex justify-end">
                 <SignOutButton>
-                <Button>
-                    <LogOut className="size-4" />
-                    Sign out
-                </Button>
+                    <Button>
+                        <LogOut className="size-4" />
+                        Sign out
+                    </Button>
                 </SignOutButton>
             </div>
         </div>

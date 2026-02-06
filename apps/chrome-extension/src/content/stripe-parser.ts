@@ -2,8 +2,18 @@
 
 console.log('Woolet Stripe Parser Loaded');
 
+interface ParsedData {
+    name?: string;
+    amount?: string;
+    cardBrand?: string;
+    last4Digits?: string;
+    frequency?: string;
+    startDate?: string;
+    paymentMethod?: string;
+}
+
 function parseStripePage() {
-    const data: any = {};
+    const data: ParsedData = {};
 
     // Helper to clean text
     const clean = (text: string) => text?.trim().replace(/\s+/g, ' ');

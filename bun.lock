@@ -186,6 +186,7 @@
         "@tanstack/react-router": "^1.157.18",
         "@trpc/client": "^10.45.4",
         "@trpc/react-query": "^10.45.4",
+        "@woolet/shared": "workspace:*",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "cmdk": "^1.1.1",

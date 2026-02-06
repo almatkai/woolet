@@ -85,7 +85,7 @@ export function AiDigestCard() {
 
     const isDateAvailable = (date: Date) => {
         if (!availableDates) return isSameDay(date, new Date());
-        return isSameDay(date, new Date()) || availableDates.some(d => isSameDay(parseISO(d), date));
+        return isSameDay(date, new Date()) || availableDates.some((d: string) => isSameDay(parseISO(d), date));
     };
 
     const { data, isLoading, error, refetch: refetchDigest } = trpc.ai.getDailyDigest.useQuery(
@@ -104,7 +104,7 @@ export function AiDigestCard() {
     );
 
     const regenerateMutation = trpc.ai.regenerateDigest.useMutation({
-        onMutate: (variables) => {
+        onMutate: (variables: { specs: string; date?: string }) => {
             const tempId = `temp-${Date.now()}`;
             setOptimisticFollowUps((prev) => [
                 ...prev,
@@ -143,7 +143,7 @@ export function AiDigestCard() {
     const selectedDateKey = format(selectedDate, 'yyyy-MM-dd');
     const optimisticForDate = optimisticFollowUps.filter((fu) => fu.date === selectedDateKey);
     const followUpItems = [
-        ...(data?.followUps || []).map((fu: any) => ({ ...fu, pending: false })),
+        ...(data?.followUps || []).map((fu: { id: string; specs: string; content: string }) => ({ ...fu, pending: false })),
         ...optimisticForDate.map((fu) => ({ ...fu, content: null, pending: true })),
     ];
 
@@ -188,7 +188,7 @@ export function AiDigestCard() {
                 >
                     <X className="h-4 w-4" />
                 </Button>
-                
+
                 <div className="flex items-start gap-4">
                     <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 shrink-0 shadow-lg shadow-amber-500/20">
                         <Crown className="h-6 w-6 text-white" />
@@ -206,7 +206,7 @@ export function AiDigestCard() {
                         <p className="text-sm text-muted-foreground mb-4">
                             Unlock AI-powered daily analysis of your portfolio news, sentiment, and risk factors.
                         </p>
-                        
+
                         <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 mb-4">
                             <h4 className="font-medium text-sm mb-2 text-foreground flex items-center gap-2">
                                 <Rocket className="h-4 w-4 text-amber-500" />
@@ -232,8 +232,8 @@ export function AiDigestCard() {
                             <p className="text-xs text-muted-foreground">
                                 Current plan: <span className="font-medium text-foreground">{data?.userTier || 'Free'}</span>
                             </p>
-                            <Button 
-                                size="sm" 
+                            <Button
+                                size="sm"
                                 className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0 font-medium group"
                                 onClick={() => openPricing()}
                             >
@@ -276,14 +276,14 @@ export function AiDigestCard() {
             <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
                 <div className="flex items-center gap-2">
                     <motion.div
-                        animate={{ 
+                        animate={{
                             rotate: [0, 10, -10, 0],
                             scale: [1, 1.1, 1]
                         }}
-                        transition={{ 
-                            duration: 4, 
+                        transition={{
+                            duration: 4,
                             repeat: Infinity,
-                            ease: "easeInOut" 
+                            ease: "easeInOut"
                         }}
                     >
                         <Brain className={`h-5 w-5 ${showPendingState ? 'text-primary animate-pulse' : 'text-primary'}`} />
@@ -300,12 +300,12 @@ export function AiDigestCard() {
                                     {format(selectedDate, 'MMMM d, yyyy')}
                                 </p>
                             )}
-                            
+
                             <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                                 <PopoverTrigger asChild>
-                                    <Button 
-                                        variant="ghost" 
-                                        size="icon" 
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
                                         className="h-4 w-4 rounded-full p-0 text-muted-foreground hover:text-primary"
                                     >
                                         <CalendarIcon className="h-3 w-3" />
@@ -330,10 +330,10 @@ export function AiDigestCard() {
                     </div>
                 </div>
                 <div className="flex items-center gap-1">
-                    <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 w-8 p-0" 
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
                         onClick={() => setIsOpen(!isOpen)}
                     >
                         {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -369,10 +369,10 @@ export function AiDigestCard() {
                                                     children={data.digest}
                                                     components={{
                                                         strong: ({ ...props }) => {
-                                                            const text = typeof props.children === 'string' 
-                                                                ? props.children 
-                                                                : Array.isArray(props.children) 
-                                                                    ? props.children.join('') 
+                                                            const text = typeof props.children === 'string'
+                                                                ? props.children
+                                                                : Array.isArray(props.children)
+                                                                    ? props.children.join('')
                                                                     : String(props.children);
                                                             const colorClass = getStockColor(text);
                                                             return <strong className={`${colorClass} font-bold`}>{props.children}</strong>;
@@ -433,7 +433,7 @@ export function AiDigestCard() {
                                                         {data.remainingRegenerations}/{data.regenerationLimit} left today
                                                     </p>
                                                 </div>
-                                                
+
                                                 <div className="flex flex-wrap gap-2 mb-4">
                                                     {quickQuestions.map((question) => (
                                                         <Button

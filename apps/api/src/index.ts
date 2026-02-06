@@ -4,6 +4,7 @@ import { logger as honoLogger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
 import { trpcServer } from '@hono/trpc-server';
 import { clerkMiddleware } from '@hono/clerk-auth';
+import notifier from 'node-notifier';
 
 import { appRouter } from './routers';
 import { createContext } from './lib/trpc';
@@ -48,7 +49,7 @@ app.onError((err, c) => {
         path: c.req.path,
         method: c.req.method,
     }, '❌ Application Error');
-    
+
     // Capture exception in GlitchTip
     GlitchTip.captureException(err, {
         extra: {
@@ -56,7 +57,7 @@ app.onError((err, c) => {
             method: c.req.method,
         }
     });
-    
+
     const isDev = process.env.NODE_ENV === 'development';
 
     if (isDev) {

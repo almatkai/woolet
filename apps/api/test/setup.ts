@@ -64,6 +64,18 @@ mock.module("../src/lib/redis", () => ({
     }
 }));
 
+// Mock Clerk Auth
+mock.module("@hono/clerk-auth", () => ({
+    getAuth: mock(() => ({
+        userId: 'test-user-id',
+        sessionClaims: {
+            email: 'woolet.app@gmail.com',
+            name: 'Test User',
+        },
+        has: mock(() => false),
+    })),
+}));
+
 // Mock TwelveDataService to avoid any fetch calls from it
 mock.module("../src/services/investing/twelve-data", () => ({
     getTwelveDataService: () => ({

@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "../../lib/utils";
 
 interface MorphingTextProps {
@@ -35,24 +35,24 @@ export default function MorphingText({
       <AnimatePresence mode="popLayout">
         <motion.span
           key={currentIndex}
-          initial={{ 
-            opacity: 0, 
+          initial={{
+            opacity: 0,
             y: 20,
             filter: "blur(8px)",
           }}
-          animate={{ 
-            opacity: 1, 
+          animate={{
+            opacity: 1,
             y: 0,
             filter: "blur(0px)",
           }}
-          exit={{ 
-            opacity: 0, 
+          exit={{
+            opacity: 0,
             y: -20,
             filter: "blur(8px)",
           }}
-          transition={{ 
-            duration: 1, 
-            ease: [0.16, 1, 0.3, 1] 
+          transition={{
+            duration: 1,
+            ease: [0.16, 1, 0.3, 1]
           }}
           className="inline-block"
         >

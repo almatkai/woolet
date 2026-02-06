@@ -150,9 +150,9 @@ export function SpendingPage() {
     useEffect(() => {
         if (shortcuts.length > 0) {
             const favoriteCount = shortcuts.filter(s => s.isFavorite).length;
-            posthog.setPersonProperties({ 
-                total_shortcuts_count: shortcuts.length, 
-                favorite_shortcuts_count: favoriteCount 
+            posthog.setPersonProperties({
+                total_shortcuts_count: shortcuts.length,
+                favorite_shortcuts_count: favoriteCount
             });
         }
     }, [shortcuts]);
@@ -207,10 +207,10 @@ export function SpendingPage() {
     // Update editing transaction if list updates (e.g. after adding/deleting payback)
     useEffect(() => {
         if (!editingTransaction || !transactionsData) return;
-        
+
         // Find in main list
         let updated = transactionsData.transactions.find(t => t.id === editingTransaction.id);
-        
+
         // If not found, look in children of all transactions
         if (!updated) {
             for (const parent of transactionsData.transactions) {
@@ -338,12 +338,12 @@ export function SpendingPage() {
     const currencyOptions = useMemo(() => {
         if (!banks) return [];
         const options: { id: string; label: string; currencyCode: string }[] = [];
-        banks.forEach((bank: any) => {
-            bank.accounts.forEach((acc: any) => {
-                acc.currencyBalances.forEach((cb: any) => {
+        banks.forEach((bank: { name: string; accounts: any[] }) => {
+            bank.accounts.forEach((acc: { name: string; currencyBalances: any[] }) => {
+                acc.currencyBalances.forEach((cb: { id: string; balance: string | number; currencyCode: string }) => {
                     options.push({
                         id: cb.id,
-                        label: `[${bank.name}] ${acc.name}`,
+                        label: `[${bank.name}] ${acc.name} `,
                         currencyCode: cb.currencyCode,
                     });
                 });
@@ -357,13 +357,13 @@ export function SpendingPage() {
     }, [currencyOptions]);
 
     const categoryLabelById = useMemo(() => {
-        return new Map<string, string>((categories || []).map((cat: any) => [cat.id, `${cat.icon} ${cat.name}`]));
+        return new Map<string, string>((categories || []).map((cat: { id: string; name: string; icon: string }) => [cat.id, `${cat.icon} ${cat.name} `]));
     }, [categories]);
 
     const handleCreateShortcut = (data: ShortcutForm) => {
         const amountValue = data.amount ? Number(data.amount) : undefined;
         const newShortcut: TransactionShortcut = {
-            id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+            id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()} -${Math.random()} `,
             name: data.name.trim(),
             type: data.type,
             currencyBalanceId: data.currencyBalanceId,
@@ -426,7 +426,7 @@ export function SpendingPage() {
     const openShortcut = (shortcut: TransactionShortcut) => {
         setSelectedShortcut(shortcut);
         setTransactionSheetOpen(true);
-        posthog.capture('shortcut_opened', { 
+        posthog.capture('shortcut_opened', {
             shortcut_id: shortcut.id,
             shortcut_name: shortcut.name,
             shortcut_type: shortcut.type
@@ -487,7 +487,7 @@ export function SpendingPage() {
     const visibleTransactions = transactionsData?.transactions.filter(t => !pendingDeletes.has(t.id)) || [];
 
     return (
-        <div className={`space-y-4 md:space-y-6 ${favoritesWidgetVisible ? 'pb-32' : ''}`}>
+        <div className={`space - y - 4 md: space - y - 6 ${favoritesWidgetVisible ? 'pb-32' : ''} `}>
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl md:text-3xl font-bold">Spending</h1>
@@ -558,7 +558,7 @@ export function SpendingPage() {
                                                     <span>{new Date(tx.date).toLocaleDateString()}</span>
                                                     <span>•</span>
                                                     <span className="truncate max-w-[100px] md:max-w-none">
-                                                        {tx.currencyBalance?.account?.bank?.name ? `[${tx.currencyBalance.account.bank.name}] ` : ''}
+                                                        {tx.currencyBalance?.account?.bank?.name ? `[${tx.currencyBalance.account.bank.name}]` : ''}
                                                         {tx.currencyBalance?.account?.name || 'Unknown Account'}
                                                     </span>
                                                 </div>
@@ -566,7 +566,7 @@ export function SpendingPage() {
                                         </div>
                                         <div className="flex items-center gap-1 md:gap-2">
                                             <div className="flex flex-col items-end">
-                                                <span className={`text-sm md:text-base font-semibold ${tx.type === 'income' ? 'text-green-600' : tx.type === 'expense' ? 'text-red-600' : 'text-foreground'}`}>
+                                                <span className={`text - sm md: text - base font - semibold ${tx.type === 'income' ? 'text-green-600' : tx.type === 'expense' ? 'text-red-600' : 'text-foreground'} `}>
                                                     {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}
                                                     {Math.abs(Number(tx.amount)).toLocaleString('en-US', { style: 'currency', currency: tx.currencyBalance?.currencyCode || 'USD', minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                                                 </span>
@@ -574,7 +574,7 @@ export function SpendingPage() {
                                                     // Calculate how much has been paid back from splits
                                                     // For settled splits, use owedAmount (fully paid)
                                                     // For partial/pending, use paidAmount
-                                                    const totalPaidBack = tx.splits.reduce((acc: number, s: any) => {
+                                                    const totalPaidBack = tx.splits.reduce((acc: number, s: TransactionSplit) => {
                                                         if (s.status === 'settled') {
                                                             return acc + Number(s.owedAmount || 0);
                                                         }
@@ -626,21 +626,21 @@ export function SpendingPage() {
                                                 <span>
                                                     Split with {tx.splits.length} {tx.splits.length === 1 ? 'person' : 'people'}
                                                     {(() => {
-                                                        const pendingCount = tx.splits.filter((s: any) => s.status !== 'settled').length;
+                                                        const pendingCount = tx.splits.filter((s: TransactionSplit) => s.status !== 'settled').length;
                                                         const settledCount = tx.splits.length - pendingCount;
                                                         if (settledCount === tx.splits.length) {
                                                             return <span className="text-green-600 ml-1">• All settled</span>;
                                                         } else if (pendingCount > 0) {
                                                             const pendingTotal = tx.splits
-                                                                .filter((s: any) => s.status !== 'settled')
-                                                                .reduce((acc: number, s: any) => acc + (Number(s.owedAmount) - Number(s.paidAmount)), 0);
+                                                                .filter((s: TransactionSplit) => s.status !== 'settled')
+                                                                .reduce((acc: number, s: TransactionSplit) => acc + (Number(s.owedAmount) - Number(s.paidAmount)), 0);
                                                             return <span className="text-orange-500 ml-1">• {tx.currencyBalance?.currencyCode} {pendingTotal.toLocaleString()} pending</span>;
                                                         }
                                                         return null;
                                                     })()}
                                                 </span>
                                             </button>
-                                            
+
                                             {expandedSplits.has(tx.id) && (
                                                 <div className="mt-2 space-y-2 border-l-2 pl-4 py-1">
                                                     {tx.splits.map((split) => {
@@ -650,7 +650,7 @@ export function SpendingPage() {
                                                         return (
                                                             <div key={split.id} className="flex items-center justify-between group/split">
                                                                 <div className="flex items-center gap-2">
-                                                                    <div 
+                                                                    <div
                                                                         className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] text-white font-medium"
                                                                         style={{ backgroundColor: split.participant?.color || '#6366f1' }}
                                                                     >
@@ -659,11 +659,11 @@ export function SpendingPage() {
                                                                     <div>
                                                                         <p className="text-xs font-medium">{split.participant?.name || 'Unknown'}</p>
                                                                         <p className="text-[10px] text-muted-foreground">
-                                                                            {split.status === 'settled' 
-                                                                                ? `Paid ${owed.toLocaleString()}` 
-                                                                                : split.status === 'partial' 
-                                                                                    ? `Paid ${paid.toLocaleString()} of ${owed.toLocaleString()}` 
-                                                                                    : `Owes ${owed.toLocaleString()}`}
+                                                                            {split.status === 'settled'
+                                                                                ? `Paid ${owed.toLocaleString()} `
+                                                                                : split.status === 'partial'
+                                                                                    ? `Paid ${paid.toLocaleString()} of ${owed.toLocaleString()} `
+                                                                                    : `Owes ${owed.toLocaleString()} `}
                                                                         </p>
                                                                     </div>
                                                                 </div>
@@ -681,8 +681,8 @@ export function SpendingPage() {
                                                                                 className="h-6 text-xs"
                                                                                 onClick={() => {
                                                                                     setPaymentAmount(String(remaining));
-                                                                                    setRecordPaymentSplit({ 
-                                                                                        splitId: split.id, 
+                                                                                    setRecordPaymentSplit({
+                                                                                        splitId: split.id,
                                                                                         participantName: split.participant?.name || 'Unknown',
                                                                                         remaining,
                                                                                         currencyCode: tx.currencyBalance?.currencyCode || 'USD',
@@ -770,7 +770,7 @@ export function SpendingPage() {
                                     <SelectValue placeholder="Select category" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {categories?.filter(c => c.type === editingTransaction?.type || editingTransaction?.type === 'transfer').map((cat: any) => (
+                                    {categories?.filter((c: { id: string; name: string; icon: string; type: string }) => c.type === editingTransaction?.type || editingTransaction?.type === 'transfer').map((cat: { id: string; name: string; icon: string }) => (
                                         <SelectItem key={cat.id} value={cat.id}>
                                             <div className="flex items-center gap-2">
                                                 <span>{cat.icon}</span>
@@ -836,7 +836,7 @@ export function SpendingPage() {
                                             disabled={!paybackAmount || createTransaction.isLoading}
                                             onClick={() => {
                                                 if (!editingTransaction) return;
-                                                const incomeCat = categories?.find(c => c.type === 'income');
+                                                const incomeCat = categories?.find((c: { type: string }) => c.type === 'income');
                                                 if (!incomeCat) {
                                                     toast.error('No income category found. Please create one first.');
                                                     return;
@@ -946,10 +946,10 @@ export function SpendingPage() {
                                         key={emoji}
                                         type="button"
                                         onClick={() => setShortcutValue('icon', emoji)}
-                                        className={`h-10 w-10 rounded-full flex items-center justify-center text-lg border-2 transition-colors ${watchShortcut('icon') === emoji
-                                            ? 'border-primary bg-primary/10'
-                                            : 'border-muted hover:border-muted-foreground/50'
-                                            }`}
+                                        className={`h - 10 w - 10 rounded - full flex items - center justify - center text - lg border - 2 transition - colors ${watchShortcut('icon') === emoji
+                                                ? 'border-primary bg-primary/10'
+                                                : 'border-muted hover:border-muted-foreground/50'
+                                            } `}
                                     >
                                         {emoji}
                                     </button>
@@ -1059,10 +1059,10 @@ export function SpendingPage() {
                             shortcuts.map((shortcut) => (
                                 <div
                                     key={shortcut.id}
-                                    className={`flex items-center gap-3 p-3 rounded-lg border transition-all group ${selectedShortcut?.id === shortcut.id && transactionSheetOpen
-                                        ? 'bg-primary/10 border-primary/50 shadow-md'
-                                        : 'bg-card hover:bg-muted/50 border-border'
-                                        }`}
+                                    className={`flex items - center gap - 3 p - 3 rounded - lg border transition - all group ${selectedShortcut?.id === shortcut.id && transactionSheetOpen
+                                            ? 'bg-primary/10 border-primary/50 shadow-md'
+                                            : 'bg-card hover:bg-muted/50 border-border'
+                                        } `}
                                 >
                                     <button
                                         onClick={() => {
@@ -1082,10 +1082,10 @@ export function SpendingPage() {
                                     >
                                         <p className="font-medium truncate">{shortcut.name}</p>
                                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium uppercase ${shortcut.type === 'expense' ? 'bg-red-500/10 text-red-500' :
-                                                shortcut.type === 'income' ? 'bg-green-500/10 text-green-500' :
-                                                    'bg-blue-500/10 text-blue-500'
-                                                }`}>
+                                            <span className={`px - 1.5 py - 0.5 rounded text - [10px] font - medium uppercase ${shortcut.type === 'expense' ? 'bg-red-500/10 text-red-500' :
+                                                    shortcut.type === 'income' ? 'bg-green-500/10 text-green-500' :
+                                                        'bg-blue-500/10 text-blue-500'
+                                                } `}>
                                                 {shortcut.type}
                                             </span>
                                             <span className="truncate">{categoryLabelById.get(shortcut.categoryId) || 'Category'}</span>
@@ -1098,7 +1098,7 @@ export function SpendingPage() {
                                         <Button
                                             size="icon"
                                             variant="ghost"
-                                            className={`h-8 w-8 ${shortcut.isFavorite ? 'text-yellow-500' : 'opacity-0 group-hover:opacity-100'}`}
+                                            className={`h - 8 w - 8 ${shortcut.isFavorite ? 'text-yellow-500' : 'opacity-0 group-hover:opacity-100'} `}
                                             onClick={() => toggleFavorite(shortcut.id)}
                                         >
                                             {shortcut.isFavorite ? <Star className="h-4 w-4 fill-current" /> : <StarOff className="h-4 w-4" />}
@@ -1144,7 +1144,7 @@ export function SpendingPage() {
                             <Label>Amount ({recordPaymentSplit?.currencyCode})</Label>
                             <Input
                                 type="number"
-                                placeholder={`Remaining: ${recordPaymentSplit?.remaining?.toLocaleString()}`}
+                                placeholder={`Remaining: ${recordPaymentSplit?.remaining?.toLocaleString()} `}
                                 value={paymentAmount}
                                 onChange={(e) => setPaymentAmount(e.target.value)}
                             />
@@ -1237,10 +1237,10 @@ export function SpendingPage() {
                                     <button
                                         key={shortcut.id}
                                         onClick={() => openShortcut(shortcut)}
-                                        className={`h-12 w-12 rounded-full flex items-center justify-center text-lg transition-all border ${selectedShortcut?.id === shortcut.id && transactionSheetOpen
-                                            ? 'bg-primary border-primary text-primary-foreground scale-110 shadow-lg'
-                                            : 'bg-muted hover:bg-muted/80 border-border/50 hover:border-border'
-                                            }`}
+                                        className={`h - 12 w - 12 rounded - full flex items - center justify - center text - lg transition - all border ${selectedShortcut?.id === shortcut.id && transactionSheetOpen
+                                                ? 'bg-primary border-primary text-primary-foreground scale-110 shadow-lg'
+                                                : 'bg-muted hover:bg-muted/80 border-border/50 hover:border-border'
+                                            } `}
                                         title={shortcut.name}
                                     >
                                         {shortcut.icon || '💰'}

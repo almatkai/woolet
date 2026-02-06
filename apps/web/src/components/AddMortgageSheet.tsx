@@ -154,8 +154,16 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
         }
     };
 
+    interface AccountOption {
+        id: string;
+        accountId: string;
+        label: string;
+        balance: number;
+        currencyCode: string;
+    }
+
     // Flatten currency balances for dropdown
-    const accountOptions = useMemo(() => {
+    const accountOptions = useMemo((): AccountOption[] => {
         if (!banks) return [];
         return banks.flatMap((bank: any) =>
             bank.accounts.flatMap((acc: any) =>
@@ -172,7 +180,7 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
 
     const accountId = watch('accountId');
     const selectedAccount = useMemo(() =>
-        accountOptions.find((o: any) => o.accountId === accountId),
+        accountOptions.find((o) => o.accountId === accountId),
         [accountOptions, accountId]);
 
     const [manualOverridePayment, setManualOverridePayment] = useState(false);
@@ -189,10 +197,10 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
     // Sync initialPayment when principal changes in percent mode
     useEffect(() => {
         if (downPaymentMode === 'percent' && percentValue && principalAmount) {
-             const p = Number(principalAmount);
-             const pct = Number(percentValue);
-             const payment = (pct / 100) * p;
-             setValue('initialPayment', payment.toFixed(2));
+            const p = Number(principalAmount);
+            const pct = Number(percentValue);
+            const payment = (pct / 100) * p;
+            setValue('initialPayment', payment.toFixed(2));
         }
     }, [principalAmount, downPaymentMode]);
 
@@ -280,7 +288,7 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
                         <Select
                             value={accountOptions.find(o => o.accountId === watch('accountId') && o.currencyCode === watch('currency'))?.id}
                             onValueChange={(v) => {
-                                const opt = accountOptions.find((o: any) => o.id === v);
+                                const opt = accountOptions.find((o) => o.id === v);
                                 if (opt) {
                                     setValue('accountId', opt.accountId);
                                     setValue('currency', opt.currencyCode);
@@ -291,7 +299,7 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
                                 <SelectValue placeholder="Select account" />
                             </SelectTrigger>
                             <SelectContent>
-                                {accountOptions.map((opt: any) => (
+                                {accountOptions.map((opt) => (
                                     <SelectItem key={opt.id} value={opt.id}>
                                         <div className="flex flex-col items-start py-1">
                                             <span className="font-medium text-sm">{opt.label}</span>
@@ -322,11 +330,10 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
                                         onClick={() => {
                                             setDownPaymentMode('amount');
                                         }}
-                                        className={`px-2 py-0.5 text-xs font-medium rounded-sm transition-all ${
-                                            downPaymentMode === 'amount'
+                                        className={`px-2 py-0.5 text-xs font-medium rounded-sm transition-all ${downPaymentMode === 'amount'
                                                 ? 'bg-background text-foreground shadow-sm'
                                                 : 'text-muted-foreground hover:text-foreground'
-                                        }`}
+                                            }`}
                                     >
                                         Amount
                                     </button>
@@ -343,11 +350,10 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
                                                 setPercentValue('');
                                             }
                                         }}
-                                        className={`px-2 py-0.5 text-xs font-medium rounded-sm transition-all ${
-                                            downPaymentMode === 'percent'
+                                        className={`px-2 py-0.5 text-xs font-medium rounded-sm transition-all ${downPaymentMode === 'percent'
                                                 ? 'bg-background text-foreground shadow-sm'
                                                 : 'text-muted-foreground hover:text-foreground'
-                                        }`}
+                                            }`}
                                     >
                                         %
                                     </button>
