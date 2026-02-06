@@ -22,6 +22,7 @@ import {
 
 const updateAccountSchema = z.object({
     name: z.string().min(1, "Name is required"),
+    last4Digits: z.string().length(4, "Must be exactly 4 digits").optional().or(z.literal('')),
     icon: z.string().optional(),
 });
 
@@ -31,6 +32,7 @@ interface SettingsAccountSheetProps {
     account: {
         id: string;
         name: string;
+        last4Digits?: string | null;
         icon?: string | null;
     };
     trigger?: React.ReactNode;
@@ -44,6 +46,7 @@ export function SettingsAccountSheet({ account, trigger }: SettingsAccountSheetP
         resolver: zodResolver(updateAccountSchema),
         defaultValues: {
             name: account.name,
+            last4Digits: account.last4Digits || '',
             icon: account.icon || '💳',
         }
     });
@@ -52,6 +55,7 @@ export function SettingsAccountSheet({ account, trigger }: SettingsAccountSheetP
     useEffect(() => {
         if (open) {
             setValue('name', account.name);
+            setValue('last4Digits', account.last4Digits || '');
             setValue('icon', account.icon || '💳');
         }
     }, [account, open, setValue]);
@@ -72,6 +76,7 @@ export function SettingsAccountSheet({ account, trigger }: SettingsAccountSheetP
         updateAccount.mutate({
             id: account.id,
             ...data,
+            last4Digits: data.last4Digits || undefined,
         });
     };
 
@@ -96,6 +101,12 @@ export function SettingsAccountSheet({ account, trigger }: SettingsAccountSheetP
                         <Label htmlFor="name">Account Name</Label>
                         <Input id="name" placeholder="Account Name" {...register('name')} />
                         {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="last4Digits">Last 4 Digits (Optional)</Label>
+                        <Input id="last4Digits" placeholder="1234" maxLength={4} {...register('last4Digits')} />
+                        {errors.last4Digits && <p className="text-sm text-red-500">{errors.last4Digits.message}</p>}
                     </div>
 
                     <div className="space-y-2">

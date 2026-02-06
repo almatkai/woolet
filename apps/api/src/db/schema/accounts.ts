@@ -7,6 +7,7 @@ export const accounts = pgTable('accounts', {
     bankId: uuid('bank_id').references(() => banks.id, { onDelete: 'cascade' }).notNull(),
     name: text('name').notNull(), // Main Card, Savings, Investment
     type: text('type').notNull(), // 'checking', 'savings', 'card', 'crypto', 'investment'
+    last4Digits: text('last_4_digits'),
     icon: text('icon'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

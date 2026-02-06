@@ -47,6 +47,7 @@ export const accountRouter = router({
             bankId: z.string().uuid(),
             name: z.string().min(1),
             type: z.enum(['checking', 'savings', 'card', 'crypto', 'investment', 'cash']),
+            last4Digits: z.string().length(4).optional(),
             icon: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
@@ -66,6 +67,7 @@ export const accountRouter = router({
                 bankId: input.bankId,
                 name: input.name,
                 type: input.type,
+                last4Digits: input.last4Digits,
                 icon: input.icon,
             }).returning();
 
@@ -76,6 +78,7 @@ export const accountRouter = router({
         .input(z.object({
             id: z.string().uuid(),
             name: z.string().optional(),
+            last4Digits: z.string().length(4).optional(),
             icon: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
@@ -92,6 +95,7 @@ export const accountRouter = router({
             await ctx.db.update(accounts)
                 .set({
                     name: input.name,
+                    last4Digits: input.last4Digits,
                     icon: input.icon,
                     updatedAt: new Date(),
                 })

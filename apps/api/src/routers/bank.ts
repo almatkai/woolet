@@ -3,11 +3,11 @@ import { eq, desc, and, count } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../lib/trpc';
 import { banks, accounts, currencyBalances } from '../db/schema';
-import { 
-    TIER_LIMITS, 
-    getSubscriptionConfig, 
+import {
+    TIER_LIMITS,
+    getSubscriptionConfig,
     formatLimit,
-    SubscriptionTier 
+    SubscriptionTier
 } from '@woolet/shared';
 
 export { TIER_LIMITS };
@@ -37,7 +37,7 @@ export const bankRouter = router({
         .mutation(async ({ ctx, input }) => {
             const userTier = ctx.user.subscriptionTier || 'free';
             const limits = TIER_LIMITS[userTier as keyof typeof TIER_LIMITS];
-            
+
             // Check bank limit
             const [result] = await ctx.db.select({ count: count() })
                 .from(banks)
@@ -45,11 +45,11 @@ export const bankRouter = router({
                     eq(banks.userId, ctx.userId!),
                     eq(banks.isTest, ctx.user.testMode)
                 ));
-            
+
             if (result.count >= limits.banks) {
-                throw new TRPCError({ 
-                    code: 'FORBIDDEN', 
-                    message: `Bank limit reached (${limits.banks}). Upgrade to Pro for unlimited banks.` 
+                throw new TRPCError({
+                    code: 'FORBIDDEN',
+                    message: `Bank limit reached (${limits.banks}). Upgrade to Pro for unlimited banks.`
                 });
             }
 
@@ -60,7 +60,7 @@ export const bankRouter = router({
                 color: input.color,
                 isTest: ctx.user.testMode,
             }).returning();
-            
+
             return bank;
         }),
 
@@ -133,7 +133,7 @@ export const bankRouter = router({
             const userTier = (ctx.user.subscriptionTier || 'free') as SubscriptionTier;
             const config = getSubscriptionConfig(userTier);
             const legacyLimits = TIER_LIMITS[userTier as keyof typeof TIER_LIMITS];
-            
+
             const [bankCount] = await ctx.db.select({ count: count() })
                 .from(banks)
                 .where(and(
@@ -156,8 +156,8 @@ export const bankRouter = router({
                     transactionHistoryDays: formatLimit(config.limits.transactionHistoryDays),
                     totalStocks: config.limits.maxStocks,
                     aiQuestionsPerDay: config.credits.aiChat.limit,
-                    aiQuestionsLifetime: config.credits.aiChat.lifetimeLimit 
-                        ? config.credits.aiChat.lifetimeLimit 
+                    aiQuestionsLifetime: config.credits.aiChat.lifetimeLimit
+                        ? config.credits.aiChat.lifetimeLimit
                         : 'unlimited',
                     aiDigestRegeneratePerDay: config.credits.aiDigestRegeneration.limit,
                     aiDigestLength: config.display.aiDigestLength,

@@ -27,6 +27,7 @@ interface AccountActionSheetProps {
 
 const editAccountSchema = z.object({
     name: z.string().min(1, "Name is required"),
+    last4Digits: z.string().length(4, "Must be exactly 4 digits").optional().or(z.literal('')),
     icon: z.string().optional(),
 });
 
@@ -77,6 +78,7 @@ export function AccountActionSheet({ account, open, onOpenChange }: AccountActio
         resolver: zodResolver(editAccountSchema),
         values: {
             name: account.name,
+            last4Digits: account.last4Digits || '',
             icon: account.icon || '',
         }
     });
@@ -88,7 +90,8 @@ export function AccountActionSheet({ account, open, onOpenChange }: AccountActio
     const onAccountSubmit = (data: EditAccountForm) => {
         updateAccount.mutate({
             id: account.id,
-            ...data
+            ...data,
+            last4Digits: data.last4Digits || undefined,
         });
     };
 
@@ -106,13 +109,13 @@ export function AccountActionSheet({ account, open, onOpenChange }: AccountActio
 
     // History (Transactions)
     const { data: history } = trpc.transaction.list.useQuery(
-        { 
-            currencyBalanceId: selectedBalanceId, 
-            limit: 20 
+        {
+            currencyBalanceId: selectedBalanceId,
+            limit: 20
         },
-        { 
+        {
             enabled: activeTab === 'history' && !!selectedBalanceId,
-            staleTime: 1000 
+            staleTime: 1000
         }
     );
 
@@ -158,6 +161,10 @@ export function AccountActionSheet({ account, open, onOpenChange }: AccountActio
                             <div className="space-y-2">
                                 <Label>Account Name</Label>
                                 <Input {...registerAccount('name')} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Last 4 Digits</Label>
+                                <Input {...registerAccount('last4Digits')} maxLength={4} placeholder="1234" />
                             </div>
                             <div className="space-y-2">
                                 <Label>Icon (Emoji)</Label>
@@ -207,11 +214,11 @@ export function AccountActionSheet({ account, open, onOpenChange }: AccountActio
                                 <form onSubmit={submitBalance(onBalanceSubmit)} className="space-y-4 pt-2 border-t">
                                     <div className="space-y-2">
                                         <Label>New Balance Amount</Label>
-                                        <Input 
-                                            type="number" 
-                                            step="0.01" 
+                                        <Input
+                                            type="number"
+                                            step="0.01"
                                             placeholder="0.00"
-                                            {...registerBalance('newBalance', { valueAsNumber: true })} 
+                                            {...registerBalance('newBalance', { valueAsNumber: true })}
                                         />
                                         <p className="text-xs text-muted-foreground">
                                             A correction transaction will be created automatically.
@@ -232,7 +239,7 @@ export function AccountActionSheet({ account, open, onOpenChange }: AccountActio
                     <TabsContent value="history" className="flex-1 flex flex-col min-h-0 mt-4">
                         <div className="mb-4 space-y-2">
                             <Label>Select Currency View</Label>
-                             <div className="flex gap-2 overflow-x-auto pb-2">
+                            <div className="flex gap-2 overflow-x-auto pb-2">
                                 {account.currencyBalances.map((cb: any) => (
                                     <Button
                                         key={cb.id}
@@ -245,7 +252,7 @@ export function AccountActionSheet({ account, open, onOpenChange }: AccountActio
                                 ))}
                             </div>
                         </div>
-                        
+
                         <ScrollArea className="flex-1 border rounded-md p-4">
                             {!history || history.transactions.length === 0 ? (
                                 <p className="text-center text-muted-foreground py-8">No transactions found.</p>
@@ -259,9 +266,8 @@ export function AccountActionSheet({ account, open, onOpenChange }: AccountActio
                                                     {new Date(tx.date).toLocaleDateString()} • {tx.description || 'No description'}
                                                 </p>
                                             </div>
-                                            <div className={`font-mono font-medium ${
-                                                tx.type === 'income' ? 'text-green-600' : 'text-red-600'
-                                            }`}>
+                                            <div className={`font-mono font-medium ${tx.type === 'income' ? 'text-green-600' : 'text-red-600'
+                                                }`}>
                                                 {tx.type === 'income' ? '+' : '-'}{Number(tx.amount).toLocaleString()}
                                             </div>
                                         </div>

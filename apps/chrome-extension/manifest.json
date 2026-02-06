@@ -1,0 +1,34 @@
+{
+    "manifest_version": 3,
+    "name": "Woolet Subscription Tracker",
+    "version": "1.0.0",
+    "description": "Track subscriptions from billing pages",
+    "action": {
+        "default_popup": "index.html"
+    },
+    "permissions": [
+        "activeTab",
+        "scripting",
+        "storage"
+    ],
+    "host_permissions": [
+        "*://*.stripe.com/*",
+        "*://billing.stripe.com/*",
+        "*://localhost/*"
+    ],
+    "background": {
+        "service_worker": "src/background/main.ts",
+        "type": "module"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "*://*.stripe.com/*",
+                "*://billing.stripe.com/*"
+            ],
+            "js": [
+                "src/content/stripe-parser.ts"
+            ]
+        }
+    ]
+}
