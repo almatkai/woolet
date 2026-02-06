@@ -22,13 +22,13 @@ services:
       - glitchtip-db
       - glitchtip-redis
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
       DATABASE_URL: postgresql://glitchtip:${GLITCHTIP_DB_PASSWORD:-glitchtip_password}@glitchtip-db:5432/glitchtip
       REDIS_URL: redis://glitchtip-redis:6379/0
       PORT: 8000
       SECRET_KEY: ${GLITCHTIP_SECRET_KEY:-change_me_to_something_very_long}
-      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN:-http://localhost:8000}
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN:-http://localhost:8001}
       DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL:-alerts@woolet.com}
       ENABLE_REGISTRATION: "True"
 

@@ -91,7 +91,7 @@ services:
       - glitchtip-db
       - glitchtip-redis
     ports:
-      - "8000:8000"
+      - "8002:8000"
     environment:
       DATABASE_URL: postgresql://glitchtip:${GLITCHTIP_DB_PASSWORD:-glitchtip_password}@glitchtip-db:5432/glitchtip
       REDIS_URL: redis://glitchtip-redis:6379/0
