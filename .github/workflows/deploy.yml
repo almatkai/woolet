@@ -73,10 +73,18 @@ jobs:
     steps:
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          GLITCHTIP_DB_PASSWORD: ${{ secrets.GLITCHTIP_DB_PASSWORD }}
+          GLITCHTIP_DOMAIN: ${{ secrets.GLITCHTIP_DOMAIN }}
+          GLITCHTIP_FROM_EMAIL: ${{ secrets.GLITCHTIP_FROM_EMAIL }}
+          GLITCHTIP_SECRET_KEY: ${{ secrets.GLITCHTIP_SECRET_KEY }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: DB_PASSWORD,GLITCHTIP_DB_PASSWORD,GLITCHTIP_DOMAIN,GLITCHTIP_FROM_EMAIL,GLITCHTIP_SECRET_KEY,REDIS_PASSWORD
           script: |
-            cd /path/to/your/project
+            cd ~/woolet
             ./deploy.sh
