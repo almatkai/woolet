@@ -43,7 +43,7 @@ export function SettingsBankSheet({ bank, trigger }: SettingsBankSheetProps) {
     const [open, setOpen] = useState(false);
     const utils = trpc.useUtils();
 
-    const { register, control, handleSubmit, reset, formState: { errors }, setValue, watch } = useForm<UpdateBankForm>({
+    const { register, control, handleSubmit, formState: { errors }, setValue, watch } = useForm<UpdateBankForm>({
         resolver: zodResolver(updateBankSchema),
         defaultValues: {
             name: bank.name,

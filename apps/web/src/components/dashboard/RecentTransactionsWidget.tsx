@@ -7,7 +7,7 @@ import { CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
-import { toast } from 'sonner';
+// toast removed (unused)
 
 const STORAGE_KEY = 'woolet :recent-transactions-widget';
 
@@ -64,7 +64,7 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
 
     // showIncomeOnly/showExpensesOnly removed (unused)
 
-    const utils = trpc.useUtils();
+    // utils removed (unused)
     const { data: user } = trpc.user.me.useQuery();
     // categories removed (unused)
 

@@ -6,4 +6,3 @@ apps/**/.next
 apps/**/node_modules
 packages/**/node_modules
 .env
-bun.lock
