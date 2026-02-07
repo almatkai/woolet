@@ -68,3 +68,5 @@ secrets.json
 .docker-temp/
 # Added by ggshield
 .cache_ggshield
+
+apps/video/

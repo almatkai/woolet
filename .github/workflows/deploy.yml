@@ -10,7 +10,26 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      apps: ${{ steps.filter.outputs.apps }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            apps:
+              - 'apps/**'
+              - 'packages/**'
+              - 'bun.lock'
+              - 'Dockerfile'
+              - '**/Dockerfile'
+
   test-api:
+    needs: changes
+    if: needs.changes.outputs.apps == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -35,6 +54,8 @@ jobs:
           bun run test --filter=@woolet/api
 
   test-web:
+    needs: changes
+    if: needs.changes.outputs.apps == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -59,7 +80,8 @@ jobs:
           bun run test --filter=@woolet/web
 
   build-and-push:
-    needs: [test-api, test-web]
+    needs: [changes, test-api, test-web]
+    if: needs.changes.outputs.apps == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -103,9 +125,14 @@ jobs:
             VITE_GLITCHTIP_DSN_WEB=${{ secrets.VITE_GLITCHTIP_DSN_WEB }}
 
   deploy:
-    needs: build-and-push
+    needs: [changes, build-and-push]
+    # Run if on main and (apps changed OR we explicitly triggered it OR we are just updating scripts)
+    # We use always() and then check results because build-and-push might be skipped
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped')
     runs-on: ubuntu-24.04
-    if: github.ref == 'refs/heads/main'
     environment: SSH_PRIVATE_KEY
     steps:
       - uses: actions/checkout@v4
@@ -122,6 +149,9 @@ jobs:
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.3
         env:
+          DB_ADMIN_USER: ${{ secrets.DB_ADMIN_USER }}
+          DB_ADMIN_PASSWORD: ${{ secrets.DB_ADMIN_PASSWORD }}
+          DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           GLITCHTIP_DB_PASSWORD: ${{ secrets.GLITCHTIP_DB_PASSWORD }}
           GLITCHTIP_DOMAIN: ${{ secrets.GLITCHTIP_DOMAIN }}
@@ -160,7 +190,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: DB_PASSWORD,GLITCHTIP_DB_PASSWORD,GLITCHTIP_DOMAIN,GLITCHTIP_FROM_EMAIL,GLITCHTIP_SECRET_KEY,REDIS_PASSWORD,CLERK_SECRET_KEY,CLERK_PUBLISHABLE_KEY,VITE_CLERK_PUBLISHABLE_KEY,DATABASE_URL,REDIS_URL,WOOLET_API_IMAGE,WOOLET_WEB_IMAGE,WOOLET_LANDING_IMAGE,NODE_ENV,API_URL,WEB_URL,GLITCHTIP_DSN_API,VITE_GLITCHTIP_DSN_WEB,VITE_PUBLIC_POSTHOG_KEY,VITE_PUBLIC_POSTHOG_HOST,LOG_LEVEL,AI_PROVIDER_ORDER,OPEN_ROUTER_API_KEY,OPENROUTER_CHAT_MODEL,OPENROUTER_SITE_URL,OPENROUTER_APP_NAME,OPENAI_API_KEY,OPENAI_CHAT_MODEL,GEMINI_API_KEY,GEMINI_MODEL,CURRENCY_API_KEY,GROQ_API_KEY,TWELVE_DATA
+          envs: DB_ADMIN_USER,DB_ADMIN_PASSWORD,DB_USER,DB_PASSWORD,GLITCHTIP_DB_PASSWORD,GLITCHTIP_DOMAIN,GLITCHTIP_FROM_EMAIL,GLITCHTIP_SECRET_KEY,REDIS_PASSWORD,CLERK_SECRET_KEY,CLERK_PUBLISHABLE_KEY,VITE_CLERK_PUBLISHABLE_KEY,DATABASE_URL,REDIS_URL,WOOLET_API_IMAGE,WOOLET_WEB_IMAGE,WOOLET_LANDING_IMAGE,NODE_ENV,API_URL,WEB_URL,GLITCHTIP_DSN_API,VITE_GLITCHTIP_DSN_WEB,VITE_PUBLIC_POSTHOG_KEY,VITE_PUBLIC_POSTHOG_HOST,LOG_LEVEL,AI_PROVIDER_ORDER,OPEN_ROUTER_API_KEY,OPENROUTER_CHAT_MODEL,OPENROUTER_SITE_URL,OPENROUTER_APP_NAME,OPENAI_API_KEY,OPENAI_CHAT_MODEL,GEMINI_API_KEY,GEMINI_MODEL,CURRENCY_API_KEY,GROQ_API_KEY,TWELVE_DATA
           command_timeout: 20m
           script: |
             cd ~/woolet
