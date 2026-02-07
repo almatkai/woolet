@@ -1,1 +1,2 @@
-ALTER TABLE "categories" ADD COLUMN "type" text NOT NULL DEFAULT 'income';
+ALTER TABLE "categories"
+ADD COLUMN IF NOT EXISTS "type" text NOT NULL DEFAULT 'income';

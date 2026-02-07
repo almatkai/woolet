@@ -12,24 +12,26 @@ CREATE TABLE IF NOT EXISTS ai_config (
 );
 
 -- Insert default AI configuration
-INSERT INTO ai_config (
-    id,
-    provider_order,
-    default_provider,
-    model_settings,
-    fallback_enabled
-) VALUES (
-    'default',
-    '["openrouter", "groq", "openai", "gemini"]',
-    'openrouter',
-    '{
+INSERT INTO
+    ai_config (
+        id,
+        provider_order,
+        default_provider,
+        model_settings,
+        fallback_enabled
+    )
+VALUES (
+        'default',
+        '["openrouter", "groq", "openai", "gemini"]',
+        'openrouter',
+        '{
         "openrouter": { "model": "openrouter/auto", "enabled": true },
         "openai": { "model": "gpt-4o-mini", "enabled": true },
         "groq": { "model": "llama-3.1-8b-instant", "enabled": true },
         "gemini": { "model": "gemini-1.5-flash", "enabled": true }
     }',
-    true
-) ON CONFLICT (id) DO NOTHING;
+        true
+    ) ON CONFLICT (id) DO NOTHING;
 
 -- Create a function to update the updated_at column automatically
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -41,7 +43,11 @@ END;
 $$ language 'plpgsql';
 
 -- Create trigger to update updated_at column
-CREATE TRIGGER update_ai_config_updated_at
-    BEFORE UPDATE ON ai_config
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+DO $$ BEGIN
+    CREATE TRIGGER update_ai_config_updated_at
+        BEFORE UPDATE ON ai_config
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column();
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;

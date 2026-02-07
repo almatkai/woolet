@@ -1,6 +1,11 @@
-ALTER TABLE "banks" ADD COLUMN "is_test" boolean DEFAULT false NOT NULL;--> statement-breakpoint
-ALTER TABLE "debts" ADD COLUMN "user_id" text;--> statement-breakpoint
-ALTER TABLE "debts" ADD COLUMN "is_test" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "banks"
+ADD COLUMN IF NOT EXISTS "is_test" boolean DEFAULT false NOT NULL;
+--> statement-breakpoint
+ALTER TABLE "debts" ADD COLUMN IF NOT EXISTS "user_id" text;
+--> statement-breakpoint
+ALTER TABLE "debts"
+ADD COLUMN IF NOT EXISTS "is_test" boolean DEFAULT false NOT NULL;
+--> statement-breakpoint
 
 DO $$
 BEGIN
@@ -13,7 +18,9 @@ BEGIN
         JOIN "banks" b ON a.bank_id = b.id
     ) AS sub
     WHERE "debts"."currency_balance_id" = sub.cb_id;
-END $$;--> statement-breakpoint
+END $$;
+--> statement-breakpoint
 
-ALTER TABLE "debts" ADD CONSTRAINT "debts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "debts_user_id_idx" ON "debts" USING btree ("user_id");
+ALTER TABLE "debts" ADD CONSTRAINT "debts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "debts_user_id_idx" ON "debts" USING btree ("user_id");
