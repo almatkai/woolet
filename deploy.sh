@@ -63,9 +63,14 @@ echo "🔄 Running database setup and migrations..."
 # Wait a few seconds for the database service to be ready
 sleep 5
 echo "🏗️ Ensuring database exists..."
-docker compose -f docker-compose.prod.yml exec -T woolet-api bun run db:setup
+# Bypass PgBouncer and connect directly to Postgres for setup to avoid "ESERVFAIL" and enable CREATE DATABASE
+docker compose -f docker-compose.prod.yml exec -T \
+    -e DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@woolet-postgres:5432/${DB_NAME}" \
+    woolet-api bun run db:setup
+
 echo "🔄 Running migrations..."
-docker compose -f docker-compose.prod.yml exec -T woolet-api bun run db:migrate --filter=@woolet/api
+# Remove --filter as we are running directly inside the container context
+docker compose -f docker-compose.prod.yml exec -T woolet-api bun run db:migrate
 
 # 5. Wait for API to be healthy
 echo "🔄 Waiting for API to be ready..."
