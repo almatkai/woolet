@@ -30,15 +30,16 @@ USER woolet-api
 WORKDIR /app
 
 COPY --from=install --chown=woolet-api:woolet-api /app/node_modules ./node_modules
-COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/dist ./dist
-COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/package.json ./package.json
+COPY --from=install --chown=woolet-api:woolet-api /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/dist ./apps/api/dist
+COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/package.json ./apps/api/package.json
+COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/drizzle.config.ts ./apps/api/drizzle.config.ts
+COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/drizzle ./apps/api/drizzle
+COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/tsconfig.json ./apps/api/tsconfig.json
+COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/src/db ./apps/api/src/db
+COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/scripts ./apps/api/scripts
 
-# Needed for drizzle-kit migrations in production
-COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/drizzle.config.ts ./drizzle.config.ts
-COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/drizzle ./drizzle
-COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/tsconfig.json ./tsconfig.json
-COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/src/db ./src/db
-COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/scripts ./scripts
+WORKDIR /app/apps/api
 
 # Expose the API port
 EXPOSE 3001
