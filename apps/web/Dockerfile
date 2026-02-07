@@ -10,7 +10,7 @@ COPY apps/landing/package.json ./apps/landing/
 COPY apps/mobile/package.json ./apps/mobile/
 COPY apps/chrome-extension/package.json ./apps/chrome-extension/
 COPY packages/shared/package.json ./packages/shared/
-RUN bun install --frozen-lockfile
+RUN bun install
 
 # Build-time environment variables
 ARG VITE_CLERK_PUBLISHABLE_KEY
