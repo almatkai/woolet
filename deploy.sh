@@ -8,13 +8,13 @@ echo "🚀 Starting deployment..."
 # git pull origin main
 
 # Set default values for environment variables
-DB_USER="${DB_USER:-postgres}"
+# Use woolet_app as default user as requested
+DB_USER="${DB_USER:-woolet_app}"
 DB_PASSWORD="${DB_PASSWORD:-password}"
 DB_NAME="${DB_NAME:-woolet}"
 POSTGRES_HOST="woolet-postgres"
 
-# Construct a direct connection URL for setup and migrations (bypassing PgBouncer)
-# This ensures we connect to the main DB instance which supports all commands and avoids "ENOTFOUND" if PgBouncer isn't up yet.
+# Construct a direct connection URL for setup and migrations
 BUILD_DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${POSTGRES_HOST}:5432/${DB_NAME}"
 
 # 2. Handle .env file
@@ -82,7 +82,7 @@ docker compose -f docker-compose.prod.yml up -d
 # 4. Run database setup and migrations
 echo "🔄 Running database setup and migrations..."
 # Update BUILD_DATABASE_URL from possibly sourced variables
-BUILD_DATABASE_URL="postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-password}@${POSTGRES_HOST:-woolet-postgres}:5432/${DB_NAME:-woolet}"
+BUILD_DATABASE_URL="postgresql://${DB_USER:-woolet_app}:${DB_PASSWORD:-password}@${POSTGRES_HOST:-woolet-postgres}:5432/${DB_NAME:-woolet}"
 
 # Wait a few seconds for the database service to be ready
 sleep 5
