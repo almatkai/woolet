@@ -5,8 +5,8 @@ services:
     image: postgres:16-alpine
     restart: always
     environment:
-      POSTGRES_USER: ${DB_USER:-woolet_app}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_USER: ${DB_ADMIN_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD:-password}
       POSTGRES_DB: ${DB_NAME:-woolet}
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -20,7 +20,7 @@ services:
     image: edoburu/pgbouncer
     restart: always
     environment:
-      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-password}@woolet-postgres:5432/${DB_NAME:-woolet}
+      DATABASE_URL: postgresql://${DB_USER:-woolet_app}:${DB_PASSWORD:-password}@woolet-postgres:5432/${DB_NAME:-woolet}
       AUTH_TYPE: scram-sha-256
       MAX_CLIENT_CONN: 100
       DEFAULT_POOL_SIZE: 20
@@ -46,7 +46,7 @@ services:
     ports:
       - "3001:3001"
     environment:
-      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-password}@woolet-pgbouncer:5432/${DB_NAME:-woolet}
+      DATABASE_URL: postgresql://${DB_USER:-woolet_app}:${DB_PASSWORD:-password}@woolet-pgbouncer:5432/${DB_NAME:-woolet}
       REDIS_URL: redis://:${REDIS_PASSWORD:-password}@woolet-redis:6379
     env_file:
       - .env

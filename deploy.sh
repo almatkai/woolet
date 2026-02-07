@@ -7,15 +7,13 @@ echo "🚀 Starting deployment..."
 # 1. Pull latest changes (if in git repo)
 # git pull origin main
 
-# Set default values for environment variables
-# Use woolet_app as default user as requested
+# Set default values for identities
+DB_ADMIN_USER="${DB_ADMIN_USER:-postgres}"
+DB_ADMIN_PASSWORD="${DB_ADMIN_PASSWORD:-password}"
 DB_USER="${DB_USER:-woolet_app}"
 DB_PASSWORD="${DB_PASSWORD:-password}"
 DB_NAME="${DB_NAME:-woolet}"
 POSTGRES_HOST="woolet-postgres"
-
-# Construct a direct connection URL for setup and migrations
-BUILD_DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${POSTGRES_HOST}:5432/${DB_NAME}"
 
 # Helper function to URL encode values (requires python3)
 url_encode() {
@@ -33,33 +31,20 @@ get_env_value() {
 }
 
 # 2. Handle .env file and defaults
-# If .env is missing or empty, we will (re)generate it
 if [ -f .env ] && [ -s .env ]; then
     echo "ℹ️ .env file exists. Reading values safely..."
     
     # Read values directly to avoid evaluation issues with special chars
+    FILE_DB_ADMIN_USER=$(get_env_value "DB_ADMIN_USER")
+    FILE_DB_ADMIN_PASSWORD=$(get_env_value "DB_ADMIN_PASSWORD")
     FILE_DB_USER=$(get_env_value "DB_USER")
     FILE_DB_PASSWORD=$(get_env_value "DB_PASSWORD")
     FILE_DB_NAME=$(get_env_value "DB_NAME")
     
-    # FIX: Detect if DB_USER is still 'postgres' (legacy default) and force update to 'woolet_app'
-    if [ "$FILE_DB_USER" = "postgres" ]; then
-        echo "⚠️ Detected legacy DB_USER=postgres in .env. Switching to woolet_app..."
-        
-        # Update the .env file permanently
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' 's/^DB_USER=postgres/DB_USER=woolet_app/' .env
-        else
-            sed -i 's/^DB_USER=postgres/DB_USER=woolet_app/' .env
-        fi
-        echo "✅ Updated .env file with DB_USER=woolet_app"
-        DB_USER="woolet_app"
-    else
-        # Use existing value OR the one from shell (GitHub) if shell one is set and file one isn't
-        DB_USER="${FILE_DB_USER:-$DB_USER}"
-    fi
-
-    # Update other variables: prefer shell (GitHub) if file is missing them
+    # Use existing values from file or fall back to shell/defaults
+    DB_ADMIN_USER="${FILE_DB_ADMIN_USER:-$DB_ADMIN_USER}"
+    DB_ADMIN_PASSWORD="${FILE_DB_ADMIN_PASSWORD:-$DB_ADMIN_PASSWORD}"
+    DB_USER="${FILE_DB_USER:-$DB_USER}"
     DB_PASSWORD="${FILE_DB_PASSWORD:-$DB_PASSWORD}"
     DB_NAME="${FILE_DB_NAME:-$DB_NAME}"
     
@@ -67,7 +52,6 @@ if [ -f .env ] && [ -s .env ]; then
     if [ -z "$FILE_DB_PASSWORD" ] && [ "$DB_PASSWORD" != "password" ]; then
         echo "ℹ️ Critical credentials found in shell but missing in .env. Running repair..."
         mv .env .env.bak
-        # Trigger regeneration block below by pretending file doesn't exist
         DO_GENERATE=true
     fi
 fi
@@ -78,16 +62,17 @@ if [ ! -f .env ] || [ ! -s .env ] || [ "$DO_GENERATE" = true ]; then
     else
         echo "🏗️ Generating .env file..."
     fi
-    # ... (generation logic remains the same) ...
     # Function to escape $ to $$ for Docker Compose
     escape_env() {
         echo "${1//$/\$\$}"
     }
 
     {
+        printf "DB_ADMIN_USER=%s\n" "$(escape_env "$DB_ADMIN_USER")"
+        printf "DB_ADMIN_PASSWORD=%s\n" "$(escape_env "$DB_ADMIN_PASSWORD")"
         printf "DB_USER=%s\n" "$(escape_env "$DB_USER")"
-        printf "DB_NAME=%s\n" "$(escape_env "$DB_NAME")"
         printf "DB_PASSWORD=%s\n" "$(escape_env "$DB_PASSWORD")"
+        printf "DB_NAME=%s\n" "$(escape_env "$DB_NAME")"
         printf "GLITCHTIP_DB_PASSWORD=%s\n" "$(escape_env "$GLITCHTIP_DB_PASSWORD")"
         printf "GLITCHTIP_DOMAIN=%s\n" "$(escape_env "$GLITCHTIP_DOMAIN")"
         printf "GLITCHTIP_FROM_EMAIL=%s\n" "$(escape_env "$GLITCHTIP_FROM_EMAIL")"
@@ -99,7 +84,7 @@ if [ ! -f .env ] || [ ! -s .env ] || [ "$DO_GENERATE" = true ]; then
         # Provide the default DATABASE_URL for the app (using PgBouncer) if not set in env
         # Note: We can't easily URL encode here in generation block without python logic availability check, 
         # but for generation we assume current env vars are safe-ish or standard.
-        printf "DATABASE_URL=%s\n" "$(escape_env "${DATABASE_URL:-postgresql://$DB_USER:$DB_PASSWORD@woolet-pgbouncer:5432/$DB_NAME}")"
+        printf "DATABASE_URL=%s\n" "$(escape_env "postgresql://$DB_USER:$DB_PASSWORD@woolet-pgbouncer:5432/$DB_NAME")"
         printf "REDIS_URL=%s\n" "$(escape_env "$REDIS_URL")"
         printf "WOOLET_API_IMAGE=%s\n" "$(escape_env "$WOOLET_API_IMAGE")"
         printf "WOOLET_WEB_IMAGE=%s\n" "$(escape_env "$WOOLET_WEB_IMAGE")"
@@ -138,23 +123,26 @@ docker compose -f docker-compose.prod.yml up -d
 
 # 4. Run database setup and migrations
 echo "🔄 Running database setup and migrations..."
-# Update BUILD_DATABASE_URL using URL encoded values for safety
-ENCODED_USER=$(url_encode "${DB_USER:-woolet_app}")
-ENCODED_PASS=$(url_encode "${DB_PASSWORD:-password}")
-ENCODED_DB=$(url_encode "${DB_NAME:-woolet}")
-BUILD_DATABASE_URL="postgresql://${ENCODED_USER}:${ENCODED_PASS}@${POSTGRES_HOST:-woolet-postgres}:5432/${ENCODED_DB}"
+# Use URL encoded values for the ADMIN user (super-user)
+ENCODED_ADMIN_USER=$(url_encode "$DB_ADMIN_USER")
+ENCODED_ADMIN_PASS=$(url_encode "$DB_ADMIN_PASSWORD")
+ENCODED_DB=$(url_encode "$DB_NAME")
+MIGRATION_DATABASE_URL="postgresql://${ENCODED_ADMIN_USER}:${ENCODED_ADMIN_PASS}@${POSTGRES_HOST}:5432/${ENCODED_DB}"
 
 # Wait a few seconds for the database service to be ready
 sleep 5
 echo "🏗️ Ensuring database exists..."
-# Bypass PgBouncer and connect directly to Postgres for setup
+# Connect as DB_ADMIN_USER to setup the database and grant permissions
 docker compose -f docker-compose.prod.yml exec -T \
-    -e DATABASE_URL="$BUILD_DATABASE_URL" \
+    -e DATABASE_URL="$MIGRATION_DATABASE_URL" \
+    -e APP_DB_USER="$DB_USER" \
+    -e APP_DB_PASSWORD="$DB_PASSWORD" \
     woolet-api bun run db:setup
 
 echo "🔄 Running migrations..."
+# Connect as DB_ADMIN_USER to perform migrations (needs high privileges)
 docker compose -f docker-compose.prod.yml exec -T \
-    -e DATABASE_URL="$BUILD_DATABASE_URL" \
+    -e DATABASE_URL="$MIGRATION_DATABASE_URL" \
     woolet-api bun run db:migrate
 
 # 5. Wait for API to be healthy
