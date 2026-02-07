@@ -38,6 +38,7 @@ COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/drizzle ./apps/api
 COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/tsconfig.json ./apps/api/tsconfig.json
 COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/src/db ./apps/api/src/db
 COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/scripts ./apps/api/scripts
+COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/run-migration.ts ./apps/api/run-migration.ts
 
 WORKDIR /app/apps/api
 
