@@ -10,6 +10,8 @@ echo "🚀 Starting deployment..."
 # 2. Generate .env file from environment variables passed from GitHub Actions
 echo "🏗️ Generating .env file..."
 cat <<EOF > .env
+DB_USER=$DB_USER
+DB_NAME=$DB_NAME
 DB_PASSWORD=$DB_PASSWORD
 GLITCHTIP_DB_PASSWORD=$GLITCHTIP_DB_PASSWORD
 GLITCHTIP_DOMAIN=$GLITCHTIP_DOMAIN
@@ -51,9 +53,18 @@ echo "🏗️ Pulling and starting services..."
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 
-# 4. Wait for API to be healthy and run migrations (migrations run on startup)
-echo "🔄 Waiting for API to be ready and run migrations..."
-sleep 10
+# 4. Run database setup and migrations
+echo "🔄 Running database setup and migrations..."
+# Wait a few seconds for the database service to be ready
+sleep 5
+echo "🏗️ Ensuring database exists..."
+docker compose -f docker-compose.prod.yml exec -T woolet-api bun run db:setup
+echo "🔄 Running migrations..."
+docker compose -f docker-compose.prod.yml exec -T woolet-api bun run db:migrate --filter=@woolet/api
+
+# 5. Wait for API to be healthy
+echo "🔄 Waiting for API to be ready..."
+sleep 5
 
 # Check if API is healthy
 for i in {1..30}; do
