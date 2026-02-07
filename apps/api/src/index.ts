@@ -30,7 +30,7 @@ app.use('*', honoLogger((str) => {
 }));
 app.use('*', secureHeaders());
 app.use('*', cors({
-    origin: process.env.WEB_URL || 'http://localhost:3000',
+    origin: process.env.WEB_URL || 'http://78.40.109.172:8080',
     credentials: true,
 }));
 

@@ -17,7 +17,7 @@ function WritingText({
   inView = false,
   inViewMargin = "0px",
   inViewOnce = true,
-  spacing = 5,
+  spacing = 0,
   text,
   transition = { type: "spring", bounce: 0, duration: 2, delay: 0.5 },
   ...props
@@ -44,7 +44,7 @@ function WritingText({
           style={{ marginRight: spacing }}
           transition={{
             ...transition,
-            delay: index * (transition?.delay ?? 0),
+            delay: (transition?.delay ?? 0) + (index * 0.1),
           }}
         >
           {word}{" "}

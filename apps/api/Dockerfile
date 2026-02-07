@@ -27,6 +27,8 @@ FROM base AS runner
 RUN useradd -m -s /bin/bash woolet-api
 USER woolet-api
 
+WORKDIR /app
+
 COPY --from=install --chown=woolet-api:woolet-api /app/node_modules ./node_modules
 COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/dist ./dist
 COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/package.json ./package.json
@@ -39,8 +41,6 @@ COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/src/db ./src/db
 
 # Expose the API port
 EXPOSE 3001
-
-WORKDIR /app/apps/api
 
 # Command to run the application
 CMD ["bun", "run", "dist/index.js"]

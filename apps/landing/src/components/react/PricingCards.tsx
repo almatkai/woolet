@@ -69,7 +69,7 @@ export function PricingCards({ plans }: PricingCardsProps) {
           style={{
             boxShadow: hoveredIndex === index && !shouldReduceMotion
               ? `0 0 60px rgba(255,255,255,0.07), inset 0 0 40px rgba(255,255,255,0.02)`
-              : plan.popular 
+              : plan.popular
                 ? `0 0 40px rgba(255,255,255,0.05)`
                 : undefined,
             transform: hoveredIndex === index && !shouldReduceMotion ? 'translateY(-8px)' : undefined,
@@ -85,12 +85,12 @@ export function PricingCards({ plans }: PricingCardsProps) {
             {/* Popular badge */}
             {plan.popular && (
               <motion.div
-                className="absolute -top-12 left-1/2 -translate-x-1/2"
+                className="absolute -top-12 inset-x-0 flex justify-center"
                 initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 10 }}
                 animate={isInView ? { opacity: 1, y: 0 } : undefined}
                 transition={shouldReduceMotion ? { duration: 0 } : { delay: 0.3, duration: 0.4 }}
               >
-                <span className="px-4 py-1.5 bg-white text-slate-900 text-sm font-semibold rounded-full shadow-lg shadow-white/20">
+                <span className="px-4 py-1.5 bg-white text-slate-900 text-sm font-semibold rounded-full shadow-lg shadow-white/20 whitespace-nowrap">
                   Most Popular
                 </span>
               </motion.div>
