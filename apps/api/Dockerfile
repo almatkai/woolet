@@ -38,6 +38,7 @@ COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/drizzle.config.ts 
 COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/drizzle ./drizzle
 COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/tsconfig.json ./tsconfig.json
 COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/src/db ./src/db
+COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/scripts ./scripts
 
 # Expose the API port
 EXPOSE 3001
