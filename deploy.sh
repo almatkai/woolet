@@ -13,6 +13,7 @@ DB_ADMIN_PASSWORD="${DB_ADMIN_PASSWORD:-password}"
 DB_USER="${DB_USER:-woolet_app}"
 DB_PASSWORD="${DB_PASSWORD:-password}"
 DB_NAME="${DB_NAME:-woolet}"
+DB_PORT="${DB_PORT:-5432}"
 POSTGRES_HOST="woolet-postgres"
 
 # Helper function to URL encode values (requires python3)
@@ -40,6 +41,7 @@ if [ -f .env ] && [ -s .env ]; then
     FILE_DB_USER=$(get_env_value "DB_USER")
     FILE_DB_PASSWORD=$(get_env_value "DB_PASSWORD")
     FILE_DB_NAME=$(get_env_value "DB_NAME")
+    FILE_DB_PORT=$(get_env_value "DB_PORT")
     
     # Use existing values from file or fall back to shell/defaults
     DB_ADMIN_USER="${FILE_DB_ADMIN_USER:-$DB_ADMIN_USER}"
@@ -47,6 +49,7 @@ if [ -f .env ] && [ -s .env ]; then
     DB_USER="${FILE_DB_USER:-$DB_USER}"
     DB_PASSWORD="${FILE_DB_PASSWORD:-$DB_PASSWORD}"
     DB_NAME="${FILE_DB_NAME:-$DB_NAME}"
+    DB_PORT="${FILE_DB_PORT:-$DB_PORT}"
     
     # Check if we should backfill the .env file if it's missing critical info
     if [ -z "$FILE_DB_PASSWORD" ] && [ "$DB_PASSWORD" != "password" ]; then
@@ -73,6 +76,7 @@ if [ ! -f .env ] || [ ! -s .env ] || [ "$DO_GENERATE" = true ]; then
         printf "DB_USER=%s\n" "$(escape_env "$DB_USER")"
         printf "DB_PASSWORD=%s\n" "$(escape_env "$DB_PASSWORD")"
         printf "DB_NAME=%s\n" "$(escape_env "$DB_NAME")"
+        printf "DB_PORT=%s\n" "$(escape_env "$DB_PORT")"
         printf "GLITCHTIP_DB_PASSWORD=%s\n" "$(escape_env "$GLITCHTIP_DB_PASSWORD")"
         printf "GLITCHTIP_DOMAIN=%s\n" "$(escape_env "$GLITCHTIP_DOMAIN")"
         printf "GLITCHTIP_FROM_EMAIL=%s\n" "$(escape_env "$GLITCHTIP_FROM_EMAIL")"
