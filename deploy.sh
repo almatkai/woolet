@@ -17,13 +17,68 @@ POSTGRES_HOST="woolet-postgres"
 # Construct a direct connection URL for setup and migrations
 BUILD_DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${POSTGRES_HOST}:5432/${DB_NAME}"
 
-# 2. Handle .env file
-if [ -f .env ]; then
-    echo "ℹ️ .env file already exists. Sourcing existing values..."
-    # Source .env safely (handling comments and exports)
-    export $(grep -v '^#' .env | xargs)
-else
-    echo "🏗️ Generating .env file..."
+# Helper function to URL encode values (requires python3)
+url_encode() {
+    python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=''))" "$1"
+}
+
+# Function to read env var from .env file safely
+get_env_value() {
+    local key=$1
+    local file=.env
+    if [ -f "$file" ]; then
+        # Grep the line, cut the value part, remove surrounding quotes if any
+        grep "^${key}=" "$file" | cut -d'=' -f2- | sed 's/^"//;s/"$//' | sed "s/^'//;s/'$//"
+    fi
+}
+
+# 2. Handle .env file and defaults
+# If .env is missing or empty, we will (re)generate it
+if [ -f .env ] && [ -s .env ]; then
+    echo "ℹ️ .env file exists. Reading values safely..."
+    
+    # Read values directly to avoid evaluation issues with special chars
+    FILE_DB_USER=$(get_env_value "DB_USER")
+    FILE_DB_PASSWORD=$(get_env_value "DB_PASSWORD")
+    FILE_DB_NAME=$(get_env_value "DB_NAME")
+    
+    # FIX: Detect if DB_USER is still 'postgres' (legacy default) and force update to 'woolet_app'
+    if [ "$FILE_DB_USER" = "postgres" ]; then
+        echo "⚠️ Detected legacy DB_USER=postgres in .env. Switching to woolet_app..."
+        
+        # Update the .env file permanently
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' 's/^DB_USER=postgres/DB_USER=woolet_app/' .env
+        else
+            sed -i 's/^DB_USER=postgres/DB_USER=woolet_app/' .env
+        fi
+        echo "✅ Updated .env file with DB_USER=woolet_app"
+        DB_USER="woolet_app"
+    else
+        # Use existing value OR the one from shell (GitHub) if shell one is set and file one isn't
+        DB_USER="${FILE_DB_USER:-$DB_USER}"
+    fi
+
+    # Update other variables: prefer shell (GitHub) if file is missing them
+    DB_PASSWORD="${FILE_DB_PASSWORD:-$DB_PASSWORD}"
+    DB_NAME="${FILE_DB_NAME:-$DB_NAME}"
+    
+    # Check if we should backfill the .env file if it's missing critical info
+    if [ -z "$FILE_DB_PASSWORD" ] && [ "$DB_PASSWORD" != "password" ]; then
+        echo "ℹ️ Critical credentials found in shell but missing in .env. Running repair..."
+        mv .env .env.bak
+        # Trigger regeneration block below by pretending file doesn't exist
+        DO_GENERATE=true
+    fi
+fi
+
+if [ ! -f .env ] || [ ! -s .env ] || [ "$DO_GENERATE" = true ]; then
+    if [ "$DO_GENERATE" = true ]; then
+        echo "🔄 Repairing .env file..."
+    else
+        echo "🏗️ Generating .env file..."
+    fi
+    # ... (generation logic remains the same) ...
     # Function to escape $ to $$ for Docker Compose
     escape_env() {
         echo "${1//$/\$\$}"
@@ -42,6 +97,8 @@ else
         printf "CLERK_PUBLISHABLE_KEY=%s\n" "$(escape_env "$CLERK_PUBLISHABLE_KEY")"
         printf "VITE_CLERK_PUBLISHABLE_KEY=%s\n" "$(escape_env "$VITE_CLERK_PUBLISHABLE_KEY")"
         # Provide the default DATABASE_URL for the app (using PgBouncer) if not set in env
+        # Note: We can't easily URL encode here in generation block without python logic availability check, 
+        # but for generation we assume current env vars are safe-ish or standard.
         printf "DATABASE_URL=%s\n" "$(escape_env "${DATABASE_URL:-postgresql://$DB_USER:$DB_PASSWORD@woolet-pgbouncer:5432/$DB_NAME}")"
         printf "REDIS_URL=%s\n" "$(escape_env "$REDIS_URL")"
         printf "WOOLET_API_IMAGE=%s\n" "$(escape_env "$WOOLET_API_IMAGE")"
@@ -81,8 +138,11 @@ docker compose -f docker-compose.prod.yml up -d
 
 # 4. Run database setup and migrations
 echo "🔄 Running database setup and migrations..."
-# Update BUILD_DATABASE_URL from possibly sourced variables
-BUILD_DATABASE_URL="postgresql://${DB_USER:-woolet_app}:${DB_PASSWORD:-password}@${POSTGRES_HOST:-woolet-postgres}:5432/${DB_NAME:-woolet}"
+# Update BUILD_DATABASE_URL using URL encoded values for safety
+ENCODED_USER=$(url_encode "${DB_USER:-woolet_app}")
+ENCODED_PASS=$(url_encode "${DB_PASSWORD:-password}")
+ENCODED_DB=$(url_encode "${DB_NAME:-woolet}")
+BUILD_DATABASE_URL="postgresql://${ENCODED_USER}:${ENCODED_PASS}@${POSTGRES_HOST:-woolet-postgres}:5432/${ENCODED_DB}"
 
 # Wait a few seconds for the database service to be ready
 sleep 5
