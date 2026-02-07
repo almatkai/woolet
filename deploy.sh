@@ -65,7 +65,7 @@ sleep 5
 echo "🏗️ Ensuring database exists..."
 # Bypass PgBouncer and connect directly to Postgres for setup to avoid "ESERVFAIL" and enable CREATE DATABASE
 docker compose -f docker-compose.prod.yml exec -T \
-    -e DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@woolet-postgres:5432/${DB_NAME}" \
+    -e DATABASE_URL="postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-password}@woolet-postgres:5432/${DB_NAME:-woolet}" \
     woolet-api bun run db:setup
 
 echo "🔄 Running migrations..."
