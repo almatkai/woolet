@@ -7,6 +7,16 @@ echo "🚀 Starting deployment..."
 # 1. Pull latest changes (if in git repo)
 # git pull origin main
 
+# Set default values for environment variables
+DB_USER="${DB_USER:-postgres}"
+DB_PASSWORD="${DB_PASSWORD:-password}"
+DB_NAME="${DB_NAME:-woolet}"
+POSTGRES_HOST="woolet-postgres"
+
+# Construct a direct connection URL for setup and migrations (bypassing PgBouncer)
+# This ensures we connect to the main DB instance which supports all commands and avoids "ENOTFOUND" if PgBouncer isn't up yet.
+BUILD_DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${POSTGRES_HOST}:5432/${DB_NAME}"
+
 # 2. Generate .env file from environment variables passed from GitHub Actions
 echo "🏗️ Generating .env file..."
 # Function to escape $ to $$ for Docker Compose
@@ -26,7 +36,8 @@ escape_env() {
     printf "CLERK_SECRET_KEY=%s\n" "$(escape_env "$CLERK_SECRET_KEY")"
     printf "CLERK_PUBLISHABLE_KEY=%s\n" "$(escape_env "$CLERK_PUBLISHABLE_KEY")"
     printf "VITE_CLERK_PUBLISHABLE_KEY=%s\n" "$(escape_env "$VITE_CLERK_PUBLISHABLE_KEY")"
-    printf "DATABASE_URL=%s\n" "$(escape_env "$DATABASE_URL")"
+    # Provide the default DATABASE_URL for the app (using PgBouncer) if not set in env
+    printf "DATABASE_URL=%s\n" "$(escape_env "${DATABASE_URL:-postgresql://$DB_USER:$DB_PASSWORD@woolet-pgbouncer:5432/$DB_NAME}")"
     printf "REDIS_URL=%s\n" "$(escape_env "$REDIS_URL")"
     printf "WOOLET_API_IMAGE=%s\n" "$(escape_env "$WOOLET_API_IMAGE")"
     printf "WOOLET_WEB_IMAGE=%s\n" "$(escape_env "$WOOLET_WEB_IMAGE")"
@@ -64,13 +75,16 @@ echo "🔄 Running database setup and migrations..."
 sleep 5
 echo "🏗️ Ensuring database exists..."
 # Bypass PgBouncer and connect directly to Postgres for setup to avoid "ESERVFAIL" and enable CREATE DATABASE
+# Use the explicitly constructed URL to avoid env var ambiguity
 docker compose -f docker-compose.prod.yml exec -T \
-    -e DATABASE_URL="postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-password}@woolet-postgres:5432/${DB_NAME:-woolet}" \
+    -e DATABASE_URL="$BUILD_DATABASE_URL" \
     woolet-api bun run db:setup
 
 echo "🔄 Running migrations..."
-# Remove --filter as we are running directly inside the container context
-docker compose -f docker-compose.prod.yml exec -T woolet-api bun run db:migrate
+# Use the same direct connection strictly for migrations to ensure reliability and avoid DNS issues with unready PgBouncer
+docker compose -f docker-compose.prod.yml exec -T \
+    -e DATABASE_URL="$BUILD_DATABASE_URL" \
+    woolet-api bun run db:migrate
 
 # 5. Wait for API to be healthy
 echo "🔄 Waiting for API to be ready..."
