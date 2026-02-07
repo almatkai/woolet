@@ -1,93 +1,180 @@
 ---
-const appUrl = 'http://78.40.109.172:8080/';
+const appUrl = "http://78.40.109.172:8080";
 ---
 
-<section id="hero" class="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+<section
+  id="hero"
+  class="relative min-h-screen flex items-center justify-center overflow-hidden pt-20"
+>
   <!-- Particles background (React component) -->
   <div id="particles-container" class="absolute inset-0 z-0"></div>
-  
+
   <!-- Animated grid pattern -->
   <div id="grid-container" class="absolute inset-0 z-0"></div>
-  
+
   <!-- Spotlight effect -->
-  <div id="spotlight-container" class="absolute -top-40 left-0 md:left-60 md:-top-20 z-0"></div>
-  
+  <div
+    id="spotlight-container"
+    class="absolute -top-40 left-0 md:left-60 md:-top-20 z-0"
+  >
+  </div>
+
   <!-- Gradient orbs -->
-  <div class="absolute top-1/4 -left-20 w-72 h-72 bg-white/[0.02] rounded-full blur-3xl animate-pulse-slow"></div>
-  <div class="absolute bottom-1/4 -right-20 w-96 h-96 bg-white/[0.02] rounded-full blur-3xl animate-pulse-slow delay-1000"></div>
-  
-  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+  <div
+    class="absolute top-1/4 -left-20 w-72 h-72 bg-white/[0.02] rounded-full blur-3xl animate-pulse-slow"
+  >
+  </div>
+  <div
+    class="absolute bottom-1/4 -right-20 w-96 h-96 bg-white/[0.02] rounded-full blur-3xl animate-pulse-slow delay-1000"
+  >
+  </div>
+
+  <div
+    class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center"
+  >
     <!-- App Icon with glow -->
     <div class="flex justify-center mb-8" id="hero-icon">
       <div class="relative">
-        <div class="absolute inset-0 bg-white/20 blur-2xl rounded-full scale-150 animate-pulse"></div>
-        <img 
-          src="/android-chrome-192x192.png" 
-          alt="Woolet" 
-          class="relative w-20 h-20 rounded-2xl shadow-2xl animate-float" 
+        <div
+          class="absolute inset-0 bg-white/20 blur-2xl rounded-full scale-150 animate-pulse"
+        >
+        </div>
+        <img
+          src="/android-chrome-192x192.png"
+          alt="Woolet"
+          class="relative w-20 h-20 rounded-2xl shadow-2xl animate-float"
         />
       </div>
     </div>
-    
+
     <!-- Main headline with morphing text -->
-    <h1 class="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white leading-[1.1] tracking-tight mb-6" id="hero-title">
+    <h1
+      class="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white leading-[1.1] tracking-tight mb-6"
+      id="hero-title"
+    >
       <span class="block">Woolet</span>
     </h1>
-    
+
     <!-- Morphing subtitle -->
     <div class="h-8 mb-4" id="morphing-text-container">
-      <span class="text-xl sm:text-2xl font-medium text-white/80" id="morphing-text">
+      <span
+        class="text-xl sm:text-2xl font-medium text-white/80"
+        id="morphing-text"
+      >
         Track Expenses
       </span>
     </div>
-    
+
     <!-- Subtitle -->
-    <p class="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed" id="hero-subtitle">
-      The all-in-one platform for managing your spending, tracking debts, 
+    <p
+      class="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed"
+      id="hero-subtitle"
+    >
+      The all-in-one platform for managing your spending, tracking debts,
       monitoring investments, and keeping your financial products organized.
     </p>
-    
+
     <!-- CTA Buttons with glow effect -->
-    <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16" id="hero-cta">
-      <a 
+    <div
+      class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
+      id="hero-cta"
+    >
+      <a
         href={`${appUrl}/register`}
         class="group relative inline-flex items-center gap-3 px-8 py-4 bg-white text-slate-900 rounded-full font-semibold text-lg overflow-hidden transition-all duration-300 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)] hover:scale-105"
       >
         <span class="relative z-10">Get Started Free</span>
-        <svg class="relative z-10 w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+        <svg
+          class="relative z-10 w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-200"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
         </svg>
-        <div class="absolute inset-0 bg-gradient-to-r from-white to-slate-100 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <div
+          class="absolute inset-0 bg-gradient-to-r from-white to-slate-100 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        >
+        </div>
       </a>
-      
-      <a 
+
+      <a
         href="#features"
         class="group inline-flex items-center gap-3 px-8 py-4 text-white rounded-full font-semibold text-lg border border-white/20 hover:border-white/40 transition-all duration-300 hover:bg-white/5 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)]"
       >
         <span>Explore Features</span>
-        <svg class="w-5 h-5 group-hover:translate-y-1 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+        <svg
+          class="w-5 h-5 group-hover:translate-y-1 transition-transform duration-200"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
         </svg>
       </a>
     </div>
-    
+
     <!-- Trust indicators -->
-    <div class="flex flex-wrap items-center justify-center gap-8 text-sm text-slate-400 mb-16" id="hero-trust">
-      <div class="flex items-center gap-2 hover:text-white transition-colors duration-300">
-        <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+    <div
+      class="flex flex-wrap items-center justify-center gap-8 text-sm text-slate-400 mb-16"
+      id="hero-trust"
+    >
+      <div
+        class="flex items-center gap-2 hover:text-white transition-colors duration-300"
+      >
+        <svg
+          class="w-5 h-5 text-emerald-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"></path>
         </svg>
         <span>Free forever for basic features</span>
       </div>
-      <div class="flex items-center gap-2 hover:text-white transition-colors duration-300">
-        <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+      <div
+        class="flex items-center gap-2 hover:text-white transition-colors duration-300"
+      >
+        <svg
+          class="w-5 h-5 text-emerald-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"></path>
         </svg>
         <span>No credit card required</span>
       </div>
-      <div class="flex items-center gap-2 hover:text-white transition-colors duration-300">
-        <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+      <div
+        class="flex items-center gap-2 hover:text-white transition-colors duration-300"
+      >
+        <svg
+          class="w-5 h-5 text-emerald-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"></path>
         </svg>
         <span>Secure & Private</span>
       </div>
@@ -97,90 +184,147 @@ const appUrl = 'http://78.40.109.172:8080/';
         rel="noopener noreferrer"
         class="flex items-center gap-2 hover:text-white transition-colors"
       >
-        <svg class="w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 24 24">
-          <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+        <svg
+          class="w-5 h-5 text-slate-400"
+          fill="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            fill-rule="evenodd"
+            clip-rule="evenodd"
+            d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+          ></path>
         </svg>
         <span>Open source on GitHub</span>
       </a>
     </div>
-    
+
     <!-- App preview with floating effect -->
     <div class="relative max-w-5xl mx-auto" id="hero-preview">
       <!-- Glow behind preview -->
-      <div class="absolute inset-0 bg-gradient-to-t from-white/5 to-transparent rounded-3xl blur-3xl scale-110 -z-10"></div>
-      
+      <div
+        class="absolute inset-0 bg-gradient-to-t from-white/5 to-transparent rounded-3xl blur-3xl scale-110 -z-10"
+      >
+      </div>
+
       <!-- Main preview container -->
-      <div class="relative glass rounded-2xl sm:rounded-3xl p-2 sm:p-3 border border-white/20 shadow-2xl hover:border-white/30 transition-colors duration-500 group">
+      <div
+        class="relative glass rounded-2xl sm:rounded-3xl p-2 sm:p-3 border border-white/20 shadow-2xl hover:border-white/30 transition-colors duration-500 group"
+      >
         <!-- Animated border glow on hover -->
-        <div class="absolute -inset-[1px] bg-gradient-to-r from-white/20 via-white/5 to-white/20 rounded-2xl sm:rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-sm"></div>
-        
+        <div
+          class="absolute -inset-[1px] bg-gradient-to-r from-white/20 via-white/5 to-white/20 rounded-2xl sm:rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-sm"
+        >
+        </div>
+
         <!-- Browser chrome -->
-        <div class="relative flex items-center gap-2 px-4 py-3 border-b border-white/10">
+        <div
+          class="relative flex items-center gap-2 px-4 py-3 border-b border-white/10"
+        >
           <div class="flex gap-1.5">
             <div class="w-3 h-3 rounded-full bg-red-400/80"></div>
             <div class="w-3 h-3 rounded-full bg-yellow-400/80"></div>
             <div class="w-3 h-3 rounded-full bg-emerald-400/80"></div>
           </div>
           <div class="flex-1 flex justify-center">
-            <div class="px-4 py-1 rounded-md bg-white/5 text-slate-400 text-sm border border-white/10">
+            <div
+              class="px-4 py-1 rounded-md bg-white/5 text-slate-400 text-sm border border-white/10"
+            >
               app.woolet.com
             </div>
           </div>
         </div>
-        
+
         <!-- Dashboard mockup -->
-        <div class="relative aspect-video rounded-lg sm:rounded-xl overflow-hidden bg-slate-900/90">
+        <div
+          class="relative aspect-video rounded-lg sm:rounded-xl overflow-hidden bg-slate-900/90"
+        >
           <!-- Simplified dashboard UI -->
           <div class="absolute inset-0 p-4 sm:p-8">
             <!-- Header -->
             <div class="flex items-center justify-between mb-6">
               <div class="flex items-center gap-4">
-                <img src="/android-chrome-192x192.png" alt="Woolet" class="w-10 h-10 rounded-xl" />
+                <img
+                  src="/android-chrome-192x192.png"
+                  alt="Woolet"
+                  class="w-10 h-10 rounded-xl"
+                />
                 <div>
                   <div class="h-3 w-32 bg-white/20 rounded animate-pulse"></div>
                   <div class="h-2 w-20 bg-white/10 rounded mt-2"></div>
                 </div>
               </div>
               <div class="flex gap-2">
-                <div class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"></div>
-                <div class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"></div>
+                <div
+                  class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
+                >
+                </div>
+                <div
+                  class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
+                >
+                </div>
               </div>
             </div>
-            
+
             <!-- Stats cards -->
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
-              <div class="glass rounded-xl p-3 sm:p-4 border border-white/10 hover:border-white/20 transition-all duration-300 hover:-translate-y-1">
+              <div
+                class="glass rounded-xl p-3 sm:p-4 border border-white/10 hover:border-white/20 transition-all duration-300 hover:-translate-y-1"
+              >
                 <div class="text-xs text-slate-400 mb-1">Total Balance</div>
-                <div class="text-lg sm:text-2xl font-bold text-white">$24,580</div>
+                <div class="text-lg sm:text-2xl font-bold text-white">
+                  $24,580
+                </div>
                 <div class="text-xs text-emerald-400 mt-1">+12.5%</div>
               </div>
-              <div class="glass rounded-xl p-3 sm:p-4 border border-white/10 hover:border-white/20 transition-all duration-300 hover:-translate-y-1">
+              <div
+                class="glass rounded-xl p-3 sm:p-4 border border-white/10 hover:border-white/20 transition-all duration-300 hover:-translate-y-1"
+              >
                 <div class="text-xs text-slate-400 mb-1">Monthly Spend</div>
-                <div class="text-lg sm:text-2xl font-bold text-white">$3,240</div>
+                <div class="text-lg sm:text-2xl font-bold text-white">
+                  $3,240
+                </div>
                 <div class="text-xs text-red-400 mt-1">-8.2%</div>
               </div>
-              <div class="glass rounded-xl p-3 sm:p-4 border border-white/10 hidden sm:block hover:border-white/20 transition-all duration-300 hover:-translate-y-1">
+              <div
+                class="glass rounded-xl p-3 sm:p-4 border border-white/10 hidden sm:block hover:border-white/20 transition-all duration-300 hover:-translate-y-1"
+              >
                 <div class="text-xs text-slate-400 mb-1">Investments</div>
-                <div class="text-lg sm:text-2xl font-bold text-white">$15,890</div>
+                <div class="text-lg sm:text-2xl font-bold text-white">
+                  $15,890
+                </div>
                 <div class="text-xs text-emerald-400 mt-1">+23.1%</div>
               </div>
-              <div class="glass rounded-xl p-3 sm:p-4 border border-white/10 hidden sm:block hover:border-white/20 transition-all duration-300 hover:-translate-y-1">
+              <div
+                class="glass rounded-xl p-3 sm:p-4 border border-white/10 hidden sm:block hover:border-white/20 transition-all duration-300 hover:-translate-y-1"
+              >
                 <div class="text-xs text-slate-400 mb-1">Debts</div>
-                <div class="text-lg sm:text-2xl font-bold text-white">$2,100</div>
+                <div class="text-lg sm:text-2xl font-bold text-white">
+                  $2,100
+                </div>
                 <div class="text-xs text-emerald-400 mt-1">-15.3%</div>
               </div>
             </div>
-            
+
             <!-- Chart area -->
-            <div class="glass rounded-xl p-4 sm:p-6 border border-white/10 h-32 sm:h-48">
-              <div class="flex items-end justify-between h-full gap-2 sm:gap-4" id="chart-bars">
-                {[40, 65, 45, 80, 55, 75, 90, 60, 85, 70, 95, 80].map((height, i) => (
-                  <div 
-                    class="chart-bar flex-1 bg-white/10 rounded-t-md transition-all duration-500 hover:bg-white/30 cursor-pointer"
-                    style={`--bar-height: ${height}%; animation-delay: ${i * 0.1}s;`}
-                    data-height={height}
-                  />
-                ))}
+            <div
+              class="glass rounded-xl p-4 sm:p-6 border border-white/10 h-32 sm:h-48"
+            >
+              <div
+                class="flex items-end justify-between h-full gap-2 sm:gap-4"
+                id="chart-bars"
+              >
+                {
+                  [40, 65, 45, 80, 55, 75, 90, 60, 85, 70, 95, 80].map(
+                    (height, i) => (
+                      <div
+                        class="chart-bar flex-1 bg-white/10 rounded-t-md transition-all duration-500 hover:bg-white/30 cursor-pointer"
+                        style={`--bar-height: ${height}%; animation-delay: ${i * 0.1}s;`}
+                        data-height={height}
+                      />
+                    ),
+                  )
+                }
               </div>
             </div>
           </div>
@@ -188,56 +332,80 @@ const appUrl = 'http://78.40.109.172:8080/';
       </div>
     </div>
   </div>
-  
+
   <!-- Scroll indicator -->
   <div class="absolute bottom-8 left-1/2 -translate-x-1/2">
-    <div class="w-6 h-10 border-2 border-white/20 rounded-full flex justify-center p-2">
-      <div class="w-1 h-2 bg-white/60 rounded-full animate-scroll-indicator"></div>
+    <div
+      class="w-6 h-10 border-2 border-white/20 rounded-full flex justify-center p-2"
+    >
+      <div class="w-1 h-2 bg-white/60 rounded-full animate-scroll-indicator">
+      </div>
     </div>
   </div>
 </section>
 
 <style>
   @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
   }
-  
+
   .animate-float {
     animation: float 4s ease-in-out infinite;
   }
-  
+
   @keyframes pulse-slow {
-    0%, 100% { opacity: 0.3; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(1.1); }
+    0%,
+    100% {
+      opacity: 0.3;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.5;
+      transform: scale(1.1);
+    }
   }
-  
+
   .animate-pulse-slow {
     animation: pulse-slow 8s ease-in-out infinite;
   }
-  
+
   .delay-1000 {
     animation-delay: 1s;
   }
-  
+
   @keyframes scroll-indicator {
-    0%, 100% { transform: translateY(0); opacity: 1; }
-    50% { transform: translateY(8px); opacity: 0.3; }
+    0%,
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    50% {
+      transform: translateY(8px);
+      opacity: 0.3;
+    }
   }
-  
+
   .animate-scroll-indicator {
     animation: scroll-indicator 2s ease-in-out infinite;
   }
-  
+
   .chart-bar {
     height: 0;
     animation: growBar 1s ease-out forwards;
   }
-  
+
   @keyframes growBar {
-    to { height: var(--bar-height); }
+    to {
+      height: var(--bar-height);
+    }
   }
-  
+
   /* Spotlight animation */
   @keyframes spotlight {
     0% {
@@ -249,34 +417,34 @@ const appUrl = 'http://78.40.109.172:8080/';
       transform: translate(-50%, -40%) scale(1);
     }
   }
-  
+
   .animate-spotlight {
     animation: spotlight 2s ease 0.5s 1 forwards;
   }
 </style>
 
 <script>
-  import { gsap } from 'gsap';
+  import { gsap } from "gsap";
 
   // Morphing text animation
   const morphingTexts = [
-    'Track Expenses',
-    'Manage Debts',
-    'Monitor Investments',
-    'Set Goals',
-    'Control Subscriptions'
+    "Track Expenses",
+    "Manage Debts",
+    "Monitor Investments",
+    "Set Goals",
+    "Control Subscriptions",
   ];
-  
+
   let currentIndex = 0;
-  const morphingTextEl = document.getElementById('morphing-text');
-  
+  const morphingTextEl = document.getElementById("morphing-text");
+
   function morphText() {
     if (!morphingTextEl) return;
-    
+
     gsap.to(morphingTextEl, {
       opacity: 0,
       y: -10,
-      filter: 'blur(8px)',
+      filter: "blur(8px)",
       duration: 0.3,
       onComplete: () => {
         currentIndex = (currentIndex + 1) % morphingTexts.length;
@@ -284,90 +452,93 @@ const appUrl = 'http://78.40.109.172:8080/';
         gsap.to(morphingTextEl, {
           opacity: 1,
           y: 0,
-          filter: 'blur(0px)',
+          filter: "blur(0px)",
           duration: 0.3,
         });
-      }
+      },
     });
   }
-  
+
   setInterval(morphText, 2500);
-  
+
   // Animate hero elements on load
-  gsap.from('#hero-icon', { 
-    opacity: 0, 
-    scale: 0.5, 
-    duration: 0.8, 
-    ease: 'back.out(1.7)',
-    delay: 0.2 
+  gsap.from("#hero-icon", {
+    opacity: 0,
+    scale: 0.5,
+    duration: 0.8,
+    ease: "back.out(1.7)",
+    delay: 0.2,
   });
-  
-  gsap.from('#hero-title', { 
-    opacity: 0, 
-    y: 30, 
-    duration: 0.8, 
-    ease: 'power3.out',
-    delay: 0.4 
+
+  gsap.from("#hero-title", {
+    opacity: 0,
+    y: 30,
+    duration: 0.8,
+    ease: "power3.out",
+    delay: 0.4,
   });
-  
-  gsap.from('#morphing-text-container', { 
-    opacity: 0, 
-    y: 20, 
-    duration: 0.6, 
-    ease: 'power3.out',
-    delay: 0.5 
+
+  gsap.from("#morphing-text-container", {
+    opacity: 0,
+    y: 20,
+    duration: 0.6,
+    ease: "power3.out",
+    delay: 0.5,
   });
-  
-  gsap.from('#hero-subtitle', { 
-    opacity: 0, 
-    y: 20, 
-    duration: 0.6, 
-    ease: 'power3.out',
-    delay: 0.6 
+
+  gsap.from("#hero-subtitle", {
+    opacity: 0,
+    y: 20,
+    duration: 0.6,
+    ease: "power3.out",
+    delay: 0.6,
   });
-  
-  gsap.from('#hero-cta > *', { 
-    opacity: 0, 
-    y: 20, 
-    duration: 0.5, 
+
+  gsap.from("#hero-cta > *", {
+    opacity: 0,
+    y: 20,
+    duration: 0.5,
     stagger: 0.1,
-    ease: 'power3.out',
-    delay: 0.7 
+    ease: "power3.out",
+    delay: 0.7,
   });
-  
-  gsap.from('#hero-trust > *', { 
-    opacity: 0, 
-    y: 15, 
-    duration: 0.4, 
+
+  gsap.from("#hero-trust > *", {
+    opacity: 0,
+    y: 15,
+    duration: 0.4,
     stagger: 0.08,
-    ease: 'power3.out',
-    delay: 0.9 
+    ease: "power3.out",
+    delay: 0.9,
   });
-  
-  gsap.from('#hero-preview', { 
-    opacity: 0, 
-    y: 40, 
-    scale: 0.95, 
-    duration: 1, 
-    ease: 'power3.out',
-    delay: 1.1 
+
+  gsap.from("#hero-preview", {
+    opacity: 0,
+    y: 40,
+    scale: 0.95,
+    duration: 1,
+    ease: "power3.out",
+    delay: 1.1,
   });
-  
+
   // Chart bar animation
-  const chartBars = document.querySelectorAll('.chart-bar');
-  const chartObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        chartBars.forEach((bar, i) => {
-          const el = bar as HTMLElement;
-          el.style.animationPlayState = 'running';
-        });
-        chartObserver.disconnect();
-      }
-    });
-  }, { threshold: 0.5 });
-  
-  const chartContainer = document.getElementById('chart-bars');
+  const chartBars = document.querySelectorAll(".chart-bar");
+  const chartObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          chartBars.forEach((bar, i) => {
+            const el = bar as HTMLElement;
+            el.style.animationPlayState = "running";
+          });
+          chartObserver.disconnect();
+        }
+      });
+    },
+    { threshold: 0.5 },
+  );
+
+  const chartContainer = document.getElementById("chart-bars");
   if (chartContainer) {
     chartObserver.observe(chartContainer);
   }

@@ -1,87 +1,126 @@
 ---
 const navLinks = [
-  { name: 'Features', href: '#features' },
-  { name: 'How it Works', href: '#how-it-works' },
-  { name: 'Pricing', href: '#pricing' },
-  { name: 'FAQ', href: '#faq' },
+  { name: "Features", href: "#features" },
+  { name: "How it Works", href: "#how-it-works" },
+  { name: "Pricing", href: "#pricing" },
+  { name: "FAQ", href: "#faq" },
 ];
 
-const appUrl = 'http://78.40.109.172:8080/';
+const appUrl = "http://78.40.109.172:8080";
 ---
 
-<nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+<nav
+  id="navbar"
+  class="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-20">
       <!-- Logo -->
       <a href="/" class="flex items-center gap-3 group">
-        <img src="/android-chrome-192x192.png" alt="Woolet" class="w-10 h-10 rounded-xl" />
+        <img
+          src="/android-chrome-192x192.png"
+          alt="Woolet"
+          class="w-10 h-10 rounded-xl"
+        />
         <span class="text-white font-bold text-xl tracking-tight">Woolet</span>
       </a>
-      
+
       <!-- Desktop Navigation -->
       <div class="hidden md:flex items-center gap-8">
-        {navLinks.map((link) => (
-          <a 
-            href={link.href}
-            class="text-slate-300 hover:text-white transition-colors duration-200 text-sm font-medium animated-underline"
-          >
-            {link.name}
-          </a>
-        ))}
+        {
+          navLinks.map((link) => (
+            <a
+              href={link.href}
+              class="text-slate-300 hover:text-white transition-colors duration-200 text-sm font-medium animated-underline"
+            >
+              {link.name}
+            </a>
+          ))
+        }
       </div>
-      
+
       <!-- CTA Buttons -->
       <div class="hidden md:flex items-center gap-4">
-        <a 
+        <a
           href={`${appUrl}/login`}
           class="text-slate-300 hover:text-white transition-colors duration-200 text-sm font-medium"
         >
           Sign In
         </a>
-        <a 
+        <a
           href={`${appUrl}/register`}
           class="magnetic-btn relative inline-flex items-center gap-2 px-5 py-2.5 bg-white text-slate-900 rounded-full font-medium text-sm hover:bg-white/90 transition-colors duration-200 overflow-hidden group"
         >
           <span class="relative z-10">Get Started</span>
-          <svg class="relative z-10 w-4 h-4 transform group-hover:translate-x-1 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          <svg
+            class="relative z-10 w-4 h-4 transform group-hover:translate-x-1 transition-transform duration-200"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
           </svg>
         </a>
       </div>
-      
+
       <!-- Mobile Menu Button -->
-      <button 
+      <button
         id="mobile-menu-btn"
         class="md:hidden p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
         aria-label="Toggle menu"
       >
-        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path id="menu-icon-open" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-          <path id="menu-icon-close" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        <svg
+          class="w-6 h-6"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            id="menu-icon-open"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 6h16M4 12h16M4 18h16"></path>
+          <path
+            id="menu-icon-close"
+            class="hidden"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"></path>
         </svg>
       </button>
     </div>
   </div>
-  
+
   <!-- Mobile Menu -->
-  <div id="mobile-menu" class="md:hidden hidden absolute top-full left-0 right-0 glass border-t border-white/10">
+  <div
+    id="mobile-menu"
+    class="md:hidden hidden absolute top-full left-0 right-0 glass border-t border-white/10"
+  >
     <div class="px-4 py-6 space-y-4">
-      {navLinks.map((link) => (
-        <a 
-          href={link.href}
-          class="block text-slate-300 hover:text-white transition-colors duration-200 text-base font-medium py-2"
-        >
-          {link.name}
-        </a>
-      ))}
+      {
+        navLinks.map((link) => (
+          <a
+            href={link.href}
+            class="block text-slate-300 hover:text-white transition-colors duration-200 text-base font-medium py-2"
+          >
+            {link.name}
+          </a>
+        ))
+      }
       <div class="pt-4 border-t border-white/10 space-y-3">
-        <a 
+        <a
           href={`${appUrl}/login`}
           class="block text-slate-300 hover:text-white transition-colors duration-200 text-base font-medium py-2"
         >
           Sign In
         </a>
-        <a 
+        <a
           href={`${appUrl}/register`}
           class="block w-full text-center px-5 py-3 bg-white text-slate-900 rounded-full font-medium text-base"
         >
@@ -94,39 +133,39 @@ const appUrl = 'http://78.40.109.172:8080/';
 
 <script>
   // Navbar scroll effect
-  const navbar = document.getElementById('navbar');
+  const navbar = document.getElementById("navbar");
   let lastScroll = 0;
-  
-  window.addEventListener('scroll', () => {
+
+  window.addEventListener("scroll", () => {
     const currentScroll = window.scrollY;
-    
+
     if (currentScroll > 50) {
-      navbar?.classList.add('glass', 'shadow-lg');
+      navbar?.classList.add("glass", "shadow-lg");
     } else {
-      navbar?.classList.remove('glass', 'shadow-lg');
+      navbar?.classList.remove("glass", "shadow-lg");
     }
-    
+
     lastScroll = currentScroll;
   });
-  
+
   // Mobile menu toggle
-  const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-  const mobileMenu = document.getElementById('mobile-menu');
-  const menuIconOpen = document.getElementById('menu-icon-open');
-  const menuIconClose = document.getElementById('menu-icon-close');
-  
-  mobileMenuBtn?.addEventListener('click', () => {
-    mobileMenu?.classList.toggle('hidden');
-    menuIconOpen?.classList.toggle('hidden');
-    menuIconClose?.classList.toggle('hidden');
+  const mobileMenuBtn = document.getElementById("mobile-menu-btn");
+  const mobileMenu = document.getElementById("mobile-menu");
+  const menuIconOpen = document.getElementById("menu-icon-open");
+  const menuIconClose = document.getElementById("menu-icon-close");
+
+  mobileMenuBtn?.addEventListener("click", () => {
+    mobileMenu?.classList.toggle("hidden");
+    menuIconOpen?.classList.toggle("hidden");
+    menuIconClose?.classList.toggle("hidden");
   });
-  
+
   // Close mobile menu on link click
-  mobileMenu?.querySelectorAll('a').forEach((link) => {
-    link.addEventListener('click', () => {
-      mobileMenu?.classList.add('hidden');
-      menuIconOpen?.classList.remove('hidden');
-      menuIconClose?.classList.add('hidden');
+  mobileMenu?.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", () => {
+      mobileMenu?.classList.add("hidden");
+      menuIconOpen?.classList.remove("hidden");
+      menuIconClose?.classList.add("hidden");
     });
   });
 </script>

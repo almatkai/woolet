@@ -1,72 +1,133 @@
 ---
-const appUrl = 'http://78.40.109.172:8080/';
+const appUrl = "http://78.40.109.172:8080";
 ---
 
 <section class="relative py-24 sm:py-32 overflow-hidden">
   <!-- Background -->
   <div class="absolute inset-0">
     <div class="absolute inset-0 grid-pattern opacity-30"></div>
-    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-white/5 rounded-full blur-3xl"></div>
+    <div
+      class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-white/5 rounded-full blur-3xl"
+    >
+    </div>
   </div>
-  
+
   <div class="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="reveal glass rounded-3xl p-8 sm:p-12 lg:p-16 border border-white/20 text-center">
+    <div
+      class="reveal glass rounded-3xl p-8 sm:p-12 lg:p-16 border border-white/20 text-center"
+    >
       <!-- Icon -->
-      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 border border-white/10 mb-8">
-        <svg class="w-8 h-8 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+      <div
+        class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 border border-white/10 mb-8"
+      >
+        <svg
+          class="w-8 h-8 text-white/80"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.5"
+            d="M13 10V3L4 14h7v7l9-11h-7z"></path>
         </svg>
       </div>
-      
+
       <!-- Headline -->
       <h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
         Ready to take control of your
         <span class="block text-white/70 mt-2">financial future?</span>
       </h2>
-      
+
       <!-- Subtitle -->
       <p class="text-lg text-slate-400 max-w-2xl mx-auto mb-10">
-        Take control of your finances today. Track accounts, expenses, investments, and more — all in one place. Start for free.
+        Take control of your finances today. Track accounts, expenses,
+        investments, and more — all in one place. Start for free.
       </p>
-      
+
       <!-- CTA Buttons -->
-      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-        <a 
+      <div
+        class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8"
+      >
+        <a
           href={`${appUrl}/register`}
           class="magnetic-btn group relative inline-flex items-center gap-3 px-8 py-4 bg-white text-slate-900 rounded-full font-semibold text-lg overflow-hidden transition-all duration-300 hover:shadow-2xl"
         >
           <span class="relative z-10">Get Started Free</span>
-          <svg class="relative z-10 w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          <svg
+            class="relative z-10 w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-200"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
           </svg>
-          <div class="absolute inset-0 bg-white/10 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></div>
+          <div
+            class="absolute inset-0 bg-white/10 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"
+          >
+          </div>
         </a>
-        
-        <a 
+
+        <a
           href="#pricing"
           class="magnetic-btn inline-flex items-center gap-3 px-8 py-4 text-white rounded-full font-semibold text-lg border border-white/20 hover:border-white/40 transition-all duration-300 hover:bg-white/5"
         >
           <span>View Pricing</span>
         </a>
       </div>
-      
+
       <!-- Trust badges -->
-      <div class="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-400">
+      <div
+        class="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-400"
+      >
         <div class="flex items-center gap-2">
-          <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          <svg
+            class="w-5 h-5 text-emerald-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+            ></path>
           </svg>
           <span>Secure & private</span>
         </div>
         <div class="flex items-center gap-2">
-          <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          <svg
+            class="w-5 h-5 text-emerald-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M5 13l4 4L19 7"></path>
           </svg>
           <span>Free tier available</span>
         </div>
         <div class="flex items-center gap-2">
-          <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            class="w-5 h-5 text-emerald-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
           <span>Quick setup</span>
         </div>

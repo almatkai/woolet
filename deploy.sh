@@ -30,11 +30,19 @@ echo "🏗️ Pulling and starting services..."
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 
-# 4. Run database migrations
-echo "🔄 Running database migrations..."
-# Wait a few seconds for the database to be ready
-sleep 5
-docker compose -f docker-compose.prod.yml exec -T woolet-api bun run db:migrate --filter=@woolet/api
+# 4. Wait for API to be healthy and run migrations (migrations run on startup)
+echo "🔄 Waiting for API to be ready and run migrations..."
+sleep 10
+
+# Check if API is healthy
+for i in {1..30}; do
+    if docker compose -f docker-compose.prod.yml exec -T woolet-api curl -s http://localhost:3001/health > /dev/null 2>&1; then
+        echo "✅ API is healthy!"
+        break
+    fi
+    echo "Waiting for API... ($i/30)"
+    sleep 2
+done
 
 # 5. Clean up unused images
 echo "🧹 Cleaning up..."
