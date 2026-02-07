@@ -65,7 +65,7 @@ export function AccountActionsSheet({
                     if (cb.currencyCode === currencyCode) { // Same currency only
                         options.push({
                             id: cb.id,
-                            label: `[${bank.name}] ${acc.name} - ${cb.currencyCode}`
+                            label: `[${bank.name}${acc.last4Digits ? ` ${acc.last4Digits}` : ''}] ${acc.name} - ${cb.currencyCode}`
                         });
                     }
                 });

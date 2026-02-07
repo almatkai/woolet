@@ -71,7 +71,7 @@ export function AddDebtForm({ onSuccess, onCancel }: AddDebtFormProps) {
                 acc.currencyBalances.forEach((cb: any) => {
                     options.push({
                         id: cb.id,
-                        label: `[${bank.name}] ${acc.name} - ${cb.currencyCode}`,
+                        label: `[${bank.name}${acc.last4Digits ? ` ${acc.last4Digits}` : ''}] ${acc.name} - ${cb.currencyCode}`,
                         balance: Number(cb.balance),
                         currencyCode: cb.currencyCode
                     });

@@ -73,7 +73,7 @@ export function AddTransactionForm({ onSuccess, onCancel }: AddTransactionFormPr
                 acc.currencyBalances.forEach((cb: any) => {
                     options.push({
                         id: cb.id,
-                        label: `[${bank.name}] ${acc.name}`,
+                        label: `[${bank.name}${acc.last4Digits ? ` ${acc.last4Digits}` : ''}] ${acc.name}`,
                         balance: Number(cb.balance),
                         currencyCode: cb.currencyCode
                     });

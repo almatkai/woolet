@@ -36,6 +36,7 @@ interface InvestmentAccount {
     icon?: string | null;
     bankName: string;
     bankIcon?: string | null;
+    last4Digits?: string | null;
     currencyBalances: CurrencyBalance[];
 }
 
@@ -84,6 +85,7 @@ export function AddInvestmentForm({ onSuccess, onCancel, showCancel = true }: Ad
                         icon: account.icon,
                         bankName: bank.name,
                         bankIcon: bank.icon,
+                        last4Digits: account.last4Digits,
                         currencyBalances: account.currencyBalances,
                     });
                 }
@@ -247,7 +249,7 @@ export function AddInvestmentForm({ onSuccess, onCancel, showCancel = true }: Ad
                                 <span className="flex items-center gap-2">
                                     <span>{account.icon || '📈'}</span>
                                     <span>{account.name}</span>
-                                    <span className="text-muted-foreground">({account.bankName})</span>
+                                    <span className="text-muted-foreground">({account.bankName}{account.last4Digits ? ` ${account.last4Digits}` : ''})</span>
                                 </span>
                             </SelectItem>
                         ))}

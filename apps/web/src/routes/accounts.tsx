@@ -27,6 +27,7 @@ interface Account {
     name: string;
     type: string;
     icon?: string | null;
+    last4Digits?: string | null;
     currencyBalances: CurrencyBalance[];
 }
 
@@ -47,13 +48,13 @@ export function AccountsPage() {
     useEffect(() => {
         if (banks) {
             const totalAccounts = banks.reduce((acc, bank) => acc + bank.accounts.length, 0);
-            posthog.setPersonProperties({ 
+            posthog.setPersonProperties({
                 bank_count: banks.length,
-                account_count: totalAccounts 
+                account_count: totalAccounts
             });
-            posthog.capture('accounts_viewed', { 
+            posthog.capture('accounts_viewed', {
                 bank_count: banks.length,
-                account_count: totalAccounts 
+                account_count: totalAccounts
             });
         }
     }, [banks]);
@@ -189,7 +190,14 @@ export function AccountsPage() {
                                                         <IconDisplay icon={account.icon} fallback="💳" className="h-4 w-4 md:h-5 md:w-5" />
                                                     </div>
                                                     <div>
-                                                        <h4 className="font-semibold text-sm md:text-base">{account.name}</h4>
+                                                        <h4 className="font-semibold text-sm md:text-base">
+                                                            {account.name}
+                                                            {account.last4Digits && (
+                                                                <span className="ml-2 text-xs text-muted-foreground font-normal">
+                                                                    ({account.last4Digits})
+                                                                </span>
+                                                            )}
+                                                        </h4>
                                                         <p className="text-xs text-muted-foreground capitalize mb-2">{account.type}</p>
 
                                                         <div className="flex flex-wrap gap-2">

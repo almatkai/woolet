@@ -30,6 +30,7 @@ interface InvestmentAccount {
     name: string;
     icon?: string | null;
     type: string;
+    last4Digits?: string | null;
     currencyBalances: CurrencyBalance[];
 }
 
@@ -339,7 +340,14 @@ export function SeeInvestingAccountsSheet() {
                                                     >
                                                         <div className="flex items-center gap-2">
                                                             <IconDisplay icon={account.icon} fallback="💼" />
-                                                            <span className="text-sm font-medium">{account.name}</span>
+                                                            <span className="text-sm font-medium">
+                                                                {account.name}
+                                                                {account.last4Digits && (
+                                                                    <span className="ml-1 text-[10px] text-muted-foreground font-normal">
+                                                                        ({account.last4Digits})
+                                                                    </span>
+                                                                )}
+                                                            </span>
                                                         </div>
                                                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                                     </div>

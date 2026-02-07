@@ -136,7 +136,7 @@ export function AddCreditSheet({ open, onOpenChange, editingCredit }: AddCreditS
                 acc.currencyBalances.map((cb: any) => ({
                     id: cb.id,
                     accountId: acc.id,
-                    label: `[${bank.name}] ${acc.name}`,
+                    label: `[${bank.name}${acc.last4Digits ? ` ${acc.last4Digits}` : ''}] ${acc.name}`,
                     balance: Number(cb.balance),
                     currencyCode: cb.currencyCode
                 }))

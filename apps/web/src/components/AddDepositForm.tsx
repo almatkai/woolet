@@ -87,7 +87,7 @@ export function AddDepositForm({ onSuccess, onCancel }: AddDepositFormProps) {
                     id: cb.id,
                     accountId: acc.id,
                     bankName: bank.name,
-                    label: `[${bank.name}] ${acc.name}`,
+                    label: `[${bank.name}${acc.last4Digits ? ` ${acc.last4Digits}` : ''}] ${acc.name}`,
                     balance: Number(cb.balance),
                     currencyCode: cb.currencyCode
                 }))

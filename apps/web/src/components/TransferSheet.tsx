@@ -61,6 +61,7 @@ export function TransferSheet({ preselectedSenderId, trigger }: TransferSheetPro
                 currencyCode: cb.currencyCode,
                 accountName: acc.name,
                 bankName: acc.bank?.name,
+                last4Digits: acc.last4Digits,
                 balance: Number(cb.balance)
             }))
         );
@@ -169,7 +170,7 @@ export function TransferSheet({ preselectedSenderId, trigger }: TransferSheetPro
                                 {allBalances.map((b: any) => (
                                     <SelectItem key={b.id} value={b.id}>
                                         <div className="flex flex-col items-start py-1">
-                                            <span className="font-medium text-sm">{b.bankName ? `[${b.bankName}] ` : ''}{b.accountName}</span>
+                                            <span className="font-medium text-sm">{b.bankName ? `[${b.bankName}${b.last4Digits ? ` ${b.last4Digits}` : ''}] ` : ''}{b.accountName}</span>
                                             <span className="text-xs text-muted-foreground">{b.currencyCode} • {b.balance.toLocaleString()}</span>
                                         </div>
                                     </SelectItem>
@@ -198,7 +199,7 @@ export function TransferSheet({ preselectedSenderId, trigger }: TransferSheetPro
                                     .map((b: any) => (
                                         <SelectItem key={b.id} value={b.id}>
                                             <div className="flex flex-col items-start py-1">
-                                                <span className="font-medium text-sm">{b.bankName ? `[${b.bankName}] ` : ''}{b.accountName}</span>
+                                                <span className="font-medium text-sm">{b.bankName ? `[${b.bankName}${b.last4Digits ? ` ${b.last4Digits}` : ''}] ` : ''}{b.accountName}</span>
                                                 <span className="text-xs text-muted-foreground">{b.currencyCode} • {b.balance.toLocaleString()}</span>
                                             </div>
                                         </SelectItem>

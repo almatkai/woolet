@@ -89,7 +89,7 @@ export function AddMortgageForm({ onSuccess, onCancel }: AddMortgageFormProps) {
                 acc.currencyBalances.map((cb: any) => ({
                     id: cb.id,
                     accountId: acc.id,
-                    label: `[${bank.name}] ${acc.name}`,
+                    label: `[${bank.name}${acc.last4Digits ? ` ${acc.last4Digits}` : ''}] ${acc.name}`,
                     balance: Number(cb.balance),
                     currencyCode: cb.currencyCode
                 }))
@@ -111,10 +111,10 @@ export function AddMortgageForm({ onSuccess, onCancel }: AddMortgageFormProps) {
     // Sync initialPayment when principal changes in percent mode
     useEffect(() => {
         if (downPaymentMode === 'percent' && percentValue && principalAmount) {
-             const p = Number(principalAmount);
-             const pct = Number(percentValue);
-             const payment = (pct / 100) * p;
-             setValue('initialPayment', payment.toFixed(2));
+            const p = Number(principalAmount);
+            const pct = Number(percentValue);
+            const payment = (pct / 100) * p;
+            setValue('initialPayment', payment.toFixed(2));
         }
     }, [principalAmount, downPaymentMode]);
 
@@ -235,11 +235,10 @@ export function AddMortgageForm({ onSuccess, onCancel }: AddMortgageFormProps) {
                                 onClick={() => {
                                     setDownPaymentMode('amount');
                                 }}
-                                className={`px-2 py-0.5 text-xs font-medium rounded-sm transition-all ${
-                                    downPaymentMode === 'amount'
+                                className={`px-2 py-0.5 text-xs font-medium rounded-sm transition-all ${downPaymentMode === 'amount'
                                         ? 'bg-background text-foreground shadow-sm'
                                         : 'text-muted-foreground hover:text-foreground'
-                                }`}
+                                    }`}
                             >
                                 Amount
                             </button>
@@ -255,11 +254,10 @@ export function AddMortgageForm({ onSuccess, onCancel }: AddMortgageFormProps) {
                                         setPercentValue('');
                                     }
                                 }}
-                                className={`px-2 py-0.5 text-xs font-medium rounded-sm transition-all ${
-                                    downPaymentMode === 'percent'
+                                className={`px-2 py-0.5 text-xs font-medium rounded-sm transition-all ${downPaymentMode === 'percent'
                                         ? 'bg-background text-foreground shadow-sm'
                                         : 'text-muted-foreground hover:text-foreground'
-                                }`}
+                                    }`}
                             >
                                 %
                             </button>
