@@ -10,13 +10,21 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  lint-and-test:
-    runs-on: ubuntu-latest
+  test-api:
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.8
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -26,19 +34,39 @@ jobs:
           bun run lint --filter=@woolet/api
           bun run test --filter=@woolet/api
 
+  test-web:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.8
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
       - name: Lint and Test Web
         run: |
           bun run lint --filter=@woolet/web
           bun run test --filter=@woolet/web
 
   build-and-push:
-    needs: lint-and-test
-    runs-on: ubuntu-latest
+    needs: [test-api, test-web]
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
     environment: SSH_PRIVATE_KEY
     strategy:
+      fail-fast: false
       matrix:
         component: [api, web, landing]
     steps:
@@ -76,7 +104,7 @@ jobs:
 
   deploy:
     needs: build-and-push
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.ref == 'refs/heads/main'
     environment: SSH_PRIVATE_KEY
     steps:
