@@ -21,7 +21,7 @@ services:
     restart: always
     environment:
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-password}@woolet-postgres:5432/${DB_NAME:-woolet}
-      AUTH_TYPE: md5
+      AUTH_TYPE: scram-sha-256
       MAX_CLIENT_CONN: 100
       DEFAULT_POOL_SIZE: 20
     depends_on:

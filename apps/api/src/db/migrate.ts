@@ -9,8 +9,8 @@ const __dirname = path.dirname(__filename);
 export async function runMigrations() {
     console.log('⏳ Running migrations...');
     try {
-        const migrationsFolder = path.join(__dirname, '..', '..', 'drizzle');
-        
+        const migrationsFolder = path.resolve('drizzle');
+
         await migrate(db, {
             migrationsFolder,
         });

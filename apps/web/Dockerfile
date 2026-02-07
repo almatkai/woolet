@@ -24,6 +24,7 @@ RUN bun run build --filter=@woolet/web
 # Use a lightweight web server to serve the static files
 FROM nginx:stable-alpine AS runner
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
+COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 80
 EXPOSE 80
