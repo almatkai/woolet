@@ -25,7 +25,8 @@ async function setupDatabase() {
         const adminUrl = new URL(fullUrl);
         adminUrl.pathname = '/postgres';
 
-        const appUser = process.env.APP_DB_USER || 'woolet_app';
+        const appUser = process.env.DB_USER || process.env.APP_DB_USER || 'woolet_app';
+        const appPassword = process.env.DB_PASSWORD || process.env.APP_DB_PASSWORD;
 
         let sql;
         try {
@@ -44,7 +45,27 @@ async function setupDatabase() {
                 console.log(`✅ Database '${targetDb}' already exists.`);
             }
 
-            // 2. Grant privileges to the application user (assuming it already exists)
+            // 2. Ensure application user exists and has the correct password
+            console.log(`👤 Ensuring user '${appUser}' exists...`);
+            const userExists = await sql`
+                SELECT 1 FROM pg_roles WHERE rolname = ${appUser}
+            `;
+
+            if (userExists.length === 0) {
+                console.log(`🚧 User '${appUser}' does not exist. Creating...`);
+                if (appPassword) {
+                    await sql.unsafe(`CREATE USER "${appUser}" WITH PASSWORD '${appPassword.replace(/'/g, "''")}'`);
+                } else {
+                    await sql.unsafe(`CREATE USER "${appUser}"`);
+                }
+                console.log(`✅ User '${appUser}' created successfully.`);
+            } else if (appPassword) {
+                console.log(`🔄 Updating password for user '${appUser}'...`);
+                await sql.unsafe(`ALTER USER "${appUser}" WITH PASSWORD '${appPassword.replace(/'/g, "''")}'`);
+                console.log(`✅ Password updated for user '${appUser}'.`);
+            }
+
+            // 3. Grant privileges to the application user
             console.log(`🔑 Granting privileges on '${targetDb}' to '${appUser}'...`);
             try {
                 // Connect tasks often need these

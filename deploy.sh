@@ -139,8 +139,8 @@ echo "🏗️ Ensuring database exists..."
 # Connect as DB_ADMIN_USER to setup the database and grant permissions
 docker compose -f docker-compose.prod.yml exec -T \
     -e DATABASE_URL="$MIGRATION_DATABASE_URL" \
-    -e APP_DB_USER="$DB_USER" \
-    -e APP_DB_PASSWORD="$DB_PASSWORD" \
+    -e DB_USER="$DB_USER" \
+    -e DB_PASSWORD="$DB_PASSWORD" \
     woolet-api bun run db:setup
 
 echo "🔄 Running migrations..."
