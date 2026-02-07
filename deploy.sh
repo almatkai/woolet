@@ -149,6 +149,11 @@ docker compose -f docker-compose.prod.yml exec -T \
     -e DATABASE_URL="$MIGRATION_DATABASE_URL" \
     woolet-api bun run db:migrate
 
+echo "🛡️ Running fallback migrations..."
+docker compose -f docker-compose.prod.yml exec -T \
+    -e DATABASE_URL="$MIGRATION_DATABASE_URL" \
+    woolet-api bun run run-migration.ts
+
 # 5. Wait for API to be healthy
 echo "🔄 Waiting for API to be ready..."
 sleep 5

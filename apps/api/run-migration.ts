@@ -5,42 +5,6 @@ const sql = postgres(connectionString, { max: 1 });
 
 async function runMigration() {
     try {
-        console.log('Adding exclude_from_monthly_stats column...');
-
-        // Only add the new column (debt_payment_id already exists)
-        await sql`
-            ALTER TABLE "transactions" 
-            ADD COLUMN IF NOT EXISTS "exclude_from_monthly_stats" boolean DEFAULT false NOT NULL
-        `;
-
-        console.log('Ensuring mortgage payments table and columns...');
-
-        await sql`
-            CREATE TABLE IF NOT EXISTS "mortgage_payments" (
-                "id" uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-                "mortgage_id" uuid NOT NULL REFERENCES "mortgages"("id") ON DELETE CASCADE,
-                "month_year" text NOT NULL,
-                "amount" decimal(12, 2) NOT NULL,
-                "paid_at" timestamp DEFAULT now() NOT NULL,
-                "note" text
-            )
-        `;
-
-        await sql`CREATE INDEX IF NOT EXISTS "mortgage_payments_mortgage_id_idx" ON "mortgage_payments"("mortgage_id")`;
-        await sql`CREATE INDEX IF NOT EXISTS "mortgage_payments_month_year_idx" ON "mortgage_payments"("month_year")`;
-
-        await sql`ALTER TABLE "mortgages" ADD COLUMN IF NOT EXISTS "end_date" date`;
-        await sql`ALTER TABLE "mortgages" ADD COLUMN IF NOT EXISTS "payment_day" integer DEFAULT 1`;
-
-        console.log('Setting up split bills tables...');
-
-        // Add missing investment transaction columns
-        console.log('Adding cash_flow column to investment_transactions...');
-        await sql`ALTER TABLE "investment_transactions" ADD COLUMN IF NOT EXISTS "cash_flow" numeric(20, 8) DEFAULT '0' NOT NULL`;
-        
-        console.log('Adding cash_balance_after column to investment_transactions...');
-        await sql`ALTER TABLE "investment_transactions" ADD COLUMN IF NOT EXISTS "cash_balance_after" numeric(20, 2)`;
-
         // Create enum types
         await sql`
             DO $$ BEGIN
@@ -57,6 +21,60 @@ async function runMigration() {
                 WHEN duplicate_object THEN null;
             END $$;
         `;
+
+        console.log('Ensuring core tables and columns...');
+
+        // Users columns
+        await sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "subscription_tier" text DEFAULT 'free' NOT NULL`;
+        await sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "test_mode" boolean DEFAULT false NOT NULL`;
+        await sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "preferences" jsonb`;
+
+        // Banks columns
+        await sql`ALTER TABLE "banks" ADD COLUMN IF NOT EXISTS "is_test" boolean DEFAULT false NOT NULL`;
+
+        // Accounts columns
+        await sql`ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "last_4_digits" text`;
+
+        // Transactions columns
+        await sql`ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "exclude_from_monthly_stats" boolean DEFAULT false NOT NULL`;
+
+        // Mortgage columns
+        await sql`ALTER TABLE "mortgages" ADD COLUMN IF NOT EXISTS "end_date" date`;
+        await sql`ALTER TABLE "mortgages" ADD COLUMN IF NOT EXISTS "payment_day" integer DEFAULT 1`;
+
+        // Investment transactions columns
+        await sql`ALTER TABLE "investment_transactions" ADD COLUMN IF NOT EXISTS "cash_flow" numeric(20, 8) DEFAULT '0' NOT NULL`;
+        await sql`ALTER TABLE "investment_transactions" ADD COLUMN IF NOT EXISTS "cash_balance_after" numeric(20, 2)`;
+
+        console.log('Creating missing tables...');
+
+        // AI Usage table
+        await sql`
+            CREATE TABLE IF NOT EXISTS "ai_usage" (
+                "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                "user_id" text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                "question_count_today" integer DEFAULT 0 NOT NULL,
+                "question_count_lifetime" integer DEFAULT 0 NOT NULL,
+                "last_reset_date" date DEFAULT now() NOT NULL,
+                "created_at" timestamp DEFAULT now() NOT NULL,
+                "updated_at" timestamp DEFAULT now() NOT NULL
+            )
+        `;
+
+        // Mortgage Payments table
+        await sql`
+            CREATE TABLE IF NOT EXISTS "mortgage_payments" (
+                "id" uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+                "mortgage_id" uuid NOT NULL REFERENCES "mortgages"("id") ON DELETE CASCADE,
+                "month_year" text NOT NULL,
+                "amount" decimal(12, 2) NOT NULL,
+                "paid_at" timestamp DEFAULT now() NOT NULL,
+                "note" text
+            )
+        `;
+
+        await sql`CREATE INDEX IF NOT EXISTS "mortgage_payments_mortgage_id_idx" ON "mortgage_payments"("mortgage_id")`;
+        await sql`CREATE INDEX IF NOT EXISTS "mortgage_payments_month_year_idx" ON "mortgage_payments"("month_year")`;
 
         // Split Participants table
         await sql`
