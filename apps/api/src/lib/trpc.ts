@@ -3,7 +3,7 @@ import type { Context as HonoContext } from 'hono';
 import { getAuth } from '@hono/clerk-auth';
 import { eq, and } from 'drizzle-orm';
 import { db } from '../db';
-import { users, banks, accounts, currencyBalances } from '../db/schema';
+import { users, banks, accounts, currencyBalances, admins } from '../db/schema';
 import superjson from 'superjson';
 import { GlitchTip } from './error-tracking';
 
@@ -236,50 +236,75 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
         });
 
         if (!cashBank) {
-            const [newBank] = await ctx.db.insert(banks).values({
-                userId: ctx.userId,
-                name: 'Cash',
-                icon: '💵',
-                color: '#16a34a',
-                isTest: user.testMode,
-            }).returning();
-            
-            // Re-fetch or manually construct to satisfy the "with" relations for next steps
-            cashBank = { ...newBank, accounts: [] };
-        }
+            try {
+                const [newBank] = await ctx.db.insert(banks).values({
+                    userId: ctx.userId,
+                    name: 'Cash',
+                    icon: '💵',
+                    color: '#16a34a',
+                    isTest: user.testMode,
+                }).returning();
 
-        const existingCashAccount = cashBank.accounts?.find((acc) => acc.type === 'cash');
-        let cashAccountId = existingCashAccount?.id;
-
-        if (!cashAccountId) {
-            const [newAccount] = await ctx.db.insert(accounts).values({
-                bankId: cashBank.id,
-                name: 'Cash',
-                type: 'cash',
-                icon: '💵',
-            }).returning();
-            cashAccountId = newAccount?.id;
-            // Also update our local copy if we were to use it later in this function
-            (cashBank.accounts as any[]).push({ ...newAccount, currencyBalances: [] });
-        }
-
-        if (cashAccountId) {
-            const defaultCurrency = (user.defaultCurrency || 'USD').toUpperCase();
-            const currentAccount = cashBank.accounts?.find(acc => acc.id === cashAccountId);
-            const hasDefaultBalance = currentAccount?.currencyBalances?.some(
-                (cb) => cb.currencyCode === defaultCurrency
-            );
-
-            if (!hasDefaultBalance) {
-                await ctx.db.insert(currencyBalances).values({
-                    accountId: cashAccountId,
-                    currencyCode: defaultCurrency,
-                    balance: '0',
+                cashBank = { ...newBank, accounts: [] };
+            } catch (bankErr) {
+                // Another request might have created the bank simultaneously
+                console.log(`Cash bank for ${ctx.userId} already exists or creation failed:`, bankErr);
+                cashBank = await ctx.db.query.banks.findFirst({
+                    where: and(
+                        eq(banks.userId, ctx.userId),
+                        eq(banks.isTest, user.testMode),
+                        eq(banks.name, 'Cash')
+                    ),
+                    with: { accounts: { with: { currencyBalances: true } } },
                 });
             }
         }
+
+        if (cashBank) {
+            let cashAccount = cashBank.accounts?.find((acc) => acc.type === 'cash');
+
+            if (!cashAccount) {
+                try {
+                    const [newAccount] = await ctx.db.insert(accounts).values({
+                        bankId: cashBank.id,
+                        name: 'Cash',
+                        type: 'cash',
+                        icon: '💵',
+                    }).returning();
+
+                    cashAccount = { ...newAccount, currencyBalances: [] };
+                } catch (accErr) {
+                    console.log(`Cash account for bank ${cashBank.id} already exists or creation failed:`, accErr);
+                    // Refresh from DB
+                    const refreshedBank = await ctx.db.query.banks.findFirst({
+                        where: eq(banks.id, cashBank.id),
+                        with: { accounts: { with: { currencyBalances: true } } },
+                    });
+                    cashAccount = refreshedBank?.accounts?.find((acc) => acc.type === 'cash');
+                }
+            }
+
+            if (cashAccount) {
+                const defaultCurrency = (user.defaultCurrency || 'USD').toUpperCase();
+                const hasDefaultBalance = cashAccount.currencyBalances?.some(
+                    (cb) => cb.currencyCode === defaultCurrency
+                );
+
+                if (!hasDefaultBalance) {
+                    try {
+                        await ctx.db.insert(currencyBalances).values({
+                            accountId: cashAccount.id,
+                            currencyCode: defaultCurrency,
+                            balance: '0',
+                        });
+                    } catch (cbErr) {
+                        console.log(`Default balance for account ${cashAccount.id} already exists:`, cbErr);
+                    }
+                }
+            }
+        }
     } catch (err) {
-        console.error('Failed to ensure Cash account:', err);
+        console.error('Failed to ensure Cash infrastructure:', err);
     }
 
     return next({
@@ -289,5 +314,21 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
             user,
         },
     });
+});
+
+export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
+    // Check if the user is in the admins table
+    const admin = await ctx.db.query.admins.findFirst({
+        where: eq(admins.id, ctx.userId!),
+    });
+
+    if (!admin) {
+        throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'You do not have administrative privileges',
+        });
+    }
+
+    return next();
 });
 

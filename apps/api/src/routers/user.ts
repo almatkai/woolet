@@ -22,6 +22,7 @@ import {
     stocks,
     userSettings,
     subscriptions,
+    admins,
 } from '../db/schema';
 
 // Test mode limits
@@ -61,6 +62,13 @@ export const userRouter = router({
         });
 
         return user;
+    }),
+
+    isAdmin: protectedProcedure.query(async ({ ctx }) => {
+        const admin = await ctx.db.query.admins.findFirst({
+            where: eq(admins.id, ctx.userId!),
+        });
+        return !!admin;
     }),
 
     getLimits: protectedProcedure.query(async ({ ctx }) => {
@@ -243,10 +251,10 @@ export const userRouter = router({
         .mutation(async ({ ctx }) => {
             // 1. Manually delete entities that might not have cascade delete
             // (Though we should ideally update the schema, we'll be safe here)
-            
+
             // Delete user settings
             await ctx.db.delete(userSettings).where(eq(userSettings.userId, ctx.userId));
-            
+
             // Delete subscriptions (assuming they don't cascade)
             await ctx.db.delete(subscriptions).where(eq(subscriptions.userId, ctx.userId));
 

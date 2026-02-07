@@ -27,6 +27,25 @@ Always verify your changes by:
 2. Wiping user data (or using another test account).
 3. Importing the JSON and verifying the records are restored correctly with their relationships.
 
+## ✅ Proper Drizzle Migration Workflow
+
+When you change the database schema locally, follow these steps to ensure the production database stays in sync:
+
+1.  **Edit Schema**: Modify your schema files in `apps/api/src/db/schema/`.
+2.  **Generate Migration**: 
+    ```bash
+    cd apps/api
+    bun run db:generate
+    ```
+    This creates a new `.sql` file in `apps/api/drizzle/` and updates the journal.
+3.  **Commit Migrations**: Always commit the generated `.sql` files and the updated `_journal.json` to git.
+4.  **Deploy**: Pushing to GitHub builds a new Docker image containing these migration files. The `deploy.sh` script on the server runs `bun run db:migrate` automatically.
+
+### 🔑 Key Rules
+- **Never skip `db:generate`**: The snapshots alone are not enough; the SQL files are the source of truth for database changes.
+- **Do not modify SQL manually**: If you need to change a migration, delete the SQL and generate it again.
+- **Idempotency**: All migrations are configured to be idempotent, but avoid re-running migrations that have already succeeded.
+
 ## 💱 Currency selector
 - If you add a currency selector anywhere in the app, **use the shared `CurrencySelect` component** (`apps/web/src/components/CurrencySelect.tsx`) so **subscriptions**, **accounts**, and transactions use the same currency list and display consistently.
 

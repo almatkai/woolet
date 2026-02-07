@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, timestamp, index, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, text, uuid, timestamp, index, boolean, unique } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { users } from './users';
 import { accounts } from './accounts';
@@ -14,6 +14,7 @@ export const banks = pgTable('banks', {
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
     userIdIdx: index('banks_user_id_idx').on(table.userId),
+    uniqueUserBank: unique('banks_user_is_test_name_unique').on(table.userId, table.isTest, table.name),
 }));
 
 export const banksRelations = relations(banks, ({ one, many }) => ({

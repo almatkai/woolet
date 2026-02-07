@@ -24,6 +24,7 @@ export * from './investment-cash-balances';
 export * from './fxRates';
 export * from './chat';
 export * from './widgetMetadata';
+export * from './admins';
 export * from './userSettings';
 export * from './split-bills';
 export * from './market-digests';

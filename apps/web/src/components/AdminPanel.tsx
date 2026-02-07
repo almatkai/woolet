@@ -7,17 +7,17 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Settings, 
-  Bot, 
-  ShieldCheck, 
-  Save, 
-  RotateCcw, 
-  ChevronUp, 
-  ChevronDown, 
-  Activity, 
-  Moon, 
-  Sun, 
+import {
+  Settings,
+  Bot,
+  ShieldCheck,
+  Save,
+  RotateCcw,
+  ChevronUp,
+  ChevronDown,
+  Activity,
+  Moon,
+  Sun,
   Zap,
   Loader2,
   CheckCircle2,
@@ -52,6 +52,7 @@ export default function AdminPanel() {
   const [success, setSuccess] = useState<string | null>(null);
 
   const { data: aiConfig, refetch: refetchAiConfig } = trpc.ai.getAiConfig.useQuery();
+  const { data: isAdmin, isLoading: loadingAdmin } = trpc.user.isAdmin.useQuery();
   const updateAiConfig = trpc.ai.updateAiConfig.useMutation();
   const resetAiConfig = trpc.ai.resetAiConfig.useMutation();
 
@@ -66,7 +67,7 @@ export default function AdminPanel() {
     setSaving(true);
     setError(null);
     setSuccess(null);
-    
+
     try {
       await updateAiConfig.mutateAsync({
         providerOrder: config.providerOrder,
@@ -86,7 +87,7 @@ export default function AdminPanel() {
 
   const handleReset = async () => {
     if (!confirm('Are you sure you want to reset all AI settings to default?')) return;
-    
+
     setSaving(true);
     try {
       await resetAiConfig.mutateAsync();
@@ -125,10 +126,24 @@ export default function AdminPanel() {
     });
   };
 
-  if (!config) {
+  if (loadingAdmin || !config) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (isAdmin === false) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4 text-center">
+        <ShieldCheck className="h-16 w-16 text-destructive/50" />
+        <h1 className="text-2xl font-bold">Access Denied</h1>
+        <p className="text-muted-foreground max-w-md">
+          You do not have administrative privileges to access this area.
+          Please contact the system administrator if you believe this is an error.
+        </p>
+        <Button onClick={() => window.location.href = '/'}>Return Home</Button>
       </div>
     );
   }
@@ -195,8 +210,8 @@ export default function AdminPanel() {
               <CardContent className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="defaultProvider" className="text-sm font-medium">Default AI Provider</Label>
-                  <Select 
-                    value={config.defaultProvider} 
+                  <Select
+                    value={config.defaultProvider}
                     onValueChange={(value: AiProvider) => setConfig({ ...config, defaultProvider: value })}
                   >
                     <SelectTrigger id="defaultProvider">
@@ -237,24 +252,24 @@ export default function AdminPanel() {
               <CardContent>
                 <div className="space-y-2">
                   {config.providerOrder.map((provider, index) => (
-                    <div 
-                      key={provider} 
+                    <div
+                      key={provider}
                       className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-muted/30 transition-colors"
                     >
                       <span className="capitalize text-sm font-medium">{provider}</span>
                       <div className="flex gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-8 w-8 hover:bg-background"
                           disabled={index === 0}
                           onClick={() => handleProviderOrderChange(index, 'up')}
                         >
                           <ChevronUp className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-8 w-8 hover:bg-background"
                           disabled={index === config.providerOrder.length - 1}
                           onClick={() => handleProviderOrderChange(index, 'down')}
@@ -322,11 +337,10 @@ export default function AdminPanel() {
                   <button
                     key={t.id}
                     onClick={() => setTheme(t.id as any)}
-                    className={`relative flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all duration-200 ${
-                      theme === t.id 
-                        ? 'border-primary bg-primary/5 shadow-md ring-1 ring-primary/20' 
-                        : 'border-transparent bg-muted/40 hover:bg-muted/60'
-                    }`}
+                    className={`relative flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all duration-200 ${theme === t.id
+                      ? 'border-primary bg-primary/5 shadow-md ring-1 ring-primary/20'
+                      : 'border-transparent bg-muted/40 hover:bg-muted/60'
+                      }`}
                   >
                     <div className={`h-12 w-12 rounded-full ${t.bg} border shadow-sm flex items-center justify-center`}>
                       <t.icon className={`h-6 w-6 ${t.color}`} />
