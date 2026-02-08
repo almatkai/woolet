@@ -47,10 +47,10 @@ while IFS= read -r line || [ -n "$line" ]; do
     
     # If the variable is set in the environment, use it
     if [ -n "$value" ]; then
-        # Escape double quotes for .env format
-        # We wrap the value in double quotes in the file
-        escaped_value=$(echo "$value" | sed 's/"/\\"/g')
-        echo "$key=\"$escaped_value\"" >> .env
+        # Escape single quotes for .env format
+        # Replace ' with '\''
+        escaped_value=$(echo "$value" | sed "s/'/'\\\\''/g")
+        echo "$key='$escaped_value'" >> .env
     else
         # If not in env, check if .env.example has a default value
         default_value=$(echo "$line" | cut -d '=' -f 2-)
