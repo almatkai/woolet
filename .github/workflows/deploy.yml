@@ -154,15 +154,25 @@ jobs:
 
       - name: Copy Files to Server
         run: |
-          scp -i ~/.ssh/deploy_key \
-            -P ${{ secrets.SERVER_PORT || 22 }} \
-            -o StrictHostKeyChecking=no \
-            docker-compose.prod.yml \
-            docker-compose.monitoring.yml \
-            nginx.conf \
-            deploy.sh \
-            .env.example \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:~/woolet/
+          for i in {1..5}; do
+            scp -i ~/.ssh/deploy_key \
+              -P ${{ secrets.SERVER_PORT || 22 }} \
+              -o StrictHostKeyChecking=no \
+              docker-compose.prod.yml \
+              docker-compose.monitoring.yml \
+              nginx.conf \
+              deploy.sh \
+              .env.example \
+              ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:~/woolet/ && break
+            
+            echo "⚠️ SCP failed, retrying in 5s... ($i/5)"
+            sleep 5
+            
+            if [ $i -eq 5 ]; then
+              echo "❌ SCP failed after 5 attempts"
+              exit 1
+            fi
+          done
 
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.2.0
