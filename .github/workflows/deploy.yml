@@ -155,6 +155,9 @@ jobs:
           debug: true
           source: "docker-compose.prod.yml,docker-compose.monitoring.yml,nginx.conf,deploy.sh,.env.example"
           target: "~/woolet"
+          timeout: 60s
+          command_timeout: 10m
+          use_insecure_cipher: true
 
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.2.0
