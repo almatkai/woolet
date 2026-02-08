@@ -139,7 +139,11 @@ jobs:
 
       - name: Check Connectivity
         run: |
-          nc -zv -w 5 ${{ secrets.SERVER_HOST }} 22 || echo "❌ SSH port 22 is unreachable"
+          for i in {1..3}; do
+            nc -zv -w 5 ${{ secrets.SERVER_HOST }} 22 && break || sleep 5
+            if [ $i -eq 3 ]; then echo "❌ SSH port 22 is unreachable"; exit 1; fi
+          done
+          sleep 2
 
       - name: Copy Files to Server
         uses: appleboy/scp-action@v0.1.7
