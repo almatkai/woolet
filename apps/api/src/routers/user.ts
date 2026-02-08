@@ -28,6 +28,8 @@ import {
     splitPayments,
     admins,
     stockPrices,
+    currencies,
+    DEFAULT_CURRENCIES,
 } from '../db/schema';
 import * as schema from '../db/schema';
 import { TRPCError } from '@trpc/server';
@@ -544,7 +546,34 @@ export const userRouter = router({
                 if (data.categories?.length) await tx.insert(schema.categories).values(withUser(data.categories));
                 if (data.banks?.length) await tx.insert(schema.banks).values(withUser(data.banks));
                 if (data.accounts?.length) await tx.insert(schema.accounts).values(data.accounts);
-                if (data.currencyBalances?.length) await tx.insert(schema.currencyBalances).values(data.currencyBalances);
+
+                // Ensure currencies exist before inserting currency balances
+                if (data.currencyBalances?.length) {
+                    const currencyCodes = Array.from(new Set<string>(data.currencyBalances.map((cb: { currencyCode: string }) => cb.currencyCode)));
+
+                    // Get existing currencies in DB
+                    const existingCurrencies = await tx.query.currencies.findMany({
+                        columns: { code: true }
+                    });
+                    const existingCodes = new Set(existingCurrencies.map(c => c.code));
+
+                    // Find missing currencies and insert them
+                    const missingCodes = currencyCodes.filter(code => !existingCodes.has(code));
+                    if (missingCodes.length > 0) {
+                        const currenciesToInsert = missingCodes.map((code: string) => {
+                            const defaultCurrency = DEFAULT_CURRENCIES.find(c => c.code === code);
+                            return defaultCurrency ?? {
+                                code,
+                                name: code,
+                                symbol: code,
+                                decimalPlaces: 2
+                            };
+                        });
+                        await tx.insert(schema.currencies).values(currenciesToInsert).onConflictDoNothing();
+                    }
+
+                    await tx.insert(schema.currencyBalances).values(data.currencyBalances);
+                }
 
                 if (data.credits?.length) await tx.insert(schema.credits).values(data.credits);
                 if (data.mortgages?.length) await tx.insert(schema.mortgages).values(data.mortgages);
