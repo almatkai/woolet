@@ -84,6 +84,83 @@ docker compose -f docker-compose.prod.yml pull woolet-api woolet-web woolet-land
 echo "🚀 Starting services..."
 docker compose -f docker-compose.prod.yml up -d
 
+# Wait for Postgres to be healthy before running migrations
+echo "⏳ Waiting for Postgres to be ready..."
+for i in {1..30}; do
+    if docker compose -f docker-compose.prod.yml exec -T woolet-postgres pg_isready -U "${DB_ADMIN_USER}" -d "${DB_NAME}" > /dev/null 2>&1; then
+        echo "✅ Postgres is ready"
+        break
+    fi
+    echo "Waiting for Postgres... ($i/30)"
+    sleep 2
+done
+
+# Check for containers that are restarting or exited and print recent logs to help debugging
+echo "🔍 Checking container statuses for restarting/exited states..."
+for i in {1..10}; do
+    ps_out=$(docker compose -f docker-compose.prod.yml ps 2>/dev/null || true)
+    echo "$ps_out"
+    problem_containers=$(echo "$ps_out" | awk '/Restarting|Exit/ {print $1}' | tr '\n' ' ')
+    if [ -z "$problem_containers" ]; then
+        echo "✅ No restarting/exited containers detected"
+        break
+    fi
+
+    echo "⚠️ Detected restarting/exited containers: $problem_containers. Collecting detailed diagnostics..."
+    for c in $problem_containers; do
+        echo "----- Recent logs (compose) for $c -----"
+        docker compose -f docker-compose.prod.yml logs --details --timestamps --tail 1000 "$c" || true
+
+        # Try to resolve the underlying container id and show Docker-level logs + inspect
+        cid=$(docker compose -f docker-compose.prod.yml ps -q "$c" 2>/dev/null || true)
+        if [ -z "$cid" ]; then
+            # fallback to matching by name via docker ps
+            cid=$(docker ps -aq --filter "name=$c" | head -n1 || true)
+        fi
+
+        if [ -n "$cid" ]; then
+            echo "----- Docker logs (container id: $cid) for $c -----"
+            docker logs --details --timestamps --tail 1000 "$cid" || true
+
+            echo "----- Docker inspect (state summary) for $c -----"
+            docker inspect "$cid" --format 'State.Status={{.State.Status}}  ExitCode={{.State.ExitCode}}  Error={{.State.Error}}  OOMKilled={{.State.OOMKilled}}  RestartCount={{.RestartCount}}  StartedAt={{.State.StartedAt}}  FinishedAt={{.State.FinishedAt}}' || true
+
+            echo "----- Full State JSON for $c -----"
+            docker inspect "$cid" --format '{{json .State}}' || true
+
+            # If high restart count, save detailed logs to a temp file for later inspection
+            rc=$(docker inspect "$cid" --format '{{.RestartCount}}' 2>/dev/null || true)
+            if [ "${rc:-0}" -ge 3 ]; then
+                fn="/tmp/${c}-logs-$(date +%s).log"
+                echo "⚠️ High restart count ($rc) for $c — saving logs and inspect output to $fn"
+                {
+                    echo "=== compose logs ===";
+                    docker compose -f docker-compose.prod.yml logs --details --timestamps --tail 2000 "$c" || true;
+                    echo "=== docker logs ===";
+                    docker logs --details --timestamps --tail 2000 "$cid" || true;
+                    echo "=== docker inspect ===";
+                    docker inspect "$cid" || true;
+                } > "$fn" 2>&1 || true
+                echo "Saved diagnostics to: $fn"
+            fi
+        else
+            echo "❌ Could not find container id for $c (compose may not have started it)."
+        fi
+    done
+
+    # Sleep briefly and retry status check
+    sleep 3
+done
+
+# After retries, if we still see failing containers, abort so the issue can be fixed
+ps_out=$(docker compose -f docker-compose.prod.yml ps 2>/dev/null || true)
+problem_containers=$(echo "$ps_out" | awk '/Restarting|Exit/ {print $1}' | tr '\n' ' ')
+if [ -n "$problem_containers" ]; then
+    echo "❌ Containers still in restarting/exited state: $problem_containers"
+    echo "Please inspect the logs above (and any files under /tmp) and fix the root cause before re-running the deployment. Aborting."
+    exit 1
+fi
+
 # 4. Run database setup and migrations
 echo "🔄 Running database setup and migrations..."
 # Use URL encoded values for the ADMIN user (super-user)
@@ -96,7 +173,7 @@ MIGRATION_DATABASE_URL="postgresql://${ENCODED_ADMIN_USER}:${ENCODED_ADMIN_PASS}
 sleep 5
 echo "🏗️ Ensuring database exists..."
 # Connect as DB_ADMIN_USER to setup the database and grant permissions
-docker compose -f docker-compose.prod.yml exec -T \
+docker compose -f docker-compose.prod.yml run --rm --no-deps \
     -e DATABASE_URL="$MIGRATION_DATABASE_URL" \
     -e DB_USER="$DB_USER" \
     -e DB_PASSWORD="$DB_PASSWORD" \
@@ -104,12 +181,12 @@ docker compose -f docker-compose.prod.yml exec -T \
 
 echo "🔄 Running migrations..."
 # Connect as DB_ADMIN_USER to perform migrations (needs high privileges)
-docker compose -f docker-compose.prod.yml exec -T \
+docker compose -f docker-compose.prod.yml run --rm --no-deps \
     -e DATABASE_URL="$MIGRATION_DATABASE_URL" \
     woolet-api bun run db:migrate
 
 echo "🛡️ Running fallback migrations..."
-docker compose -f docker-compose.prod.yml exec -T \
+docker compose -f docker-compose.prod.yml run --rm --no-deps \
     -e DATABASE_URL="$MIGRATION_DATABASE_URL" \
     woolet-api bun run run-migration.ts
 
