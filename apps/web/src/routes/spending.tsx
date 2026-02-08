@@ -943,7 +943,7 @@ export function SpendingPage() {
                                         key={emoji}
                                         type="button"
                                         onClick={() => setShortcutValue('icon', emoji)}
-                                        className={`h - 10 w - 10 rounded - full flex items - center justify - center text - lg border - 2 transition - colors ${watchShortcut('icon') === emoji
+                                        className={`h-10 w-10 rounded-md flex items-center justify-center text-lg border-2 transition-colors ${watchShortcut('icon') === emoji
                                             ? 'border-primary bg-primary/10'
                                             : 'border-muted hover:border-muted-foreground/50'
                                             } `}
@@ -1056,19 +1056,31 @@ export function SpendingPage() {
                             shortcuts.map((shortcut) => (
                                 <div
                                     key={shortcut.id}
-                                    className={`flex items - center gap - 3 p - 3 rounded - lg border transition - all group ${selectedShortcut?.id === shortcut.id && transactionSheetOpen
-                                        ? 'bg-primary/10 border-primary/50 shadow-md'
-                                        : 'bg-card hover:bg-muted/50 border-border'
-                                        } `}
+                                    className={`flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300 group ${selectedShortcut?.id === shortcut.id && transactionSheetOpen
+                                        ? 'bg-primary/5 border-primary/50 shadow-md translate-x-1'
+                                        : 'bg-card hover:bg-muted/30 border-border hover:border-border-foreground/10'
+                                        }`}
                                 >
                                     <button
                                         onClick={() => {
                                             openShortcut(shortcut);
                                             setShortcutsListOpen(false);
                                         }}
-                                        className="h-12 w-12 rounded-full bg-muted flex items-center justify-center text-xl shrink-0 hover:bg-muted/80 transition-colors"
+                                        className={`h-12 w-12 rounded-2xl flex items-center justify-center text-xl shrink-0 transition-all duration-300 border-2 ${shortcut.type === 'income' ? 'border-green-500/20' :
+                                                shortcut.type === 'expense' ? 'border-red-500/20' :
+                                                    'border-blue-500/20'
+                                            }`}
+                                        style={{
+                                            background: shortcut.type === 'income'
+                                                ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.02))'
+                                                : shortcut.type === 'expense'
+                                                    ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.02))'
+                                                    : 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.02))'
+                                        }}
                                     >
-                                        {shortcut.icon || '💰'}
+                                        <span className="group-hover:scale-110 transition-transform duration-300">
+                                            {shortcut.icon || '💰'}
+                                        </span>
                                     </button>
                                     <button
                                         onClick={() => {
@@ -1077,25 +1089,25 @@ export function SpendingPage() {
                                         }}
                                         className="flex-1 min-w-0 text-left"
                                     >
-                                        <p className="font-medium truncate">{shortcut.name}</p>
-                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                                            <span className={`px - 1.5 py - 0.5 rounded text - [10px] font - medium uppercase ${shortcut.type === 'expense' ? 'bg-red-500/10 text-red-500' :
-                                                shortcut.type === 'income' ? 'bg-green-500/10 text-green-500' :
-                                                    'bg-blue-500/10 text-blue-500'
-                                                } `}>
+                                        <p className="font-semibold text-sm truncate">{shortcut.name}</p>
+                                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1">
+                                            <span className={`px-1.5 py-0.5 rounded-md font-bold uppercase ${shortcut.type === 'expense' ? 'bg-red-500/10 text-red-500' :
+                                                    shortcut.type === 'income' ? 'bg-green-500/10 text-green-500' :
+                                                        'bg-blue-500/10 text-blue-500'
+                                                }`}>
                                                 {shortcut.type}
                                             </span>
-                                            <span className="truncate">{categoryLabelById.get(shortcut.categoryId) || 'Category'}</span>
+                                            <span className="truncate opacity-80">{categoryLabelById.get(shortcut.categoryId) || 'Category'}</span>
                                             {shortcut.amount !== undefined && (
-                                                <span className="font-medium">{shortcut.amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
+                                                <span className="font-bold text-foreground/80">{shortcut.amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
                                             )}
                                         </div>
                                     </button>
-                                    <div className="flex items-center gap-0.5 shrink-0">
+                                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                         <Button
                                             size="icon"
                                             variant="ghost"
-                                            className={`h - 8 w - 8 ${shortcut.isFavorite ? 'text-yellow-500' : 'opacity-0 group-hover:opacity-100'} `}
+                                            className={`h-8 w-8 rounded-full ${shortcut.isFavorite ? 'text-yellow-500 opacity-100' : 'text-muted-foreground'}`}
                                             onClick={() => toggleFavorite(shortcut.id)}
                                         >
                                             {shortcut.isFavorite ? <Star className="h-4 w-4 fill-current" /> : <StarOff className="h-4 w-4" />}
@@ -1103,7 +1115,7 @@ export function SpendingPage() {
                                         <Button
                                             size="icon"
                                             variant="ghost"
-                                            className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                                            className="h-8 w-8 rounded-full text-muted-foreground"
                                             onClick={() => {
                                                 openEditShortcut(shortcut);
                                                 setShortcutsListOpen(false);
@@ -1114,7 +1126,7 @@ export function SpendingPage() {
                                         <Button
                                             size="icon"
                                             variant="ghost"
-                                            className="h-8 w-8 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive"
+                                            className="h-8 w-8 rounded-full text-destructive hover:text-white hover:bg-destructive transition-all"
                                             onClick={() => handleDeleteShortcut(shortcut.id)}
                                         >
                                             <Trash2 className="h-4 w-4" />
@@ -1209,38 +1221,55 @@ export function SpendingPage() {
 
             {/* Floating Favorites Widget */}
             {favoritesWidgetVisible && (
-                <div className="fixed bottom-6 right-6 z-[100]">
-                    <div className="bg-card border border-border rounded-2xl shadow-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                            <p className="text-sm font-semibold">Starred Shortcuts</p>
+                <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-500">
+                    <div className="bg-background/60 backdrop-blur-xl border border-white/10 dark:border-white/5 rounded-3xl shadow-2xl p-5 w-fit min-w-[180px]">
+                        <div className="flex items-center justify-between mb-4">
+                            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Starred</p>
                             <Button
                                 size="icon"
                                 variant="ghost"
-                                className="h-6 w-6"
+                                className="h-6 w-6 rounded-full hover:bg-muted/50 transition-colors"
                                 onClick={() => toggleFavoritesWidget(false)}
                             >
-                                <X className="h-4 w-4" />
+                                <X className="h-3.5 w-3.5" />
                             </Button>
                         </div>
                         {favoriteShortcuts.length === 0 ? (
-                            <div className="text-center py-6">
-                                <p className="text-xs text-muted-foreground max-w-xs">
-                                    Here your Starred shortcuts will appear
+                            <div className="text-center py-4">
+                                <p className="text-[11px] text-muted-foreground leading-tight">
+                                    Star shortcuts to see them here
                                 </p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="flex flex-wrap gap-4">
                                 {favoriteShortcuts.map((shortcut) => (
                                     <button
                                         key={shortcut.id}
                                         onClick={() => openShortcut(shortcut)}
-                                        className={`h - 12 w - 12 rounded - full flex items - center justify - center text - lg transition - all border ${selectedShortcut?.id === shortcut.id && transactionSheetOpen
-                                            ? 'bg-primary border-primary text-primary-foreground scale-110 shadow-lg'
-                                            : 'bg-muted hover:bg-muted/80 border-border/50 hover:border-border'
-                                            } `}
-                                        title={shortcut.name}
+                                        className={`flex flex-col items-center gap-2 group transition-all duration-300 transform hover:scale-105 ${selectedShortcut?.id === shortcut.id && transactionSheetOpen ? 'opacity-100' : 'opacity-90 hover:opacity-100'}`}
                                     >
-                                        {shortcut.icon || '💰'}
+                                        <div
+                                            className={`h-14 w-14 rounded-2xl flex items-center justify-center text-2xl transition-all duration-300 border-2 relative overflow-hidden shadow-sm ${selectedShortcut?.id === shortcut.id && transactionSheetOpen
+                                                ? 'border-primary ring-4 ring-primary/20 scale-105 shadow-primary/30'
+                                                : 'border-white/10 dark:border-white/5 hover:border-white/20'
+                                                }`}
+                                            title={shortcut.name}
+                                            style={{
+                                                background: shortcut.type === 'income'
+                                                    ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0.05))'
+                                                    : shortcut.type === 'expense'
+                                                        ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.05))'
+                                                        : 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.05))'
+                                            }}
+                                        >
+                                            <div className="absolute inset-0 bg-white/5 group-hover:bg-white/10 transition-colors" />
+                                            <span className="relative z-10 drop-shadow-md group-hover:animate-bounce-short">
+                                                {shortcut.icon || '💰'}
+                                            </span>
+                                        </div>
+                                        <span className="text-[10px] font-semibold text-muted-foreground group-hover:text-foreground transition-colors max-w-[56px] truncate">
+                                            {shortcut.name}
+                                        </span>
                                     </button>
                                 ))}
                             </div>

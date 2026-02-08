@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Plus, Settings2, Bookmark } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
+import { formatAccountLabel } from '@/lib/utils';
 import { ManageCategoriesSheet } from '@/components/ManageCategoriesSheet';
 import { SplitSelector } from '@/components/SplitBillComponents';
 import { Button } from '@/components/ui/button';
@@ -123,7 +124,7 @@ export function AddTransactionSheet({
                 acc.currencyBalances.forEach((cb: any) => {
                     options.push({
                         id: cb.id,
-                        label: `[${bank.name}] ${acc.name}`,
+                        label: formatAccountLabel(bank.name, acc.name, acc.last4Digits),
                         balance: Number(cb.balance),
                         currencyCode: cb.currencyCode
                     });
@@ -289,22 +290,39 @@ export function AddTransactionSheet({
                     </SheetDescription>
                 </SheetHeader>
                 {favoriteShortcuts.length > 0 && (
-                    <div className="px-1 py-4">
-                        <div className="mb-3">
-                            <p className="text-sm font-semibold">Starred Shortcuts</p>
+                    <div className="px-1 py-6 border-b border-border/40">
+                        <div className="mb-4">
+                            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Starred Shortcuts</p>
                         </div>
-                        <div className="grid grid-cols-4 gap-2">
+                        <div className="flex flex-wrap gap-4">
                             {favoriteShortcuts.map((shortcut) => (
                                 <button
                                     key={shortcut.id}
                                     onClick={() => onOpenShortcut?.(shortcut)}
-                                    className={`h-12 w-12 rounded-full flex items-center justify-center text-lg transition-all border ${selectedShortcut?.id === shortcut.id
-                                        ? 'bg-primary border-primary text-primary-foreground scale-110 shadow-lg'
-                                        : 'bg-muted hover:bg-muted/80 border-border/50 hover:border-border'
-                                        }`}
-                                    title={shortcut.name}
+                                    className={`flex flex-col items-center gap-2 group transition-all duration-300 ${selectedShortcut?.id === shortcut.id ? 'opacity-100' : 'opacity-80 hover:opacity-100'}`}
                                 >
-                                    {shortcut.icon || '💰'}
+                                    <div
+                                        className={`h-12 w-12 rounded-2xl flex items-center justify-center text-xl transition-all duration-300 border-2 relative overflow-hidden ${selectedShortcut?.id === shortcut.id
+                                            ? 'border-primary ring-4 ring-primary/20 scale-105 shadow-md'
+                                            : 'border-muted-foreground/10 hover:border-muted-foreground/20'
+                                            }`}
+                                        title={shortcut.name}
+                                        style={{
+                                            background: shortcut.type === 'income'
+                                                ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05))'
+                                                : shortcut.type === 'expense'
+                                                    ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05))'
+                                                    : 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.05))'
+                                        }}
+                                    >
+                                        <div className="absolute inset-0 bg-white/5 group-hover:bg-white/10 transition-colors" />
+                                        <span className="relative z-10 drop-shadow-sm group-hover:animate-bounce-short">
+                                            {shortcut.icon || '💰'}
+                                        </span>
+                                    </div>
+                                    <span className="text-[10px] font-semibold text-muted-foreground group-hover:text-foreground transition-colors max-w-[48px] truncate">
+                                        {shortcut.name}
+                                    </span>
                                 </button>
                             ))}
                         </div>
@@ -592,12 +610,13 @@ export function AddTransactionSheet({
                             </div>
                         </div>
 
-                        <SheetFooter>
+                        <SheetFooter className="flex items-center gap-2 mt-4">
                             {onSaveAsShortcut && (
                                 <Button
                                     type="button"
-                                    variant={canSaveAsShortcut ? "default" : "ghost"}
-                                    className="gap-2"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-11 w-11 rounded-xl shrink-0 border-muted-foreground/20"
                                     disabled={!canSaveAsShortcut}
                                     onClick={() => {
                                         const currencyBalanceId = watch('currencyBalanceId');
@@ -614,13 +633,17 @@ export function AddTransactionSheet({
                                             description: watch('description') || undefined,
                                         });
                                     }}
+                                    title="Save as Shortcut"
                                 >
-                                    <Bookmark className="h-4 w-4" />
-                                    Save as Shortcut
+                                    <Bookmark className="h-5 w-5 text-primary" />
                                 </Button>
                             )}
-                            <Button type="submit" className="gap-2 font-semibold" disabled={createTransaction.isLoading}>
-                                {!createTransaction.isLoading && <Plus className="h-4 w-4" />}
+                            <Button
+                                type="submit"
+                                className="flex-1 h-11 rounded-xl font-bold shadow-lg shadow-primary/20 transition-all"
+                                disabled={createTransaction.isLoading}
+                            >
+                                {!createTransaction.isLoading && <Plus className="h-4 w-4 mr-1" />}
                                 {createTransaction.isLoading ? 'Adding...' : 'Add Transaction'}
                             </Button>
                         </SheetFooter>

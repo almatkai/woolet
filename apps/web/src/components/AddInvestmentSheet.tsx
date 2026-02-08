@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { TrendingUp, Search, Loader2, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
+import { formatAccountLabel } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -59,6 +60,7 @@ interface InvestmentAccount {
     icon?: string | null;
     bankName: string;
     bankIcon?: string | null;
+    last4Digits?: string | null;
     currencyBalances: CurrencyBalance[];
 }
 
@@ -98,7 +100,7 @@ export function AddInvestmentSheet({ open: controlledOpen, onOpenChange: control
 
     // Fetch banks and extract investment accounts
     const { data: banks } = trpc.bank.getHierarchy.useQuery();
-    
+
     // Flatten to get all investment accounts with their bank info and currency balances
     const investmentAccounts = useMemo((): InvestmentAccount[] => {
         if (!banks) return [];
@@ -112,6 +114,7 @@ export function AddInvestmentSheet({ open: controlledOpen, onOpenChange: control
                         icon: account.icon,
                         bankName: bank.name,
                         bankIcon: bank.icon,
+                        last4Digits: account.last4Digits,
                         currencyBalances: account.currencyBalances || [],
                     });
                 }
@@ -416,7 +419,7 @@ export function AddInvestmentSheet({ open: controlledOpen, onOpenChange: control
                                     <SelectItem key={account.id} value={account.id}>
                                         <span className="flex items-center gap-2">
                                             <span>{account.icon || '📈'}</span>
-                                            <span>{account.name}</span>
+                                            <span>{account.name}{account.last4Digits ? ` ${account.last4Digits}` : ''}</span>
                                             <span className="text-muted-foreground">({account.bankName})</span>
                                         </span>
                                     </SelectItem>
@@ -455,11 +458,11 @@ export function AddInvestmentSheet({ open: controlledOpen, onOpenChange: control
                                         </SelectContent>
                                     </Select>
                                     {errors.currencyBalanceId && <p className="text-sm text-red-500">{errors.currencyBalanceId.message}</p>}
-                                    
+
                                     {/* Currency mismatch warning */}
                                     {currencyMismatch && selectedStock && selectedCurrencyBalance && (
                                         <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-500">
-                                            <strong>Currency mismatch!</strong> {selectedStock.ticker} trades in <strong>{selectedStock.currency}</strong>, 
+                                            <strong>Currency mismatch!</strong> {selectedStock.ticker} trades in <strong>{selectedStock.currency}</strong>,
                                             but you selected <strong>{selectedCurrencyBalance.currencyCode}</strong>.
                                             {selectedAccount.currencyBalances.some(cb => cb.currencyCode === selectedStock.currency) ? (
                                                 <> Select the {selectedStock.currency} balance instead.</>
@@ -676,8 +679,8 @@ export function AddInvestmentSheet({ open: controlledOpen, onOpenChange: control
                         <SheetClose asChild>
                             <Button variant="outline" type="button">Cancel</Button>
                         </SheetClose>
-                        <Button 
-                            type="submit" 
+                        <Button
+                            type="submit"
                             disabled={addStock.isLoading || buyStock.isLoading || (!isRecordingPast && (currencyMismatch || insufficientBalance))}
                         >
                             {(addStock.isLoading || buyStock.isLoading) ? 'Recording...' : isRecordingPast ? 'Import Holding' : 'Record Investment'}

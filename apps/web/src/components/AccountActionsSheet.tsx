@@ -21,6 +21,7 @@ import {
 import { ManageCategoriesSheet } from './ManageCategoriesSheet';
 import { trpc } from '@/lib/trpc';
 import { toast } from 'sonner';
+import { formatAccountLabel } from '@/lib/utils';
 
 interface AccountActionsSheetProps {
     currencyBalanceId: string;
@@ -65,7 +66,7 @@ export function AccountActionsSheet({
                     if (cb.currencyCode === currencyCode) { // Same currency only
                         options.push({
                             id: cb.id,
-                            label: `[${bank.name}${acc.last4Digits ? ` ${acc.last4Digits}` : ''}] ${acc.name} - ${cb.currencyCode}`
+                            label: `${formatAccountLabel(bank.name, acc.name, acc.last4Digits)} - ${cb.currencyCode}`
                         });
                     }
                 });

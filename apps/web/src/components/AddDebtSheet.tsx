@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { Plus, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
-import { cn } from '@/lib/utils';
+import { cn, formatAccountLabel } from '@/lib/utils';
 import { CurrencySelect } from './CurrencySelect';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -88,7 +88,7 @@ export function AddDebtSheet({ open: controlledOpen, onOpenChange: controlledOnO
                 acc.currencyBalances.forEach((cb: any) => {
                     options.push({
                         id: cb.id,
-                        label: `[${bank.name}] ${acc.name} - ${cb.currencyCode}`,
+                        label: `${formatAccountLabel(bank.name, acc.name, acc.last4Digits)} - ${cb.currencyCode}`,
                         balance: Number(cb.balance),
                         currencyCode: cb.currencyCode
                     });

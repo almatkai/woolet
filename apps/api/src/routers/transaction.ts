@@ -291,10 +291,10 @@ export const transactionRouter = router({
                         splitAmounts.map(s => {
                             const participantSetting = input.split?.amounts?.find(a => a.participantId === s.participantId);
                             const paybackBalanceId = participantSetting?.paybackCurrencyBalanceId || input.split?.paybackCurrencyBalanceId;
-                            
+
                             // Only set as settled if we actually have an account to receive money
                             const isInstantlyPaid = input.split?.instantMoneyBack && paybackBalanceId && paybackBalanceId !== '';
-                            
+
                             return {
                                 transactionId: transaction.id,
                                 participantId: s.participantId,
@@ -388,6 +388,17 @@ export const transactionRouter = router({
                 }
             }
 
+            // Process mortgage payment if applicable
+            // We fire and forget this to not block the response, or await it?
+            // Awaiting is safer to ensure consistency.
+            try {
+                const { processMortgagePaymentFromTransaction } = await import('../lib/mortgage-helper');
+                await processMortgagePaymentFromTransaction(transaction.id);
+            } catch (e) {
+                console.error('Failed to process mortgage payment:', e);
+                // Don't fail the transaction creation
+            }
+
             return transaction;
         }),
 
@@ -473,7 +484,7 @@ export const transactionRouter = router({
                         .set({ balance: sql`${currencyBalances.balance} - ${newAmount}` })
                         .where(eq(currencyBalances.id, newBalanceId));
                 }
-                
+
                 updates.amount = newAmount.toString();
                 updates.currencyBalanceId = newBalanceId;
             }

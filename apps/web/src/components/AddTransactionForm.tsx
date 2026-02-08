@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { Plus, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
+import { formatAccountLabel } from '@/lib/utils';
 import { ManageCategoriesSheet } from '@/components/ManageCategoriesSheet';
 import { SplitSelector, ManageParticipantsSheet } from '@/components/SplitBillComponents';
 import { Button } from '@/components/ui/button';
@@ -73,7 +74,7 @@ export function AddTransactionForm({ onSuccess, onCancel }: AddTransactionFormPr
                 acc.currencyBalances.forEach((cb: any) => {
                     options.push({
                         id: cb.id,
-                        label: `[${bank.name}${acc.last4Digits ? ` ${acc.last4Digits}` : ''}] ${acc.name}`,
+                        label: formatAccountLabel(bank.name, acc.name, acc.last4Digits),
                         balance: Number(cb.balance),
                         currencyCode: cb.currencyCode
                     });
