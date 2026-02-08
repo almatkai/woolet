@@ -145,19 +145,24 @@ jobs:
           done
           sleep 2
 
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H -p ${{ secrets.SERVER_PORT || 22 }} ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
       - name: Copy Files to Server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
-          debug: true
-          source: "docker-compose.prod.yml,docker-compose.monitoring.yml,nginx.conf,deploy.sh,.env.example"
-          target: "~/woolet"
-          timeout: 60s
-          command_timeout: 10m
-          use_insecure_cipher: true
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            -P ${{ secrets.SERVER_PORT || 22 }} \
+            -o StrictHostKeyChecking=no \
+            docker-compose.prod.yml \
+            docker-compose.monitoring.yml \
+            nginx.conf \
+            deploy.sh \
+            .env.example \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:~/woolet/
 
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.2.0
