@@ -29,36 +29,48 @@ class CurrencyExchangeService {
     }
 
     /**
-     * Get exchange rates for a base currency
-     * Returns a map of target currency -> rate
-     * Example: getExchangeRates('EUR') returns { USD: 1.1, GBP: 0.85, ... }
+     * Get exchange rates for any base currency.
+     * Internally we only store USD-based rates and compute cross-rates.
+     *
+     * When baseCurrency = 'USD' → returns raw USD rates (1 USD = X).
+     * When baseCurrency = 'KZT' → returns KZT-based rates:
+     *   rate(KZT → X) = rate(USD → X) / rate(USD → KZT)
+     *
+     * Example with KZT (1 USD = 450 KZT, 1 USD = 0.85 EUR):
+     *   rate(KZT → EUR) = 0.85 / 450 ≈ 0.00189
+     *   rate(KZT → USD) = 1 / 450 ≈ 0.00222
+     *   rate(KZT → KZT) = 1
      */
     async getExchangeRates(baseCurrency: string = 'USD'): Promise<Record<string, number>> {
-        // 1. Get USD base rates (source of truth)
         const usdRates = await this.getUsdRates();
 
-        // 2. If base is USD, return as is
+        // If base is USD, return as-is
         if (baseCurrency === 'USD') {
             return usdRates;
         }
 
-        // 3. Convert to base currency
-        // Rate(Base -> Target) = Rate(USD -> Target) / Rate(USD -> Base)
+        // Cross-rate conversion: rate(base → X) = rate(USD → X) / rate(USD → base)
         const usdToBase = usdRates[baseCurrency];
         if (!usdToBase) {
-            throw new Error(`Base currency ${baseCurrency} not found in rates`);
+            console.warn(`⚠️  Base currency ${baseCurrency} not found in USD rates, falling back to USD`);
+            return usdRates;
         }
 
-        const rates: Record<string, number> = {};
-        for (const [target, usdToTarget] of Object.entries(usdRates)) {
-            rates[target] = usdToTarget / usdToBase;
+        const converted: Record<string, number> = {};
+        for (const [currency, usdRate] of Object.entries(usdRates)) {
+            if (currency === baseCurrency) {
+                converted[currency] = 1; // 1 KZT = 1 KZT
+            } else {
+                converted[currency] = usdRate / usdToBase;
+            }
         }
 
-        return rates;
+        return converted;
     }
 
     /**
      * Get USD-based rates from Cache or DB
+     * Returns rates as USD -> Currency (e.g., USD -> EUR = 0.85)
      */
     private async getUsdRates(): Promise<Record<string, number>> {
         const cacheKey = `${CACHE_KEYS.CURRENCY_RATES}:USD`;
@@ -66,42 +78,65 @@ class CurrencyExchangeService {
         // Try redis cache
         const cached = await cache.get<Record<string, number>>(cacheKey);
         if (cached) {
+            console.log('📦 Using cached USD rates');
             return cached;
         }
 
-        // Try DB (currencies table)
+        // Try DB (currencies table) - includes both API and manual rates
         const dbCurrencies = await db.query.currencies.findMany();
         if (dbCurrencies.length > 0) {
+            console.log(`💾 Loading ${dbCurrencies.length} currencies from database`);
             const rates: Record<string, number> = {};
-            // Assuming exchangeRate in DB is USD based (1 USD = X Currency)
+            // exchangeRate in DB is USD based (1 USD = X Currency)
             dbCurrencies.forEach(c => {
-                rates[c.code] = parseFloat(c.exchangeRate);
+                const rate = parseFloat(c.exchangeRate);
+                // Only include currencies with valid rates (not the default "1")
+                // Exception: USD should always be 1
+                if (c.code === 'USD' || rate !== 1) {
+                    rates[c.code] = rate;
+                }
             });
+            
+            // Also check fxRates table for manual rates from today
+            const today = new Date().toISOString().split('T')[0];
+            const manualRates = await db.query.fxRates.findMany({
+                where: and(
+                    eq(fxRates.date, today),
+                    eq(fxRates.fromCurrency, 'USD')
+                )
+            });
+            
+            // Override with manual rates if they exist
+            manualRates.forEach(r => {
+                rates[r.toCurrency] = parseFloat(r.rate);
+            });
+            
             // Cache it
             await cache.set(cacheKey, rates, CACHE_TTL);
             return rates;
         }
 
-        // Fallback to API sync if empty
+        // Fallback to API fetch if DB is empty (first run)
+        console.log('⚠️  No rates in cache or DB, fetching from API...');
         return await this.fetchAndStoreRates();
     }
 
     /**
-     * Fetch rates from API (USD base) and store in DB/Cache
+     * Fetch rates from API (USD base only) and store in DB/Cache
+     * This should be called by the cron job every 30 minutes
      */
     public async fetchAndStoreRates(base: string = 'USD'): Promise<Record<string, number>> {
-        // We ignore 'base' param for API fetch because we only fetch USD base from exchangerate-api
-        // and calculate others. But we keep the signature compatible or just log it.
+        // We only fetch USD base from exchangerate-api
         if (base !== 'USD') {
-            console.log(`Requested fetch for ${base}, but we always fetch USD and convert.`);
+            console.log(`⚠️  Requested fetch for ${base}, but we only fetch USD base and calculate other currencies from it.`);
         }
 
         if (!API_KEY) {
-            console.warn('No API Key, returning default rates (1.0)');
+            console.error('❌ CURRENCY_API_KEY not set. Cannot fetch exchange rates.');
             return { USD: 1 };
         }
 
-        console.log('Fetching fresh rates from API...');
+        console.log('🌐 Fetching fresh USD-based rates from exchangerate-api.com...');
         const response = await fetch(API_URL);
         if (!response.ok) {
             throw new Error(`Failed to fetch rates: ${response.statusText}`);
@@ -114,6 +149,9 @@ class CurrencyExchangeService {
 
         const rates = data.conversion_rates;
         const today = new Date().toISOString().split('T')[0];
+        const currencyCount = Object.keys(rates).length;
+
+        console.log(`✅ Fetched ${currencyCount} currency rates from API`);
 
         // 1. Update Currencies Table (Latest Rates)
         // We do this sequentially or Promise.all.
@@ -154,6 +192,7 @@ class CurrencyExchangeService {
         const cacheKey = `${CACHE_KEYS.CURRENCY_RATES}:USD`;
         await cache.set(cacheKey, rates, CACHE_TTL);
 
+        console.log(`💾 Stored ${currencyCount} rates in DB and cache`);
         return rates;
     }
 

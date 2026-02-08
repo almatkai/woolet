@@ -9,20 +9,17 @@ const ALL_CURRENCIES = [
 ];
 
 /**
- * Fetch and cache exchange rates for all major currencies
+ * Fetch and cache exchange rates from API (USD base only)
+ * All other currencies are calculated from USD rates
  */
 export async function fetchAllCurrencyRates() {
     console.log('🔄 Starting currency rates fetch job...');
     const startTime = Date.now();
     
     try {
-        // Fetch rates for USD as base (most common)
-        console.log('Fetching USD rates...');
-        await currencyExchangeService.getExchangeRates('USD');
-        
-        // Also fetch EUR rates for European users
-        console.log('Fetching EUR rates...');
-        await currencyExchangeService.getExchangeRates('EUR');
+        // Fetch USD rates from API and store in DB
+        console.log('Fetching USD-based rates from API...');
+        await currencyExchangeService.fetchAndStoreRates('USD');
         
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         console.log(`✅ Currency rates fetch completed in ${duration}s`);
@@ -35,24 +32,24 @@ export async function fetchAllCurrencyRates() {
 
 /**
  * Initialize currency rates cron job
- * Runs every 12 hours to fetch fresh rates
+ * Runs every 30 minutes to fetch fresh rates
  */
 export function startCurrencyRatesCron() {
-    const TWELVE_HOURS = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
+    const THIRTY_MINUTES = 30 * 60 * 1000; // 30 minutes in milliseconds
     
-    console.log('⏰ Starting currency rates cron job (every 12 hours)...');
+    console.log('⏰ Starting currency rates cron job (every 30 minutes)...');
     
     // Fetch immediately on startup
     fetchAllCurrencyRates().catch(error => {
         console.error('Initial currency fetch failed:', error);
     });
     
-    // Then fetch every 12 hours
+    // Then fetch every 30 minutes
     setInterval(() => {
         fetchAllCurrencyRates().catch(error => {
             console.error('Scheduled currency fetch failed:', error);
         });
-    }, TWELVE_HOURS);
+    }, THIRTY_MINUTES);
     
     console.log('✅ Currency rates cron job initialized');
 }
