@@ -21,102 +21,58 @@ url_encode() {
     python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=''))" "$1"
 }
 
-# Function to read env var from .env file safely
-get_env_value() {
-    local key=$1
-    local file=.env
-    if [ -f "$file" ]; then
-        # Grep the line, cut the value part, remove surrounding quotes if any
-        grep "^${key}=" "$file" | cut -d'=' -f2- | sed 's/^"//;s/"$//' | sed "s/^'//;s/'$//"
-    fi
-}
+# 2. Generate .env file from .env.example
+echo "🏗️  Generating .env file from environment variables..."
 
-# 2. Handle .env file and defaults
-if [ -f .env ] && [ -s .env ]; then
-    echo "ℹ️ .env file exists. Reading values safely..."
-    
-    # Read values directly to avoid evaluation issues with special chars
-    FILE_DB_ADMIN_USER=$(get_env_value "DB_ADMIN_USER")
-    FILE_DB_ADMIN_PASSWORD=$(get_env_value "DB_ADMIN_PASSWORD")
-    FILE_DB_USER=$(get_env_value "DB_USER")
-    FILE_DB_PASSWORD=$(get_env_value "DB_PASSWORD")
-    FILE_DB_NAME=$(get_env_value "DB_NAME")
-    FILE_DB_PORT=$(get_env_value "DB_PORT")
-    
-    # Use existing values from file or fall back to shell/defaults
-    DB_ADMIN_USER="${FILE_DB_ADMIN_USER:-$DB_ADMIN_USER}"
-    DB_ADMIN_PASSWORD="${FILE_DB_ADMIN_PASSWORD:-$DB_ADMIN_PASSWORD}"
-    DB_USER="${FILE_DB_USER:-$DB_USER}"
-    DB_PASSWORD="${FILE_DB_PASSWORD:-$DB_PASSWORD}"
-    DB_NAME="${FILE_DB_NAME:-$DB_NAME}"
-    DB_PORT="${FILE_DB_PORT:-$DB_PORT}"
-    
-    # Check if we should backfill the .env file if it's missing critical info
-    if [ -z "$FILE_DB_PASSWORD" ] && [ "$DB_PASSWORD" != "password" ]; then
-        echo "ℹ️ Critical credentials found in shell but missing in .env. Running repair..."
-        mv .env .env.bak
-        DO_GENERATE=true
-    fi
+if [ ! -f .env.example ]; then
+    echo "❌ Error: .env.example file not found!"
+    exit 1
 fi
 
-if [ ! -f .env ] || [ ! -s .env ] || [ "$DO_GENERATE" = true ]; then
-    if [ "$DO_GENERATE" = true ]; then
-        echo "🔄 Repairing .env file..."
-    else
-        echo "🏗️ Generating .env file..."
-    fi
-    # Function to escape $ to $$ for Docker Compose
-    escape_env() {
-        echo "${1//$/\$\$}"
-    }
+# Clear .env file
+> .env
 
-    {
-        printf "DB_ADMIN_USER=%s\n" "$(escape_env "$DB_ADMIN_USER")"
-        printf "DB_ADMIN_PASSWORD=%s\n" "$(escape_env "$DB_ADMIN_PASSWORD")"
-        printf "DB_USER=%s\n" "$(escape_env "$DB_USER")"
-        printf "DB_PASSWORD=%s\n" "$(escape_env "$DB_PASSWORD")"
-        printf "DB_NAME=%s\n" "$(escape_env "$DB_NAME")"
-        printf "DB_PORT=%s\n" "$(escape_env "$DB_PORT")"
-        printf "GLITCHTIP_DB_PASSWORD=%s\n" "$(escape_env "$GLITCHTIP_DB_PASSWORD")"
-        printf "GLITCHTIP_DOMAIN=%s\n" "$(escape_env "$GLITCHTIP_DOMAIN")"
-        printf "GLITCHTIP_FROM_EMAIL=%s\n" "$(escape_env "$GLITCHTIP_FROM_EMAIL")"
-        printf "GLITCHTIP_SECRET_KEY=%s\n" "$(escape_env "$GLITCHTIP_SECRET_KEY")"
-        printf "REDIS_PASSWORD=%s\n" "$(escape_env "$REDIS_PASSWORD")"
-        printf "CLERK_SECRET_KEY=%s\n" "$(escape_env "$CLERK_SECRET_KEY")"
-        printf "CLERK_PUBLISHABLE_KEY=%s\n" "$(escape_env "$CLERK_PUBLISHABLE_KEY")"
-        printf "VITE_CLERK_PUBLISHABLE_KEY=%s\n" "$(escape_env "$VITE_CLERK_PUBLISHABLE_KEY")"
-        # Provide the default DATABASE_URL for the app (using PgBouncer) if not set in env
-        # Note: We can't easily URL encode here in generation block without python logic availability check, 
-        # but for generation we assume current env vars are safe-ish or standard.
-        printf "DATABASE_URL=%s\n" "$(escape_env "postgresql://$DB_USER:$DB_PASSWORD@woolet-pgbouncer:5432/$DB_NAME")"
-        printf "REDIS_URL=%s\n" "$(escape_env "$REDIS_URL")"
-        printf "WOOLET_API_IMAGE=%s\n" "$(escape_env "$WOOLET_API_IMAGE")"
-        printf "WOOLET_WEB_IMAGE=%s\n" "$(escape_env "$WOOLET_WEB_IMAGE")"
-        printf "WOOLET_LANDING_IMAGE=%s\n" "$(escape_env "$WOOLET_LANDING_IMAGE")"
-        printf "NODE_ENV=%s\n" "$(escape_env "$NODE_ENV")"
-        printf "API_URL=%s\n" "$(escape_env "$API_URL")"
-        printf "WEB_URL=%s\n" "$(escape_env "$WEB_URL")"
-        printf "GLITCHTIP_DSN_API=%s\n" "$(escape_env "$GLITCHTIP_DSN_API")"
-        printf "VITE_GLITCHTIP_DSN_WEB=%s\n" "$(escape_env "$VITE_GLITCHTIP_DSN_WEB")"
-        printf "VITE_PUBLIC_POSTHOG_KEY=%s\n" "$(escape_env "$VITE_PUBLIC_POSTHOG_KEY")"
-        printf "VITE_PUBLIC_POSTHOG_HOST=%s\n" "$(escape_env "$VITE_PUBLIC_POSTHOG_HOST")"
-        printf "LOG_LEVEL=%s\n" "$(escape_env "$LOG_LEVEL")"
-        printf "AI_PROVIDER_ORDER=%s\n" "$(escape_env "$AI_PROVIDER_ORDER")"
-        printf "OPEN_ROUTER_API_KEY=%s\n" "$(escape_env "$OPEN_ROUTER_API_KEY")"
-        printf "OPENROUTER_CHAT_MODEL=%s\n" "$(escape_env "$OPENROUTER_CHAT_MODEL")"
-        printf "OPENROUTER_SITE_URL=%s\n" "$(escape_env "$OPENROUTER_SITE_URL")"
-        printf "OPENROUTER_APP_NAME=%s\n" "$(escape_env "$OPENROUTER_APP_NAME")"
-        printf "OPENAI_API_KEY=%s\n" "$(escape_env "$OPENAI_API_KEY")"
-        printf "OPENAI_CHAT_MODEL=%s\n" "$(escape_env "$OPENAI_CHAT_MODEL")"
-        printf "GEMINI_API_KEY=%s\n" "$(escape_env "$GEMINI_API_KEY")"
-        printf "GEMINI_MODEL=%s\n" "$(escape_env "$GEMINI_MODEL")"
-        printf "CURRENCY_API_KEY=%s\n" "$(escape_env "$CURRENCY_API_KEY")"
-        printf "GROQ_API_KEY=%s\n" "$(escape_env "$GROQ_API_KEY")"
-        printf "TWELVE_DATA=%s\n" "$(escape_env "$TWELVE_DATA")"
-        printf "VAPID_SUBJECT=%s\n" "$(escape_env "$VAPID_SUBJECT")"
-        printf "VAPID_PUBLIC_KEY=%s\n" "$(escape_env "$VAPID_PUBLIC_KEY")"
-        printf "VAPID_PRIVATE_KEY=%s\n" "$(escape_env "$VAPID_PRIVATE_KEY")"
-    } > .env
+# Read .env.example line by line
+while IFS= read -r line || [ -n "$line" ]; do
+    # Skip comments and empty lines
+    if [[ "$line" =~ ^#.* ]] || [[ -z "$line" ]]; then
+        continue
+    fi
+
+    # Extract key (everything before the first =)
+    key=$(echo "$line" | cut -d '=' -f 1)
+    
+    # Get value from environment variable
+    value=$(printenv "$key")
+    
+    # If the variable is set in the environment, use it
+    if [ -n "$value" ]; then
+        # Escape double quotes for .env format
+        # We wrap the value in double quotes in the file
+        escaped_value=$(echo "$value" | sed 's/"/\\"/g')
+        echo "$key=\"$escaped_value\"" >> .env
+    else
+        # If not in env, check if .env.example has a default value
+        default_value=$(echo "$line" | cut -d '=' -f 2-)
+        
+        if [ -n "$default_value" ]; then
+             echo "$key=$default_value" >> .env
+        else
+             echo "# $key is missing from environment" >> .env
+             echo "⚠️  Warning: $key not found in environment and no default in .env.example"
+        fi
+    fi
+done < .env.example
+
+# Fallback for DATABASE_URL if it wasn't set
+if ! grep -q "^DATABASE_URL=" .env; then
+    echo "ℹ️  DATABASE_URL not found in env, constructing default..."
+    echo "DATABASE_URL=\"postgresql://$DB_USER:$DB_PASSWORD@woolet-pgbouncer:5432/$DB_NAME\"" >> .env
+fi
+
+# Export CURRENCY_API_KEY for use in this session if needed
+if [ -n "$CURRENCY_API_KEY" ]; then
+    export CURRENCY_API_KEY
 fi
 
 # 3. Pull and start services

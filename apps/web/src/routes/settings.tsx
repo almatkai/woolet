@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Bell, BellRing } from 'lucide-react';
 import { SignOutButton } from '@clerk/clerk-react';
+import { CurrencySelector } from '@/components/ui/currency-selector';
 
 export function SettingsPage() {
     const { theme, setTheme } = useTheme();
@@ -239,20 +240,10 @@ export function SettingsPage() {
                             </div>
                             <p className="text-sm text-muted-foreground">Currency exchange rates will be shown relative to this currency</p>
                         </div>
-                        <Select
+                        <CurrencySelector
                             value={settings?.defaultCurrency || 'USD'}
                             onValueChange={(val: string) => updateSettings.mutate({ defaultCurrency: val })}
-                        >
-                            <SelectTrigger className="w-[120px] bg-background border-border">
-                                <SelectValue placeholder="Currency" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="KZT">🇰🇿 KZT</SelectItem>
-                                <SelectItem value="USD">🇺🇸 USD</SelectItem>
-                                <SelectItem value="EUR">🇪🇺 EUR</SelectItem>
-                                <SelectItem value="GBP">🇬🇧 GBP</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        />
                     </div>
 
                     <div className="flex flex-col gap-4 p-4 rounded-2xl bg-background/50 border border-border/50">
