@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { eq, inArray, or } from 'drizzle-orm';
+import { eq, inArray, or, isNull } from 'drizzle-orm';
 import { router, protectedProcedure } from '../lib/trpc';
 import { investingCache } from '../lib/investing-cache';
 import { redis } from '../lib/redis';
@@ -556,6 +556,14 @@ export const userRouter = router({
                 const validTransactionIds = new Set<string>();
                 const validParticipantIds = new Set<string>();
                 const validSplitIds = new Set<string>();
+
+                // First, get all default categories (userId is null) from the database
+                // These are valid targets for transactions even if not in the import data
+                const defaultCategories = await tx.query.categories.findMany({
+                    where: isNull(schema.categories.userId),
+                    columns: { id: true }
+                });
+                defaultCategories.forEach((c) => validCategoryIds.add(c.id));
 
                 // Insert categories and track valid IDs
                 if (data.categories?.length) {
