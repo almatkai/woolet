@@ -465,13 +465,78 @@ export const userRouter = router({
             }
 
             await ctx.db.transaction(async (tx) => {
-                // 1. Delete all existing user data
+                // 1. Delete all existing user data using robust deletion logic
+                const userBankIds = tx
+                    .select({ id: schema.banks.id })
+                    .from(schema.banks)
+                    .where(eq(schema.banks.userId, ctx.userId!));
+
+                const userAccountIds = tx
+                    .select({ id: schema.accounts.id })
+                    .from(schema.accounts)
+                    .where(inArray(schema.accounts.bankId, userBankIds));
+
+                const userCurrencyBalanceIds = tx
+                    .select({ id: schema.currencyBalances.id })
+                    .from(schema.currencyBalances)
+                    .where(inArray(schema.currencyBalances.accountId, userAccountIds));
+
+                const userCreditIds = tx
+                    .select({ id: schema.credits.id })
+                    .from(schema.credits)
+                    .where(inArray(schema.credits.accountId, userAccountIds));
+
+                const userDebtIds = tx
+                    .select({ id: schema.debts.id })
+                    .from(schema.debts)
+                    .where(eq(schema.debts.userId, ctx.userId!));
+
+                const userSubIds = tx
+                    .select({ id: schema.subscriptions.id })
+                    .from(schema.subscriptions)
+                    .where(eq(schema.subscriptions.userId, ctx.userId!));
+
+                const participantIds = tx
+                    .select({ id: schema.splitParticipants.id })
+                    .from(schema.splitParticipants)
+                    .where(eq(schema.splitParticipants.userId, ctx.userId!));
+
+                const splitIds = tx
+                    .select({ id: schema.transactionSplits.id })
+                    .from(schema.transactionSplits)
+                    .where(inArray(schema.transactionSplits.participantId, participantIds));
+
+                // Delete child tables first
+                await tx.delete(schema.transactions).where(or(
+                    inArray(schema.transactions.currencyBalanceId, userCurrencyBalanceIds),
+                    inArray(schema.transactions.toCurrencyBalanceId, userCurrencyBalanceIds)
+                ));
+
+                await tx.delete(schema.creditPayments).where(inArray(schema.creditPayments.creditId, userCreditIds));
+                await tx.delete(schema.debtPayments).where(inArray(schema.debtPayments.debtId, userDebtIds));
+                await tx.delete(schema.subscriptionPayments).where(inArray(schema.subscriptionPayments.subscriptionId, userSubIds));
+                await tx.delete(schema.splitPayments).where(inArray(schema.splitPayments.splitId, splitIds));
+                await tx.delete(schema.transactionSplits).where(inArray(schema.transactionSplits.participantId, participantIds));
+
+                // Delete intermediate tables
+                await tx.delete(schema.currencyBalances).where(inArray(schema.currencyBalances.accountId, userAccountIds));
+                await tx.delete(schema.accounts).where(inArray(schema.accounts.bankId, userBankIds));
+
+                await tx.delete(schema.credits).where(inArray(schema.credits.accountId, userAccountIds));
+                await tx.delete(schema.mortgages).where(inArray(schema.mortgages.accountId, userAccountIds));
+                await tx.delete(schema.deposits).where(inArray(schema.deposits.accountId, userAccountIds));
+
+                // Delete parent tables
                 await tx.delete(schema.banks).where(eq(schema.banks.userId, ctx.userId!));
                 await tx.delete(schema.categories).where(eq(schema.categories.userId, ctx.userId!));
                 await tx.delete(schema.debts).where(eq(schema.debts.userId, ctx.userId!));
                 await tx.delete(schema.stocks).where(eq(schema.stocks.userId, ctx.userId!));
                 await tx.delete(schema.subscriptions).where(eq(schema.subscriptions.userId, ctx.userId!));
                 await tx.delete(schema.splitParticipants).where(eq(schema.splitParticipants.userId, ctx.userId!));
+                await tx.delete(schema.portfolioHoldings).where(eq(schema.portfolioHoldings.userId, ctx.userId!));
+                await tx.delete(schema.investmentTransactions).where(eq(schema.investmentTransactions.userId, ctx.userId!));
+                await tx.delete(schema.dashboardLayouts).where(eq(schema.dashboardLayouts.userId, ctx.userId!));
+                await tx.delete(schema.userSettings).where(eq(schema.userSettings.userId, ctx.userId!));
 
                 // 2. Insert new data
                 const withUser = (items: any[]) => items.map(i => ({ ...i, userId: ctx.userId! }));

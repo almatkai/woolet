@@ -113,6 +113,9 @@ if [ ! -f .env ] || [ ! -s .env ] || [ "$DO_GENERATE" = true ]; then
         printf "CURRENCY_API_KEY=%s\n" "$(escape_env "$CURRENCY_API_KEY")"
         printf "GROQ_API_KEY=%s\n" "$(escape_env "$GROQ_API_KEY")"
         printf "TWELVE_DATA=%s\n" "$(escape_env "$TWELVE_DATA")"
+        printf "VAPID_SUBJECT=%s\n" "$(escape_env "$VAPID_SUBJECT")"
+        printf "VAPID_PUBLIC_KEY=%s\n" "$(escape_env "$VAPID_PUBLIC_KEY")"
+        printf "VAPID_PRIVATE_KEY=%s\n" "$(escape_env "$VAPID_PRIVATE_KEY")"
     } > .env
 fi
 

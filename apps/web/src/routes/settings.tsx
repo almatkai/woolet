@@ -128,7 +128,7 @@ export function SettingsPage() {
         try {
             const text = await file.text();
             const data = JSON.parse(text);
-            await importDataMutation.mutateAsync({ data });
+            await importDataMutation.mutateAsync(data);
         } catch {
             // Error handled by mutation onError
         } finally {
