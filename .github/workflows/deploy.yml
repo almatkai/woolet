@@ -86,6 +86,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+    environment: SSH_PRIVATE_KEY
     strategy:
       fail-fast: false
       matrix:
@@ -132,6 +133,7 @@ jobs:
       github.ref == 'refs/heads/main' &&
       (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped')
     runs-on: namespace-profile-default
+    environment: SSH_PRIVATE_KEY
     steps:
       - uses: actions/checkout@v4
 
