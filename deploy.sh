@@ -13,7 +13,7 @@ DB_ADMIN_PASSWORD="${DB_ADMIN_PASSWORD:-password}"
 DB_USER="${DB_USER:-woolet_app}"
 DB_PASSWORD="${DB_PASSWORD:-password}"
 DB_NAME="${DB_NAME:-woolet}"
-DB_PORT="${DB_PORT:-5432}"
+DB_PORT="${DB_PORT:-5433}"
 POSTGRES_HOST="woolet-postgres"
 
 # Helper function to URL encode values (requires python3)
