@@ -540,81 +540,205 @@ export const userRouter = router({
                 await tx.delete(schema.dashboardLayouts).where(eq(schema.dashboardLayouts.userId, ctx.userId!));
                 await tx.delete(schema.userSettings).where(eq(schema.userSettings.userId, ctx.userId!));
 
-                // 2. Insert new data
+                // 2. Insert new data with proper foreign key validation
+                // Build valid ID sets as we insert parent tables, then filter child tables
                 const withUser = (items: any[]) => items.map(i => ({ ...i, userId: ctx.userId! }));
 
-                if (data.categories?.length) await tx.insert(schema.categories).values(withUser(data.categories));
-                if (data.banks?.length) await tx.insert(schema.banks).values(withUser(data.banks));
-                if (data.accounts?.length) await tx.insert(schema.accounts).values(data.accounts);
+                // Track valid IDs for foreign key filtering
+                const validBankIds = new Set<string>();
+                const validAccountIds = new Set<string>();
+                const validCurrencyBalanceIds = new Set<string>();
+                const validCategoryIds = new Set<string>();
+                const validDebtIds = new Set<string>();
+                const validCreditIds = new Set<string>();
+                const validStockIds = new Set<string>();
+                const validSubscriptionIds = new Set<string>();
+                const validTransactionIds = new Set<string>();
+                const validParticipantIds = new Set<string>();
+                const validSplitIds = new Set<string>();
+
+                // Insert categories and track valid IDs
+                if (data.categories?.length) {
+                    await tx.insert(schema.categories).values(withUser(data.categories));
+                    data.categories.forEach((c: { id: string }) => validCategoryIds.add(c.id));
+                }
+
+                // Insert banks and track valid IDs
+                if (data.banks?.length) {
+                    await tx.insert(schema.banks).values(withUser(data.banks));
+                    data.banks.forEach((b: { id: string }) => validBankIds.add(b.id));
+                }
+
+                // Filter and insert accounts (must reference valid banks)
+                if (data.accounts?.length) {
+                    const validAccounts = data.accounts.filter((a: { bankId: string }) => validBankIds.has(a.bankId));
+                    if (validAccounts.length > 0) {
+                        await tx.insert(schema.accounts).values(validAccounts);
+                        validAccounts.forEach((a: { id: string }) => validAccountIds.add(a.id));
+                    }
+                }
 
                 // Ensure currencies exist before inserting currency balances
                 if (data.currencyBalances?.length) {
-                    const currencyCodes = Array.from(new Set<string>(data.currencyBalances.map((cb: { currencyCode: string }) => cb.currencyCode)));
+                    // Filter to only valid accounts first
+                    const validBalances = data.currencyBalances.filter((cb: { accountId: string }) => validAccountIds.has(cb.accountId));
+                    
+                    if (validBalances.length > 0) {
+                        const currencyCodes = Array.from(new Set<string>(validBalances.map((cb: { currencyCode: string }) => cb.currencyCode)));
 
-                    // Get existing currencies in DB
-                    const existingCurrencies = await tx.query.currencies.findMany({
-                        columns: { code: true }
-                    });
-                    const existingCodes = new Set(existingCurrencies.map(c => c.code));
-
-                    // Find missing currencies and insert them
-                    const missingCodes = currencyCodes.filter(code => !existingCodes.has(code));
-                    if (missingCodes.length > 0) {
-                        const currenciesToInsert = missingCodes.map((code: string) => {
-                            const defaultCurrency = DEFAULT_CURRENCIES.find(c => c.code === code);
-                            return defaultCurrency ?? {
-                                code,
-                                name: code,
-                                symbol: code,
-                                decimalPlaces: 2
-                            };
+                        // Get existing currencies in DB
+                        const existingCurrencies = await tx.query.currencies.findMany({
+                            columns: { code: true }
                         });
-                        await tx.insert(schema.currencies).values(currenciesToInsert).onConflictDoNothing();
-                    }
+                        const existingCodes = new Set(existingCurrencies.map(c => c.code));
 
-                    await tx.insert(schema.currencyBalances).values(data.currencyBalances);
+                        // Find missing currencies and insert them
+                        const missingCodes = currencyCodes.filter(code => !existingCodes.has(code));
+                        if (missingCodes.length > 0) {
+                            const currenciesToInsert = missingCodes.map((code: string) => {
+                                const defaultCurrency = DEFAULT_CURRENCIES.find(c => c.code === code);
+                                return defaultCurrency ?? {
+                                    code,
+                                    name: code,
+                                    symbol: code,
+                                    decimalPlaces: 2
+                                };
+                            });
+                            await tx.insert(schema.currencies).values(currenciesToInsert).onConflictDoNothing();
+                        }
+
+                        await tx.insert(schema.currencyBalances).values(validBalances);
+                        validBalances.forEach((cb: { id: string }) => validCurrencyBalanceIds.add(cb.id));
+                    }
                 }
 
-                if (data.credits?.length) await tx.insert(schema.credits).values(data.credits);
-                if (data.mortgages?.length) await tx.insert(schema.mortgages).values(data.mortgages);
-                if (data.deposits?.length) await tx.insert(schema.deposits).values(data.deposits);
+                // Filter and insert credits (must reference valid accounts)
+                if (data.credits?.length) {
+                    const validCredits = data.credits.filter((c: { accountId: string }) => validAccountIds.has(c.accountId));
+                    if (validCredits.length > 0) {
+                        await tx.insert(schema.credits).values(validCredits);
+                        validCredits.forEach((c: { id: string }) => validCreditIds.add(c.id));
+                    }
+                }
 
-                if (data.debts?.length) await tx.insert(schema.debts).values(withUser(data.debts));
-                if (data.debtPayments?.length) await tx.insert(schema.debtPayments).values(data.debtPayments);
+                // Filter and insert mortgages (must reference valid accounts)
+                if (data.mortgages?.length) {
+                    const validMortgages = data.mortgages.filter((m: { accountId: string }) => validAccountIds.has(m.accountId));
+                    if (validMortgages.length > 0) {
+                        await tx.insert(schema.mortgages).values(validMortgages);
+                    }
+                }
 
+                // Filter and insert deposits (must reference valid accounts)
+                if (data.deposits?.length) {
+                    const validDeposits = data.deposits.filter((d: { accountId: string }) => validAccountIds.has(d.accountId));
+                    if (validDeposits.length > 0) {
+                        await tx.insert(schema.deposits).values(validDeposits);
+                    }
+                }
+
+                // Insert debts and track valid IDs
+                if (data.debts?.length) {
+                    await tx.insert(schema.debts).values(withUser(data.debts));
+                    data.debts.forEach((d: { id: string }) => validDebtIds.add(d.id));
+                }
+
+                // Filter and insert debt payments (must reference valid debts)
+                if (data.debtPayments?.length) {
+                    const validDebtPayments = data.debtPayments.filter((dp: { debtId: string }) => validDebtIds.has(dp.debtId));
+                    if (validDebtPayments.length > 0) {
+                        await tx.insert(schema.debtPayments).values(validDebtPayments);
+                    }
+                }
+
+                // Filter and insert transactions (must reference valid categories and currency balances)
                 if (data.transactions?.length) {
-                    // Get all valid category IDs from the imported categories
-                    const validCategoryIds = new Set(
-                        (data.categories || []).map((c: { id: string }) => c.id)
-                    );
-
-                    // Filter transactions to only include those with valid category references
-                    const validTransactions = data.transactions.filter((t: { categoryId: string }) =>
-                        validCategoryIds.has(t.categoryId)
-                    );
+                    const validTransactions = data.transactions.filter((t: { categoryId: string; currencyBalanceId: string; toCurrencyBalanceId?: string }) => {
+                        const hasValidCategory = validCategoryIds.has(t.categoryId);
+                        const hasValidBalance = validCurrencyBalanceIds.has(t.currencyBalanceId);
+                        const hasValidToBalance = !t.toCurrencyBalanceId || validCurrencyBalanceIds.has(t.toCurrencyBalanceId);
+                        return hasValidCategory && hasValidBalance && hasValidToBalance;
+                    });
 
                     if (validTransactions.length > 0) {
                         await tx.insert(schema.transactions).values(validTransactions);
+                        validTransactions.forEach((t: { id: string }) => validTransactionIds.add(t.id));
                     }
 
-                    // Log if any transactions were skipped due to missing categories
                     const skippedCount = data.transactions.length - validTransactions.length;
                     if (skippedCount > 0) {
-                        console.warn(`Skipped ${skippedCount} transactions with missing category references during import`);
+                        console.warn(`Skipped ${skippedCount} transactions with missing references during import`);
                     }
                 }
 
-                if (data.stocks?.length) await tx.insert(schema.stocks).values(withUser(data.stocks));
-                if (data.stockPrices?.length) await tx.insert(schema.stockPrices).values(data.stockPrices);
-                if (data.portfolioHoldings?.length) await tx.insert(schema.portfolioHoldings).values(withUser(data.portfolioHoldings));
-                if (data.investmentTransactions?.length) await tx.insert(schema.investmentTransactions).values(withUser(data.investmentTransactions));
+                // Insert stocks and track valid IDs
+                if (data.stocks?.length) {
+                    await tx.insert(schema.stocks).values(withUser(data.stocks));
+                    data.stocks.forEach((s: { id: string }) => validStockIds.add(s.id));
+                }
 
-                if (data.subscriptions?.length) await tx.insert(schema.subscriptions).values(withUser(data.subscriptions));
-                if (data.subscriptionPayments?.length) await tx.insert(schema.subscriptionPayments).values(data.subscriptionPayments);
+                // Filter and insert stock prices (must reference valid stocks)
+                if (data.stockPrices?.length) {
+                    const validStockPrices = data.stockPrices.filter((sp: { stockId: string }) => validStockIds.has(sp.stockId));
+                    if (validStockPrices.length > 0) {
+                        await tx.insert(schema.stockPrices).values(validStockPrices);
+                    }
+                }
 
-                if (data.splitParticipants?.length) await tx.insert(schema.splitParticipants).values(withUser(data.splitParticipants));
-                if (data.transactionSplits?.length) await tx.insert(schema.transactionSplits).values(data.transactionSplits);
-                if (data.splitPayments?.length) await tx.insert(schema.splitPayments).values(data.splitPayments);
+                // Filter and insert portfolio holdings (must reference valid stocks)
+                if (data.portfolioHoldings?.length) {
+                    const validHoldings = data.portfolioHoldings.filter((h: { stockId: string }) => validStockIds.has(h.stockId));
+                    if (validHoldings.length > 0) {
+                        await tx.insert(schema.portfolioHoldings).values(withUser(validHoldings));
+                    }
+                }
+
+                // Filter and insert investment transactions (must reference valid stocks)
+                if (data.investmentTransactions?.length) {
+                    const validInvTx = data.investmentTransactions.filter((it: { stockId: string }) => validStockIds.has(it.stockId));
+                    if (validInvTx.length > 0) {
+                        await tx.insert(schema.investmentTransactions).values(withUser(validInvTx));
+                    }
+                }
+
+                // Insert subscriptions and track valid IDs
+                if (data.subscriptions?.length) {
+                    await tx.insert(schema.subscriptions).values(withUser(data.subscriptions));
+                    data.subscriptions.forEach((s: { id: string }) => validSubscriptionIds.add(s.id));
+                }
+
+                // Filter and insert subscription payments (must reference valid subscriptions)
+                if (data.subscriptionPayments?.length) {
+                    const validSubPayments = data.subscriptionPayments.filter((sp: { subscriptionId: string }) => validSubscriptionIds.has(sp.subscriptionId));
+                    if (validSubPayments.length > 0) {
+                        await tx.insert(schema.subscriptionPayments).values(validSubPayments);
+                    }
+                }
+
+                // Insert split participants and track valid IDs
+                if (data.splitParticipants?.length) {
+                    await tx.insert(schema.splitParticipants).values(withUser(data.splitParticipants));
+                    data.splitParticipants.forEach((p: { id: string }) => validParticipantIds.add(p.id));
+                }
+
+                // Filter and insert transaction splits (must reference valid transactions AND participants)
+                if (data.transactionSplits?.length) {
+                    const validSplits = data.transactionSplits.filter((ts: { transactionId: string; participantId: string }) =>
+                        validTransactionIds.has(ts.transactionId) && validParticipantIds.has(ts.participantId)
+                    );
+                    if (validSplits.length > 0) {
+                        await tx.insert(schema.transactionSplits).values(validSplits);
+                        validSplits.forEach((s: { id: string }) => validSplitIds.add(s.id));
+                    }
+                }
+
+                // Filter and insert split payments (must reference valid splits)
+                if (data.splitPayments?.length) {
+                    const validSplitPayments = data.splitPayments.filter((sp: { splitId: string }) => validSplitIds.has(sp.splitId));
+                    if (validSplitPayments.length > 0) {
+                        await tx.insert(schema.splitPayments).values(validSplitPayments);
+                    }
+                }
             });
 
             return { success: true };
