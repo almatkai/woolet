@@ -76,6 +76,9 @@ Ensure these are set in your production environment:
 | `API_URL` | Public URL of the API |
 | `WEB_URL` | Public URL of the Web client |
 | `NODE_ENV` | Set to `production` |
+| `VAPID_SUBJECT` | Contact email for push notifications (e.g., `mailto:admin@woolet.app`) |
+| `VAPID_PUBLIC_KEY` | Public VAPID key |
+| `VAPID_PRIVATE_KEY` | Private VAPID key |
 
 ## 🛠️ Build and Verification
 

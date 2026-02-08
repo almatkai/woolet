@@ -80,6 +80,16 @@ export function SettingsPage() {
         }
     });
 
+    const importDataMutation = trpc.user.importData.useMutation({
+        onSuccess: () => {
+            toast.success('Data imported successfully');
+            utils.invalidate();
+        },
+        onError: (error: { message?: string }) => {
+            toast.error(error.message || 'Failed to import data. Please ensure the file is valid.');
+        }
+    });
+
     const globalStatusLogic = settings?.paymentStatusLogic || 'monthly';
     const globalStatusPeriod = settings?.paymentStatusPeriod || '15';
     const creditStatusLogic = settings?.creditStatusLogic ?? 'global';
@@ -118,11 +128,9 @@ export function SettingsPage() {
         try {
             const text = await file.text();
             const data = JSON.parse(text);
-            await utils.user.importData.fetch({ data });
-            toast.success('Data imported successfully');
-            utils.invalidate();
+            await importDataMutation.mutateAsync({ data });
         } catch {
-            toast.error('Failed to import data. Please ensure the file is valid.');
+            // Error handled by mutation onError
         } finally {
             setIsImporting(false);
             e.target.value = '';

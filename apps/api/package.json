@@ -7,6 +7,7 @@
         "dev": "NODE_ENV=development bun run --env-file=../../.env --watch src/index.ts",
         "build": "bun build src/index.ts --outdir dist --target bun",
         "start": "bun run dist/index.js",
+        "vapid-gen": "web-push generate-vapid-keys",
         "test": "bun test --preload ./test/setup.ts",
         "lint": "tsc --noEmit",
         "db:generate": "drizzle-kit generate",
