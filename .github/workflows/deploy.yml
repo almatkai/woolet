@@ -11,7 +11,7 @@ env:
 
 jobs:
   changes:
-    runs-on: ubuntu-24.04
+    runs-on: namespace-profile-default
     outputs:
       apps: ${{ steps.filter.outputs.apps }}
     steps:
@@ -30,7 +30,7 @@ jobs:
   test-api:
     needs: changes
     if: needs.changes.outputs.apps == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: namespace-profile-default
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -56,7 +56,7 @@ jobs:
   test-web:
     needs: changes
     if: needs.changes.outputs.apps == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: namespace-profile-default
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -82,7 +82,7 @@ jobs:
   build-and-push:
     needs: [changes, test-api, test-web]
     if: needs.changes.outputs.apps == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: namespace-profile-default
     permissions:
       contents: read
       packages: write
@@ -132,7 +132,7 @@ jobs:
       always() &&
       github.ref == 'refs/heads/main' &&
       (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped')
-    runs-on: ubuntu-24.04
+    runs-on: namespace-profile-default
     environment: SSH_PRIVATE_KEY
     steps:
       - uses: actions/checkout@v4
