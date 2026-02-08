@@ -43,7 +43,7 @@ COPY --from=build --chown=woolet-api:woolet-api /app/apps/api/run-migration.ts .
 WORKDIR /app/apps/api
 
 # Expose the API port
-EXPOSE 3001
+EXPOSE 3005
 
 # Command to run the application
 CMD ["bun", "run", "dist/index.js"]

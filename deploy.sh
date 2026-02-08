@@ -160,7 +160,7 @@ sleep 5
 
 # Check if API is healthy
 for i in {1..30}; do
-    if docker compose -f docker-compose.prod.yml exec -T woolet-api curl -s http://localhost:3001/health > /dev/null 2>&1; then
+    if docker compose -f docker-compose.prod.yml exec -T woolet-api curl -s http://localhost:3005/health > /dev/null 2>&1; then
         echo "✅ API is healthy!"
         break
     fi

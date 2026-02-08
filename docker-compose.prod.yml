@@ -46,10 +46,11 @@ services:
     image: ${WOOLET_API_IMAGE:-ghcr.io/${GITHUB_REPOSITORY:-owner/repo}/api:latest}
     restart: always
     ports:
-      - "3001:3001"
+      - "3005:3005"
     environment:
       DATABASE_URL: postgresql://${DB_USER:-woolet_app}:${DB_PASSWORD:-password}@woolet-pgbouncer:5432/${DB_NAME:-woolet}
       REDIS_URL: redis://:${REDIS_PASSWORD:-password}@woolet-redis:6379
+      PORT: 3005
     env_file:
       - .env
     depends_on:
