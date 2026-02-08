@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { CurrencySelect } from '@/components/CurrencySelect';
 import { TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, DollarSign, Wallet, PieChart, BarChart3, LineChart, Trophy, AlertCircle, Trash2, ExternalLink, Cpu, Droplets, Stethoscope, Globe, Newspaper, Plus, Minus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
@@ -1240,16 +1241,10 @@ export function InvestingPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="currency">Currency</Label>
-                            <select
-                                id="currency"
+                            <CurrencySelect
                                 value={cashCurrency}
-                                onChange={(e) => setCashCurrency(e.target.value)}
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent"
-                            >
-                                <option value="USD">USD</option>
-                                <option value="EUR">EUR</option>
-                                <option value="KZT">KZT</option>
-                            </select>
+                                onValueChange={setCashCurrency}
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="notes">Notes (Optional)</Label>

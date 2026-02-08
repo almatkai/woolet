@@ -6,6 +6,7 @@ import { Input } from './ui/input';
 import { Button } from './ui/button';
 import BottomSheet from './ui/modal';
 import { Switch } from 'react-native';
+import { CurrencySelector } from './CurrencySelector';
 
 export function AddDebtSheetMobile({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const utils = trpc.useUtils();
@@ -81,8 +82,11 @@ export function AddDebtSheetMobile({ open, onOpenChange }: { open: boolean; onOp
         </View>
       ) : (
         <View className="mb-3">
-          <Text className="text-sm font-medium mb-1">Currency</Text>
-          <Input placeholder="e.g. USD" onChangeText={(t) => setValue('currencyCode', t)} />
+          <Text className="text-sm font-medium mb-1 px-1">Currency</Text>
+          <CurrencySelector
+            value={watch('currencyCode')}
+            onValueChange={(val) => setValue('currencyCode', val)}
+          />
         </View>
       )}
 

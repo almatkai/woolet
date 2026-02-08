@@ -1,12 +1,5 @@
 
-import { trpc } from '@/lib/trpc';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { CurrencySelector } from '@/components/ui/currency-selector';
 
 interface CurrencySelectProps {
     value: string;
@@ -15,20 +8,11 @@ interface CurrencySelectProps {
 }
 
 export function CurrencySelect({ value, onValueChange, disabled }: CurrencySelectProps) {
-    const { data: currencies } = trpc.currency.list.useQuery();
-
     return (
-        <Select value={value} onValueChange={onValueChange} disabled={disabled}>
-            <SelectTrigger>
-                <SelectValue placeholder="Select currency" />
-            </SelectTrigger>
-            <SelectContent>
-                {currencies?.map((c: any) => (
-                    <SelectItem key={c.code} value={c.code}>
-                        {c.code} - {c.name} ({c.symbol})
-                    </SelectItem>
-                ))}
-            </SelectContent>
-        </Select>
+        <CurrencySelector 
+            value={value} 
+            onValueChange={onValueChange} 
+            disabled={disabled} 
+        />
     );
 }

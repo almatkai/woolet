@@ -40,6 +40,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import { CurrencySelect } from './CurrencySelect';
 
 interface StockSearchResult {
     ticker: string;
@@ -491,18 +492,10 @@ export function AddInvestmentSheet({ open: controlledOpen, onOpenChange: control
                             </div>
                             <div className="space-y-2">
                                 <Label>Currency</Label>
-                                <Select onValueChange={(v) => setValue('currency', v)} defaultValue="USD">
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select currency" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="USD">USD</SelectItem>
-                                        <SelectItem value="EUR">EUR</SelectItem>
-                                        <SelectItem value="GBP">GBP</SelectItem>
-                                        <SelectItem value="KZT">KZT</SelectItem>
-                                        <SelectItem value="RUB">RUB</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <CurrencySelect
+                                    value={watch('currency')}
+                                    onValueChange={(v) => setValue('currency', v)}
+                                />
                             </div>
                         </div>
                     ) : (
