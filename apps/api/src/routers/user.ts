@@ -582,7 +582,27 @@ export const userRouter = router({
                 if (data.debts?.length) await tx.insert(schema.debts).values(withUser(data.debts));
                 if (data.debtPayments?.length) await tx.insert(schema.debtPayments).values(data.debtPayments);
 
-                if (data.transactions?.length) await tx.insert(schema.transactions).values(data.transactions);
+                if (data.transactions?.length) {
+                    // Get all valid category IDs from the imported categories
+                    const validCategoryIds = new Set(
+                        (data.categories || []).map((c: { id: string }) => c.id)
+                    );
+
+                    // Filter transactions to only include those with valid category references
+                    const validTransactions = data.transactions.filter((t: { categoryId: string }) =>
+                        validCategoryIds.has(t.categoryId)
+                    );
+
+                    if (validTransactions.length > 0) {
+                        await tx.insert(schema.transactions).values(validTransactions);
+                    }
+
+                    // Log if any transactions were skipped due to missing categories
+                    const skippedCount = data.transactions.length - validTransactions.length;
+                    if (skippedCount > 0) {
+                        console.warn(`Skipped ${skippedCount} transactions with missing category references during import`);
+                    }
+                }
 
                 if (data.stocks?.length) await tx.insert(schema.stocks).values(withUser(data.stocks));
                 if (data.stockPrices?.length) await tx.insert(schema.stockPrices).values(data.stockPrices);
