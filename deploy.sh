@@ -43,7 +43,7 @@ while IFS= read -r line || [ -n "$line" ]; do
     key=$(echo "$line" | cut -d '=' -f 1)
     
     # Get value from environment variable
-    value=$(printenv "$key")
+    value=$(printenv "$key" || true)
     
     # If the variable is set in the environment, use it
     if [ -n "$value" ]; then
