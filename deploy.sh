@@ -29,6 +29,9 @@ if [ ! -f .env.example ]; then
     exit 1
 fi
 
+# Remove old .env to force regeneration
+rm -f .env
+
 # Clear .env file
 > .env
 
