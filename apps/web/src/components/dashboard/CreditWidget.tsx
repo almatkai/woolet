@@ -108,8 +108,8 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                                     const targetMonthStr = getTargetMonthStr(credit.billingDay, { logic, period });
                                     const isPaidThisMonth = isPaidForTargetMonth(credit.payments, targetMonthStr, true);
                                     return (
-                                        <div key={credit.id} className="dashboard-widget__item flex items-center justify-between p-1.5 rounded-md bg-muted/30 text-[11px]">
-                                            <div className="flex items-center gap-1.5 max-w-[60%]">
+                                        <div key={credit.id} className="dashboard-widget__item flex items-center justify-between p-1.5 rounded-md bg-muted/30 text-[11px] gap-2">
+                                            <div className="flex items-center gap-1.5 min-w-0 flex-1">
                                                 {isPaidThisMonth ? (
                                                     <Check className="h-2.5 w-2.5 text-green-600 flex-shrink-0" />
                                                 ) : (
@@ -117,7 +117,7 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                                                 )}
                                                 <span className="truncate">{credit.name}</span>
                                             </div>
-                                            <span className="font-medium whitespace-nowrap ml-2 text-[11px]">
+                                            <span className="font-medium whitespace-nowrap flex-shrink-0 text-[11px]">
                                                 <CurrencyDisplay amount={credit.monthlyPayment} currency={credit.currency} />
                                             </span>
                                         </div>

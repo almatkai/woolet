@@ -23,7 +23,106 @@ import {
     userSettings,
     subscriptions,
     admins,
+    stockPrices,
+    currencies,
+    DEFAULT_CURRENCIES,
+    exportHistories,
 } from '../db/schema';
+import * as schema from '../db/schema';
+import { TRPCError } from '@trpc/server';
+import crypto from 'crypto';
+import { subMonths, startOfDay, startOfWeek } from 'date-fns';
+import { gte, count, and } from 'drizzle-orm';
+
+const ISO_DATE_REGEXP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Valid table names for import
+const VALID_TABLES = [
+    'banks', 'accounts', 'currencyBalances', 'categories', 'transactions',
+    'debts', 'debtPayments', 'credits', 'mortgages', 'deposits',
+    'stocks', 'stockPrices', 'portfolioHoldings', 'investmentTransactions',
+    'subscriptions', 'subscriptionPayments', 'splitParticipants', 'transactionSplits', 'splitPayments'
+] as const;
+
+// Schema for validating imported data structure
+const importDataSchema = z.object({
+    timestamp: z.string().datetime().optional(),
+    version: z.number().optional(),
+    data: z.record(z.array(z.record(z.any())))
+        .refine(
+            (data) => Object.keys(data).every(key => VALID_TABLES.includes(key as any)),
+            { message: 'Invalid table name in import data' }
+        )
+});
+
+function parseDates(obj: any): any {
+    if (obj === null || obj === undefined) return obj;
+    if (typeof obj === 'string') {
+        if (ISO_DATE_REGEXP.test(obj)) {
+            const date = new Date(obj);
+            if (!isNaN(date.getTime())) return date;
+        }
+        return obj;
+    }
+    if (Array.isArray(obj)) {
+        return obj.map(parseDates);
+    }
+    if (typeof obj === 'object') {
+        const newObj: any = {};
+        for (const key in obj) {
+            newObj[key] = parseDates(obj[key]);
+        }
+        return newObj;
+    }
+    return obj;
+}
+
+function remapIds(data: any): any {
+    const idMap: Record<string, string> = {};
+
+    // 1. Collect all IDs and generate new ones
+    for (const table in data) {
+        if (Array.isArray(data[table])) {
+            data[table].forEach((item: any) => {
+                if (item.id && UUID_REGEX.test(item.id)) {
+                    idMap[item.id] = crypto.randomUUID();
+                }
+            });
+        }
+    }
+
+    // 2. Map old IDs to new IDs in all fields
+    const remapFields = (obj: any): any => {
+        if (obj === null || obj === undefined) return obj;
+        if (obj instanceof Date) return obj; // CRITICAL: Preserve Date objects
+        if (typeof obj === 'string') {
+            return idMap[obj] || obj;
+        }
+        if (Array.isArray(obj)) {
+            return obj.map(remapFields);
+        }
+        if (typeof obj === 'object') {
+            // Preserve non-plain objects if any (though parseDates mostly creates Dates)
+            if (obj.constructor !== Object && obj.constructor !== undefined) return obj;
+
+            const newObj: any = {};
+            for (const key in obj) {
+                if (key === 'userId') {
+                    newObj[key] = obj[key];
+                } else {
+                    newObj[key] = remapFields(obj[key]);
+                }
+            }
+            return newObj;
+        }
+        return obj;
+    };
+
+    return remapFields(data);
+}
 
 // Test mode limits
 const TEST_MODE_LIMITS = {
@@ -54,6 +153,28 @@ const userPreferencesSchema = z.object({
         period: z.string().optional(),
     }).optional(),
 }).optional();
+
+type ExportTierLimits = {
+    transactionsMonths?: number;
+    maxPerDay: number;
+    maxPerWeek: number;
+};
+
+const EXPORT_LIMITS: Record<string, ExportTierLimits> = {
+    free: {
+        transactionsMonths: 2,
+        maxPerDay: 1, // Reasonable default for free
+        maxPerWeek: 3,
+    },
+    pro: {
+        maxPerDay: 3,
+        maxPerWeek: 7,
+    },
+    premium: {
+        maxPerDay: 6,
+        maxPerWeek: 14,
+    },
+};
 
 export const userRouter = router({
     me: protectedProcedure.query(async ({ ctx }) => {
@@ -271,5 +392,450 @@ export const userRouter = router({
                 success: true,
                 message: 'Your account and all associated data have been permanently deleted.'
             };
+        }),
+
+    exportAllData: protectedProcedure.query(async ({ ctx }) => {
+        // 1. Get user and tier
+        const user = await ctx.db.query.users.findFirst({
+            where: eq(schema.users.id, ctx.userId!),
+        });
+
+        if (!user) {
+            throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found' });
+        }
+
+        const tier = user.subscriptionTier || 'free';
+        const limits = EXPORT_LIMITS[tier] || EXPORT_LIMITS.free;
+
+        // 2. Check frequency limits
+        const now = new Date();
+        const dailyStart = startOfDay(now);
+        const weeklyStart = startOfWeek(now);
+
+        const [dailyCount] = await ctx.db
+            .select({ value: count() })
+            .from(exportHistories)
+            .where(and(
+                eq(exportHistories.userId, ctx.userId!),
+                gte(exportHistories.timestamp, dailyStart)
+            ));
+
+        const [weeklyCount] = await ctx.db
+            .select({ value: count() })
+            .from(exportHistories)
+            .where(and(
+                eq(exportHistories.userId, ctx.userId!),
+                gte(exportHistories.timestamp, weeklyStart)
+            ));
+
+        if (dailyCount.value >= limits.maxPerDay) {
+            throw new TRPCError({
+                code: 'TOO_MANY_REQUESTS',
+                message: `Daily export limit reached (${limits.maxPerDay}). Please try again tomorrow.`
+            });
+        }
+
+        if (weeklyCount.value >= limits.maxPerWeek) {
+            throw new TRPCError({
+                code: 'TOO_MANY_REQUESTS',
+                message: `Weekly export limit reached (${limits.maxPerWeek}). Please try again next week.`
+            });
+        }
+
+        // 3. Fetch data with tier-based filters
+        const userBanks = await ctx.db.query.banks.findMany({ where: eq(schema.banks.userId, ctx.userId!) });
+        const bankIds = userBanks.map(b => b.id);
+
+        const userAccounts = bankIds.length ? await ctx.db.query.accounts.findMany({
+            where: inArray(schema.accounts.bankId, bankIds)
+        }) : [];
+        const accountIds = userAccounts.map(a => a.id);
+
+        const balances = accountIds.length ? await ctx.db.query.currencyBalances.findMany({
+            where: inArray(schema.currencyBalances.accountId, accountIds)
+        }) : [];
+        const balanceIds = balances.map(b => b.id);
+
+        // Transaction history limit for free tier
+        let transactionCondition = balanceIds.length ? inArray(schema.transactions.currencyBalanceId, balanceIds) : undefined;
+        if (limits.transactionsMonths && transactionCondition) {
+            const dateLimit = subMonths(new Date(), limits.transactionsMonths);
+            transactionCondition = and(transactionCondition, gte(schema.transactions.createdAt, dateLimit));
+        }
+
+        const userTransactions = transactionCondition ? await ctx.db.query.transactions.findMany({
+            where: transactionCondition
+        }) : [];
+
+        const userCategories = await ctx.db.query.categories.findMany({ where: eq(schema.categories.userId, ctx.userId!) });
+
+        const userDebts = await ctx.db.query.debts.findMany({ where: eq(schema.debts.userId, ctx.userId!) });
+        const debtIds = userDebts.map(d => d.id);
+        const userDebtPayments = debtIds.length ? await ctx.db.query.debtPayments.findMany({
+            where: inArray(schema.debtPayments.debtId, debtIds)
+        }) : [];
+
+        const userCredits = accountIds.length ? await ctx.db.query.credits.findMany({ where: inArray(schema.credits.accountId, accountIds) }) : [];
+        const userMortgages = accountIds.length ? await ctx.db.query.mortgages.findMany({ where: inArray(schema.mortgages.accountId, accountIds) }) : [];
+        const userDeposits = accountIds.length ? await ctx.db.query.deposits.findMany({ where: inArray(schema.deposits.accountId, accountIds) }) : [];
+
+        const userStocks = await ctx.db.query.stocks.findMany({ where: eq(schema.stocks.userId, ctx.userId!) });
+        const manualStockIds = userStocks.filter(s => s.isManual).map(s => s.id);
+        const userStockPrices = manualStockIds.length ? await ctx.db.query.stockPrices.findMany({
+            where: inArray(schema.stockPrices.stockId, manualStockIds)
+        }) : [];
+
+        const holdings = await ctx.db.query.portfolioHoldings.findMany({ where: eq(schema.portfolioHoldings.userId, ctx.userId!) });
+        const invTransactions = await ctx.db.query.investmentTransactions.findMany({ where: eq(schema.investmentTransactions.userId, ctx.userId!) });
+
+        const userSplitParticipants = await ctx.db.query.splitParticipants.findMany({ where: eq(schema.splitParticipants.userId, ctx.userId!) });
+        const participantIds = userSplitParticipants.map(p => p.id);
+        const userTransactionSplits = participantIds.length ? await ctx.db.query.transactionSplits.findMany({
+            where: inArray(schema.transactionSplits.participantId, participantIds)
+        }) : [];
+        const splitIds = userTransactionSplits.map(s => s.id);
+        const userSplitPayments = splitIds.length ? await ctx.db.query.splitPayments.findMany({
+            where: inArray(schema.splitPayments.splitId, splitIds)
+        }) : [];
+
+        // 4. Record export attempt
+        await ctx.db.insert(exportHistories).values({
+            userId: ctx.userId!,
+        });
+
+        // 5. Fetch additional data (settings, subscriptions)
+        const userSettingsData = await ctx.db.query.userSettings.findMany({ where: eq(schema.userSettings.userId, ctx.userId!) });
+        const dashboards = await ctx.db.query.dashboardLayouts.findMany({ where: eq(schema.dashboardLayouts.userId, ctx.userId!) });
+
+        return {
+            timestamp: new Date().toISOString(),
+            version: 1,
+            data: {
+                banks: userBanks,
+                accounts: userAccounts,
+                currencyBalances: balances,
+                categories: userCategories,
+                transactions: userTransactions,
+                debts: userDebts,
+                debtPayments: userDebtPayments,
+                credits: userCredits,
+                mortgages: userMortgages,
+                deposits: userDeposits,
+                stocks: userStocks,
+                stockPrices: userStockPrices,
+                portfolioHoldings: holdings,
+                investmentTransactions: invTransactions,
+                subscriptions: await ctx.db.query.subscriptions.findMany({ where: eq(schema.subscriptions.userId, ctx.userId!) }),
+                subscriptionPayments: (await (async () => {
+                    const subs = await ctx.db.query.subscriptions.findMany({ where: eq(schema.subscriptions.userId, ctx.userId!) });
+                    const ids = subs.map(s => s.id);
+                    return ids.length ? await ctx.db.query.subscriptionPayments.findMany({ where: inArray(schema.subscriptionPayments.subscriptionId, ids) }) : [];
+                })()),
+                splitParticipants: userSplitParticipants,
+                transactionSplits: userTransactionSplits,
+                splitPayments: userSplitPayments,
+                userSettings: userSettingsData,
+                dashboardLayouts: dashboards,
+            }
+        };
+    }),
+
+    importData: protectedProcedure
+        .input(importDataSchema)
+        .mutation(async ({ ctx, input }) => {
+            let data = parseDates(input.data);
+            data = remapIds(data);
+
+            if (!data || typeof data !== 'object') {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'Invalid data format'
+                });
+            }
+
+            await ctx.db.transaction(async (tx) => {
+                // 1. Delete all existing user data using robust deletion logic
+                const userBankIds = tx
+                    .select({ id: schema.banks.id })
+                    .from(schema.banks)
+                    .where(eq(schema.banks.userId, ctx.userId!));
+
+                const userAccountIds = tx
+                    .select({ id: schema.accounts.id })
+                    .from(schema.accounts)
+                    .where(inArray(schema.accounts.bankId, userBankIds));
+
+                const userCurrencyBalanceIds = tx
+                    .select({ id: schema.currencyBalances.id })
+                    .from(schema.currencyBalances)
+                    .where(inArray(schema.currencyBalances.accountId, userAccountIds));
+
+                const userCreditIds = tx
+                    .select({ id: schema.credits.id })
+                    .from(schema.credits)
+                    .where(inArray(schema.credits.accountId, userAccountIds));
+
+                const userDebtIds = tx
+                    .select({ id: schema.debts.id })
+                    .from(schema.debts)
+                    .where(eq(schema.debts.userId, ctx.userId!));
+
+                const userSubIds = tx
+                    .select({ id: schema.subscriptions.id })
+                    .from(schema.subscriptions)
+                    .where(eq(schema.subscriptions.userId, ctx.userId!));
+
+                const participantIds = tx
+                    .select({ id: schema.splitParticipants.id })
+                    .from(schema.splitParticipants)
+                    .where(eq(schema.splitParticipants.userId, ctx.userId!));
+
+                const splitIds = tx
+                    .select({ id: schema.transactionSplits.id })
+                    .from(schema.transactionSplits)
+                    .where(inArray(schema.transactionSplits.participantId, participantIds));
+
+                // Delete child tables first
+                await tx.delete(schema.transactions).where(or(
+                    inArray(schema.transactions.currencyBalanceId, userCurrencyBalanceIds),
+                    inArray(schema.transactions.toCurrencyBalanceId, userCurrencyBalanceIds)
+                ));
+
+                await tx.delete(schema.creditPayments).where(inArray(schema.creditPayments.creditId, userCreditIds));
+                await tx.delete(schema.debtPayments).where(inArray(schema.debtPayments.debtId, userDebtIds));
+                await tx.delete(schema.subscriptionPayments).where(inArray(schema.subscriptionPayments.subscriptionId, userSubIds));
+                await tx.delete(schema.splitPayments).where(inArray(schema.splitPayments.splitId, splitIds));
+                await tx.delete(schema.transactionSplits).where(inArray(schema.transactionSplits.participantId, participantIds));
+
+                // Delete intermediate tables
+                await tx.delete(schema.currencyBalances).where(inArray(schema.currencyBalances.accountId, userAccountIds));
+                await tx.delete(schema.accounts).where(inArray(schema.accounts.bankId, userBankIds));
+
+                await tx.delete(schema.credits).where(inArray(schema.credits.accountId, userAccountIds));
+                await tx.delete(schema.mortgages).where(inArray(schema.mortgages.accountId, userAccountIds));
+                await tx.delete(schema.deposits).where(inArray(schema.deposits.accountId, userAccountIds));
+
+                // Delete parent tables
+                await tx.delete(schema.banks).where(eq(schema.banks.userId, ctx.userId!));
+                await tx.delete(schema.categories).where(eq(schema.categories.userId, ctx.userId!));
+                await tx.delete(schema.debts).where(eq(schema.debts.userId, ctx.userId!));
+                await tx.delete(schema.stocks).where(eq(schema.stocks.userId, ctx.userId!));
+                await tx.delete(schema.subscriptions).where(eq(schema.subscriptions.userId, ctx.userId!));
+                await tx.delete(schema.splitParticipants).where(eq(schema.splitParticipants.userId, ctx.userId!));
+                await tx.delete(schema.portfolioHoldings).where(eq(schema.portfolioHoldings.userId, ctx.userId!));
+                await tx.delete(schema.investmentTransactions).where(eq(schema.investmentTransactions.userId, ctx.userId!));
+                await tx.delete(schema.dashboardLayouts).where(eq(schema.dashboardLayouts.userId, ctx.userId!));
+                await tx.delete(schema.userSettings).where(eq(schema.userSettings.userId, ctx.userId!));
+
+                // 2. Insert new data with proper foreign key validation
+                // Build valid ID sets as we insert parent tables, then filter child tables
+                const withUser = (items: any[]) => items.map(i => ({ ...i, userId: ctx.userId! }));
+
+                // Track valid IDs for foreign key filtering
+                const validBankIds = new Set<string>();
+                const validAccountIds = new Set<string>();
+                const validCurrencyBalanceIds = new Set<string>();
+                const validCategoryIds = new Set<string>();
+                const validDebtIds = new Set<string>();
+                const validCreditIds = new Set<string>();
+                const validStockIds = new Set<string>();
+                const validSubscriptionIds = new Set<string>();
+                const validTransactionIds = new Set<string>();
+                const validParticipantIds = new Set<string>();
+                const validSplitIds = new Set<string>();
+
+                // First, get all default categories (userId is null) from the database
+                // These are valid targets for transactions even if not in the import data
+                const defaultCategories = await tx.query.categories.findMany({
+                    where: isNull(schema.categories.userId),
+                    columns: { id: true }
+                });
+                defaultCategories.forEach((c) => validCategoryIds.add(c.id));
+
+                // Insert categories and track valid IDs
+                if (data.categories?.length) {
+                    await tx.insert(schema.categories).values(withUser(data.categories));
+                    data.categories.forEach((c: { id: string }) => validCategoryIds.add(c.id));
+                }
+
+                // Insert banks and track valid IDs
+                if (data.banks?.length) {
+                    await tx.insert(schema.banks).values(withUser(data.banks));
+                    data.banks.forEach((b: { id: string }) => validBankIds.add(b.id));
+                }
+
+                // Filter and insert accounts (must reference valid banks)
+                if (data.accounts?.length) {
+                    const validAccounts = data.accounts.filter((a: { bankId: string }) => validBankIds.has(a.bankId));
+                    if (validAccounts.length > 0) {
+                        await tx.insert(schema.accounts).values(validAccounts);
+                        validAccounts.forEach((a: { id: string }) => validAccountIds.add(a.id));
+                    }
+                }
+
+                // Ensure currencies exist before inserting currency balances
+                if (data.currencyBalances?.length) {
+                    // Filter to only valid accounts first
+                    const validBalances = data.currencyBalances.filter((cb: { accountId: string }) => validAccountIds.has(cb.accountId));
+
+                    if (validBalances.length > 0) {
+                        const currencyCodes = Array.from(new Set<string>(validBalances.map((cb: { currencyCode: string }) => cb.currencyCode)));
+
+                        // Get existing currencies in DB
+                        const existingCurrencies = await tx.query.currencies.findMany({
+                            columns: { code: true }
+                        });
+                        const existingCodes = new Set(existingCurrencies.map(c => c.code));
+
+                        // Find missing currencies and insert them
+                        const missingCodes = currencyCodes.filter(code => !existingCodes.has(code));
+                        if (missingCodes.length > 0) {
+                            const currenciesToInsert = missingCodes.map((code: string) => {
+                                const defaultCurrency = DEFAULT_CURRENCIES.find(c => c.code === code);
+                                return defaultCurrency ?? {
+                                    code,
+                                    name: code,
+                                    symbol: code,
+                                    decimalPlaces: 2
+                                };
+                            });
+                            await tx.insert(schema.currencies).values(currenciesToInsert).onConflictDoNothing();
+                        }
+
+                        await tx.insert(schema.currencyBalances).values(validBalances);
+                        validBalances.forEach((cb: { id: string }) => validCurrencyBalanceIds.add(cb.id));
+                    }
+                }
+
+                // Filter and insert credits (must reference valid accounts)
+                if (data.credits?.length) {
+                    const validCredits = data.credits.filter((c: { accountId: string }) => validAccountIds.has(c.accountId));
+                    if (validCredits.length > 0) {
+                        await tx.insert(schema.credits).values(validCredits);
+                        validCredits.forEach((c: { id: string }) => validCreditIds.add(c.id));
+                    }
+                }
+
+                // Filter and insert mortgages (must reference valid accounts)
+                if (data.mortgages?.length) {
+                    const validMortgages = data.mortgages.filter((m: { accountId: string }) => validAccountIds.has(m.accountId));
+                    if (validMortgages.length > 0) {
+                        await tx.insert(schema.mortgages).values(validMortgages);
+                    }
+                }
+
+                // Filter and insert deposits (must reference valid accounts)
+                if (data.deposits?.length) {
+                    const validDeposits = data.deposits.filter((d: { accountId: string }) => validAccountIds.has(d.accountId));
+                    if (validDeposits.length > 0) {
+                        await tx.insert(schema.deposits).values(validDeposits);
+                    }
+                }
+
+                // Insert debts and track valid IDs
+                if (data.debts?.length) {
+                    await tx.insert(schema.debts).values(withUser(data.debts));
+                    data.debts.forEach((d: { id: string }) => validDebtIds.add(d.id));
+                }
+
+                // Filter and insert debt payments (must reference valid debts)
+                if (data.debtPayments?.length) {
+                    const validDebtPayments = data.debtPayments.filter((dp: { debtId: string }) => validDebtIds.has(dp.debtId));
+                    if (validDebtPayments.length > 0) {
+                        await tx.insert(schema.debtPayments).values(validDebtPayments);
+                    }
+                }
+
+                // Filter and insert transactions (must reference valid categories and currency balances)
+                if (data.transactions?.length) {
+                    const validTransactions = data.transactions.filter((t: { categoryId: string; currencyBalanceId: string; toCurrencyBalanceId?: string }) => {
+                        const hasValidCategory = validCategoryIds.has(t.categoryId);
+                        const hasValidBalance = validCurrencyBalanceIds.has(t.currencyBalanceId);
+                        const hasValidToBalance = !t.toCurrencyBalanceId || validCurrencyBalanceIds.has(t.toCurrencyBalanceId);
+                        return hasValidCategory && hasValidBalance && hasValidToBalance;
+                    });
+
+                    if (validTransactions.length > 0) {
+                        await tx.insert(schema.transactions).values(validTransactions);
+                        validTransactions.forEach((t: { id: string }) => validTransactionIds.add(t.id));
+                    }
+
+                    const skippedCount = data.transactions.length - validTransactions.length;
+                    if (skippedCount > 0) {
+                        console.warn(`Skipped ${skippedCount} transactions with missing references during import`);
+                    }
+                }
+
+                // Insert stocks and track valid IDs
+                if (data.stocks?.length) {
+                    await tx.insert(schema.stocks).values(withUser(data.stocks));
+                    data.stocks.forEach((s: { id: string }) => validStockIds.add(s.id));
+                }
+
+                // Filter and insert stock prices (must reference valid stocks)
+                if (data.stockPrices?.length) {
+                    const validStockPrices = data.stockPrices.filter((sp: { stockId: string }) => validStockIds.has(sp.stockId));
+                    if (validStockPrices.length > 0) {
+                        await tx.insert(schema.stockPrices).values(validStockPrices);
+                    }
+                }
+
+                // Filter and insert portfolio holdings (must reference valid stocks)
+                if (data.portfolioHoldings?.length) {
+                    const validHoldings = data.portfolioHoldings.filter((h: { stockId: string }) => validStockIds.has(h.stockId));
+                    if (validHoldings.length > 0) {
+                        await tx.insert(schema.portfolioHoldings).values(withUser(validHoldings));
+                    }
+                }
+
+                // Filter and insert investment transactions (must reference valid stocks)
+                if (data.investmentTransactions?.length) {
+                    const validInvTx = data.investmentTransactions.filter((it: { stockId: string }) => validStockIds.has(it.stockId));
+                    if (validInvTx.length > 0) {
+                        await tx.insert(schema.investmentTransactions).values(withUser(validInvTx));
+                    }
+                }
+
+                // Insert subscriptions and track valid IDs
+                if (data.subscriptions?.length) {
+                    await tx.insert(schema.subscriptions).values(withUser(data.subscriptions));
+                    data.subscriptions.forEach((s: { id: string }) => validSubscriptionIds.add(s.id));
+                }
+
+                // Filter and insert subscription payments (must reference valid subscriptions)
+                if (data.subscriptionPayments?.length) {
+                    const validSubPayments = data.subscriptionPayments.filter((sp: { subscriptionId: string }) => validSubscriptionIds.has(sp.subscriptionId));
+                    if (validSubPayments.length > 0) {
+                        await tx.insert(schema.subscriptionPayments).values(validSubPayments);
+                    }
+                }
+
+                // Insert split participants and track valid IDs
+                if (data.splitParticipants?.length) {
+                    await tx.insert(schema.splitParticipants).values(withUser(data.splitParticipants));
+                    data.splitParticipants.forEach((p: { id: string }) => validParticipantIds.add(p.id));
+                }
+
+                // Filter and insert transaction splits (must reference valid transactions AND participants)
+                if (data.transactionSplits?.length) {
+                    const validSplits = data.transactionSplits.filter((ts: { transactionId: string; participantId: string }) =>
+                        validTransactionIds.has(ts.transactionId) && validParticipantIds.has(ts.participantId)
+                    );
+                    if (validSplits.length > 0) {
+                        await tx.insert(schema.transactionSplits).values(validSplits);
+                        validSplits.forEach((s: { id: string }) => validSplitIds.add(s.id));
+                    }
+                }
+
+                // Filter and insert split payments (must reference valid splits)
+                if (data.splitPayments?.length) {
+                    const validSplitPayments = data.splitPayments.filter((sp: { splitId: string }) => validSplitIds.has(sp.splitId));
+                    if (validSplitPayments.length > 0) {
+                        await tx.insert(schema.splitPayments).values(validSplitPayments);
+                    }
+                }
+            });
+
+            return { success: true };
         }),
 });

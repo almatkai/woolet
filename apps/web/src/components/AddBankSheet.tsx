@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Building2 } from 'lucide-react';
+import { Building2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,7 @@ const createBankSchema = z.object({
 
 type CreateBankForm = z.infer<typeof createBankSchema>;
 
-export function AddBankSheet() {
+export function AddBankSheet({ trigger }: { trigger?: React.ReactNode }) {
     const [open, setOpen] = useState(false);
     const utils = trpc.useUtils();
 
@@ -46,11 +46,11 @@ export function AddBankSheet() {
             utils.bank.getHierarchy.invalidate();
             setOpen(false);
             reset();
-            toast.success('Institution created successfully');
+            toast.success('Bank added successfully');
         },
         onError: (error: any) => {
-            console.error("Failed to create institution:", error);
-            toast.error('Failed to create institution');
+            console.error("Failed to create bank:", error);
+            toast.error('Failed to add bank');
         }
     });
 
@@ -61,14 +61,16 @@ export function AddBankSheet() {
     return (
         <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-                <Button className="gap-2">
-                    <Building2 className="h-4 w-4" />
-                    Add Institution
-                </Button>
+                {trigger || (
+                    <Button className="gap-2 flex-1 sm:flex-none w-full sm:w-auto">
+                        <Plus className="h-4 w-4" />
+                        Bank
+                    </Button>
+                )}
             </SheetTrigger>
             <SheetContent>
                 <SheetHeader>
-                    <SheetTitle>Add Institution</SheetTitle>
+                    <SheetTitle>Add Bank</SheetTitle>
                     <SheetDescription>
                         Add a bank or brokerage (e.g. Freedom Bank, Interactive Brokers, Robinhood).
                     </SheetDescription>

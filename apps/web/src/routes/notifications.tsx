@@ -118,8 +118,8 @@ export function NotificationsPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-bold">Notifications</h1>
-                    <p className="text-sm md:text-base text-muted-foreground">
+                    <h1 className="text-2xl font-bold">Notifications</h1>
+                    <p className="hidden sm:block text-sm md:text-base text-muted-foreground">
                         {unreadCount > 0 ? `${unreadCount} unread notifications` : 'All caught up!'}
                     </p>
                 </div>

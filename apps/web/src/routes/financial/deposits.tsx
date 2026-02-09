@@ -87,8 +87,8 @@ export default function DepositsPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold">Deposits</h1>
-                    <p className="text-muted-foreground">Track your savings and fixed deposits</p>
+                    <h1 className="text-2xl font-bold">Deposits</h1>
+                    <p className="hidden sm:block text-muted-foreground">Manage your savings and deposits</p>
                 </div>
                 <Button onClick={() => setShowAddDeposit(true)}>
                     <Plus className="h-4 w-4 mr-2" />

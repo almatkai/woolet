@@ -81,7 +81,7 @@ export function AppSidebar() {
     };
 
     return (
-        <Sidebar variant="inset">
+        <Sidebar variant="sidebar">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>

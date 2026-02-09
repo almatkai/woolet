@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { AddCreditSheet } from '@/components/AddCreditSheet';
 import { CreditPaymentSheet } from '@/components/CreditPaymentSheet';
 import { CompoundCreditPaymentSheet } from '@/components/CompoundCreditPaymentSheet';
+import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 
 interface Credit {
     id: string;
@@ -53,6 +54,7 @@ export default function CreditsPage() {
     const totalPrincipal = credits?.reduce((sum: number, c: Credit) => sum + Number(c.principalAmount), 0) || 0;
     const totalRemaining = credits?.reduce((sum: number, c: Credit) => sum + Number(c.remainingBalance), 0) || 0;
     const totalMonthly = credits?.reduce((sum: number, c: Credit) => sum + Number(c.monthlyPayment), 0) || 0;
+    const primaryCurrency = credits?.[0]?.currency || 'KZT';
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -73,8 +75,10 @@ export default function CreditsPage() {
         return (
             <div className="space-y-6">
                 <div className="h-8 w-48 bg-muted animate-pulse rounded" />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {[1, 2, 3].map(i => <div key={i} className="h-32 bg-muted animate-pulse rounded-lg" />)}
+                <div className="grid grid-cols-3 gap-2 md:gap-4">
+                    <div className="h-24 md:h-28 bg-muted animate-pulse rounded-lg" />
+                    <div className="h-24 md:h-28 bg-muted animate-pulse rounded-lg" />
+                    <div className="h-24 md:h-28 bg-muted animate-pulse rounded-lg" />
                 </div>
             </div>
         );
@@ -84,8 +88,8 @@ export default function CreditsPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold">Credits</h1>
-                    <p className="text-muted-foreground">Manage your loans and credit lines</p>
+                    <h1 className="text-2xl font-bold">Credits</h1>
+                    <p className="hidden sm:block text-muted-foreground">Manage your credit cards and loans</p>
                 </div>
                 <div className="flex items-center gap-2">
                     {credits && credits.filter((c: Credit) => c.status === 'active').length > 0 && (
@@ -102,34 +106,34 @@ export default function CreditsPage() {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Total Principal</CardDescription>
+            <div className="grid grid-cols-10 gap-2 md:grid-cols-3 md:gap-4">
+                <Card className="col-span-3 md:col-span-1">
+                    <CardHeader className="pb-1 px-3 md:px-6 pt-3 md:pt-6">
+                        <CardDescription className="text-xs md:text-sm whitespace-nowrap">Total Principal</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">
-                            {totalPrincipal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                    <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
+                        <div className="text-base md:text-2xl font-bold truncate">
+                            <CurrencyDisplay amount={totalPrincipal} currency={primaryCurrency} abbreviate={false} />
                         </div>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Total Remaining</CardDescription>
+                <Card className="col-span-3 md:col-span-1">
+                    <CardHeader className="pb-1 px-3 md:px-6 pt-3 md:pt-6">
+                        <CardDescription className="text-xs md:text-sm whitespace-nowrap">Total Remaining</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-red-500">
-                            {totalRemaining.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                    <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
+                        <div className="text-base md:text-2xl font-bold text-red-500 truncate">
+                            <CurrencyDisplay amount={totalRemaining} currency={primaryCurrency} abbreviate={false} />
                         </div>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Monthly Payments</CardDescription>
+                <Card className="col-span-4 md:col-span-1">
+                    <CardHeader className="pb-1 px-3 md:px-6 pt-3 md:pt-6">
+                        <CardDescription className="text-xs md:text-sm whitespace-nowrap">Monthly Payments</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">
-                            {totalMonthly.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                    <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
+                        <div className="text-base md:text-2xl font-bold truncate">
+                            <CurrencyDisplay amount={totalMonthly} currency={primaryCurrency} abbreviate={false} />
                         </div>
                     </CardContent>
                 </Card>
@@ -157,9 +161,9 @@ export default function CreditsPage() {
                                 style={{ width: `${getPayoffPercentage(credit)}%` }}
                             />
                             <CardHeader className="pb-2">
-                                <div className="flex items-center justify-between">
-                                    <CardTitle className="text-lg">{credit.name}</CardTitle>
-                                    <div className="flex items-center gap-2">
+                                <div className="flex items-center justify-between gap-2">
+                                    <CardTitle className="text-lg truncate">{credit.name}</CardTitle>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
                                         {getStatusBadge(credit.status)}
                                         <Button
                                             variant="ghost"

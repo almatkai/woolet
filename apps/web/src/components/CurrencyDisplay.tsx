@@ -23,7 +23,7 @@ export const formatAmountAbbreviated = (amount: string | number): string => {
     if (absNum >= 1_000_000) {
         return sign + (absNum / 1_000_000).toLocaleString('en-US', { maximumFractionDigits: 1 }) + 'm';
     }
-    if (absNum >= 1_000) {
+    if (absNum >= 10_000) {
         return sign + (absNum / 1_000).toLocaleString('en-US', { maximumFractionDigits: 1 }) + 'k';
     }
     return num.toLocaleString('en-US', { maximumFractionDigits: 2 });

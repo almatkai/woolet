@@ -77,7 +77,7 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
             </div>
 
             {/* Right side - Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 lg:p-12 relative bg-background overflow-hidden">
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-1 sm:p-6 lg:p-12 relative bg-background overflow-hidden">
                 {/* Decorative rectangles */}
                 <Rectangles
                     mainRectSize={200}
@@ -110,7 +110,7 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
                     </div>
 
                     {/* Form container */}
-                    <div className="bg-card/80 backdrop-blur-xl rounded-2xl p-8 border border-border shadow-2xl">
+                    <div className="bg-card/80 backdrop-blur-xl rounded-2xl p-4 sm:p-8 border border-border shadow-2xl">
                         {children}
                     </div>
 

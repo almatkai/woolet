@@ -149,7 +149,7 @@ export default function AdminPanel() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 p-6">
+    <div className="space-y-8 animate-in fade-in duration-500 p-1 md:p-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">

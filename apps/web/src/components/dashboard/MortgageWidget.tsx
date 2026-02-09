@@ -104,10 +104,10 @@ export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: nu
                                         return (
                                             <div 
                                                 key={mortgage.id} 
-                                                className="dashboard-widget__item flex items-center justify-between p-2 rounded-md bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+                                                className="dashboard-widget__item flex items-center justify-between p-2 rounded-md bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors gap-2"
                                                 onClick={() => setPayingMortgage(mortgage)}
                                             >
-                                                <div className="flex items-center gap-2 max-w-[60%]">
+                                                <div className="flex items-center gap-2 min-w-0 flex-1">
                                                     {isPaidThisMonth ? (
                                                         <Check className="h-3 w-3 text-green-600 flex-shrink-0" />
                                                     ) : (
@@ -115,7 +115,7 @@ export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: nu
                                                     )}
                                                     <span className="truncate">{mortgage.propertyName}</span>
                                                 </div>
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-2 flex-shrink-0">
                                                     <span className="font-medium whitespace-nowrap text-xs">
                                                         <CurrencyDisplay amount={mortgage.monthlyPayment} currency={mortgage.currency} />
                                                     </span>

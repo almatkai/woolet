@@ -101,8 +101,8 @@ export default function MortgagesPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold">Mortgages</h1>
-                    <p className="text-muted-foreground">Track your property loans</p>
+                    <h1 className="text-2xl font-bold">Mortgages</h1>
+                    <p className="hidden sm:block text-muted-foreground">Manage your properties and loans</p>
                 </div>
                 <Button onClick={() => setShowAddMortgage(true)}>
                     <Plus className="h-4 w-4 mr-2" />
@@ -172,20 +172,20 @@ export default function MortgagesPage() {
                                 style={{ width: `${getPayoffPercentage(mortgage)}%` }}
                             />
                             <CardHeader className="pb-2">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <CardTitle className="text-lg flex items-center gap-2">
-                                            <Home className="h-4 w-4" />
+                                <div className="flex items-center justify-between gap-2 overflow-hidden">
+                                    <div className="min-w-0">
+                                        <CardTitle className="text-lg flex items-center gap-2 truncate">
+                                            <Home className="h-4 w-4 flex-shrink-0" />
                                             {mortgage.propertyName}
                                         </CardTitle>
                                         {mortgage.propertyAddress && (
-                                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                                                <MapPin className="h-3 w-3" />
+                                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1 truncate">
+                                                <MapPin className="h-3 w-3 flex-shrink-0" />
                                                 {mortgage.propertyAddress}
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-shrink-0">
                                         <Badge 
                                             variant={isPaidThisMonth ? "secondary" : "destructive"} 
                                             className={isPaidThisMonth ? "bg-green-500/20 text-green-500 flex items-center gap-1" : "flex items-center gap-1"}

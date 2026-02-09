@@ -4,9 +4,9 @@ import { anomalyService } from '../services/ai/anomaly-service';
 import { AiConfigService } from '../services/ai/ai-config-service';
 import { AiUsageService } from '../services/ai/ai-usage-service';
 import { db } from '../db';
-import { transactions, portfolioHoldings, accounts, currencyBalances, chatSessions, chatMessages, banks, marketDigests, aiConfig } from '../db/schema';
+import { transactions, portfolioHoldings, accounts, currencyBalances, chatSessions, chatMessages, banks, marketDigests, aiConfig, categories, subscriptions, debts, credits, mortgages, deposits, fxRates, users } from '../db/schema';
 import { createChatCompletionWithFallback, MODEL_FLASH, checkPromptGuard, getAiStatus } from '../lib/ai';
-import { desc, asc, eq, and, gte, lte, inArray } from 'drizzle-orm';
+import { desc, asc, eq, and, gte, lte, inArray, sql, sum } from 'drizzle-orm';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { TIER_LIMITS } from './bank';
@@ -170,12 +170,8 @@ export const aiRouter = router({
             const usage = await AiUsageService.getUsage(userId);
             const userTier = ctx.user.subscriptionTier || 'free';
             const creditConfig = getCreditLimit(userTier, 'aiChat');
-            
-            const tierTitle = userTier === 'premium' 
-                ? 'Woo Assistant' 
-                : userTier === 'pro' 
-                    ? 'Woo Assistant (Limited)' 
-                    : 'Woo Assistant (Trial)';
+
+            const tierTitle = 'Woo'
 
             return {
                 usageToday: usage.questionCountToday,
@@ -185,9 +181,9 @@ export const aiRouter = router({
                 tierTitle,
                 isLimited: userTier === 'pro',
                 isFull: userTier === 'premium',
-                remaining: creditConfig.limit > 0 
+                remaining: creditConfig.limit > 0
                     ? Math.max(0, creditConfig.limit - usage.questionCountToday)
-                    : creditConfig.lifetimeLimit 
+                    : creditConfig.lifetimeLimit
                         ? Math.max(0, creditConfig.lifetimeLimit - usage.questionCountLifetime)
                         : 0
             };
@@ -322,6 +318,14 @@ User Financial Context:
 Context:
 ${context}
 
+Capabilities:
+- You can search transactions with various filters.
+- You can check account balances.
+- You can list categories (use this when you need category IDs for other tools).
+- You can list subscriptions and portfolio holdings.
+- You can analyze spending patterns by category.
+- You can create new transactions (always confirm the details with the user first).
+
 Answer concisely and helpful. Use emojis. If you need data, use the tools provided.
 `
             });
@@ -350,18 +354,74 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                     type: "function",
                     function: {
                         name: "search_transactions",
-                        description: "Search for transactions within a specific date range. ALWAYS use this tool when the user asks about spending on a specific date or period.",
+                        description: "Search for transactions with filters. Use this when the user asks about spending history, specific expenses, or income.",
                         parameters: {
                             type: "object",
                             properties: {
-                                startDate: {
-                                    type: "string",
-                                    description: "Start date in YYYY-MM-DD format"
-                                },
-                                endDate: {
-                                    type: "string",
-                                    description: "End date in YYYY-MM-DD format"
-                                }
+                                startDate: { type: "string", description: "Start date in YYYY-MM-DD format" },
+                                endDate: { type: "string", description: "End date in YYYY-MM-DD format" },
+                                categoryId: { type: "string", description: "Filter by category ID" },
+                                type: { type: "string", enum: ["income", "expense", "transfer"], description: "Filter by transaction type" },
+                                minAmount: { type: "number", description: "Minimum amount" },
+                                maxAmount: { type: "number", description: "Maximum amount" }
+                            },
+                        }
+                    }
+                },
+                {
+                    type: "function",
+                    function: {
+                        name: "get_account_balance",
+                        description: "Get the current balance across all bank accounts and currencies.",
+                        parameters: {
+                            type: "object",
+                            properties: {}
+                        }
+                    }
+                },
+                {
+                    type: "function",
+                    function: {
+                        name: "get_categories",
+                        description: "Get all available transaction categories (both system and user-defined).",
+                        parameters: {
+                            type: "object",
+                            properties: {}
+                        }
+                    }
+                },
+                {
+                    type: "function",
+                    function: {
+                        name: "get_subscriptions",
+                        description: "List the user's recurring subscriptions.",
+                        parameters: {
+                            type: "object",
+                            properties: {}
+                        }
+                    }
+                },
+                {
+                    type: "function",
+                    function: {
+                        name: "get_portfolio",
+                        description: "Get the user's current stock portfolio holdings and their quantities.",
+                        parameters: {
+                            type: "object",
+                            properties: {}
+                        }
+                    }
+                },
+                {
+                    type: "function",
+                    function: {
+                        name: "analyze_spending",
+                        description: "Get spending summary aggregated by category for a specific date range.",
+                        parameters: {
+                            type: "object",
+                            properties: {
+                                startDate: { type: "string", description: "Start date in YYYY-MM-DD format" },
+                                endDate: { type: "string", description: "End date in YYYY-MM-DD format" }
                             },
                             required: ["startDate", "endDate"]
                         }
@@ -370,16 +430,86 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                 {
                     type: "function",
                     function: {
-                        name: "get_account_balance",
-                        description: "Get the current balance across all bank accounts and currencies. Useful when user asks 'How much money do I have?' or 'What is my balance?'",
+                        name: "create_transaction",
+                        description: "Create a new transaction. ALWAYS confirm details with the user first unless they provide all info.",
                         parameters: {
                             type: "object",
                             properties: {
-                                dummy: {
-                                    type: "string",
-                                    description: "Not used"
-                                }
+                                amount: { type: "number", description: "Amount of the transaction" },
+                                description: { type: "string", description: "Description or merchant name" },
+                                date: { type: "string", description: "Date in YYYY-MM-DD format" },
+                                categoryId: { type: "string", description: "The UUID of the category" },
+                                currencyBalanceId: { type: "string", description: "The UUID of the account's currency balance" },
+                                type: { type: "string", enum: ["income", "expense", "transfer"], description: "Transaction type" }
+                            },
+                            required: ["amount", "date", "categoryId", "currencyBalanceId", "type"]
+                        }
+                    }
+                },
+                {
+                    type: "function",
+                    function: {
+                        name: "get_debts_and_credits",
+                        description: "Get user's debts, credits, and mortgages.",
+                        parameters: {
+                            type: "object",
+                            properties: {}
+                        }
+                    }
+                },
+                {
+                    type: "function",
+                    function: {
+                        name: "get_upcoming_payments",
+                        description: "Get upcoming payments for debts, credits, mortgages, and subscriptions.",
+                        parameters: {
+                            type: "object",
+                            properties: {
+                                days: { type: "number", description: "Number of days to look ahead (default 30)" }
                             }
+                        }
+                    }
+                },
+                {
+                    type: "function",
+                    function: {
+                        name: "get_net_worth_breakdown",
+                        description: "Get a breakdown of net worth by bank/asset, converted to user's default currency.",
+                        parameters: {
+                            type: "object",
+                            properties: {}
+                        }
+                    }
+                },
+                {
+                    type: "function",
+                    function: {
+                        name: "navigate_to",
+                        description: "Navigate the user to a specific page in the app.",
+                        parameters: {
+                            type: "object",
+                            properties: {
+                                path: {
+                                    type: "string",
+                                    enum: ["/dashboard", "/transactions", "/accounts", "/insights", "/settings", "/budget"],
+                                    description: " The path to navigate to."
+                                }
+                            },
+                            required: ["path"]
+                        }
+                    }
+                },
+                {
+                    type: "function",
+                    function: {
+                        name: "query_docs",
+                        description: "Search the app documentation/help center for answers about how to use the app.",
+                        parameters: {
+                            type: "object",
+                            properties: {
+                                query: { type: "string", description: "The search query" }
+                            },
+                            required: ["query"]
                         }
                     }
                 }
@@ -416,91 +546,255 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                     if (responseMessage.tool_calls) {
                         for (const toolCall of responseMessage.tool_calls) {
                             if (toolCall.type !== 'function') continue;
+                            const args = JSON.parse(toolCall.function.arguments);
+                            let toolResult: any = { error: "Unknown tool or execution failed" };
 
                             if (toolCall.function.name === "search_transactions") {
-                                const args = JSON.parse(toolCall.function.arguments);
-
-                                // Execute logic
-                                // 1. Get user's banks
-                                const userBanks = await db.query.banks.findMany({
-                                    where: eq(banks.userId, userId),
-                                });
-
+                                const userBanks = await db.query.banks.findMany({ where: eq(banks.userId, userId) });
                                 let txs: any[] = [];
                                 if (userBanks.length > 0) {
                                     const bankIds = userBanks.map(b => b.id);
-                                    const userAccounts = await db.query.accounts.findMany({
-                                        where: inArray(accounts.bankId, bankIds)
-                                    });
-
+                                    const userAccounts = await db.query.accounts.findMany({ where: inArray(accounts.bankId, bankIds) });
                                     if (userAccounts.length > 0) {
                                         const accountIds = userAccounts.map(a => a.id);
-                                        const userBalances = await db.query.currencyBalances.findMany({
-                                            where: inArray(currencyBalances.accountId, accountIds)
-                                        });
-
+                                        const userBalances = await db.query.currencyBalances.findMany({ where: inArray(currencyBalances.accountId, accountIds) });
                                         if (userBalances.length > 0) {
                                             const balanceIds = userBalances.map(b => b.id);
+                                            const conditions = [inArray(transactions.currencyBalanceId, balanceIds)];
+                                            if (args.startDate) conditions.push(gte(transactions.date, args.startDate));
+                                            if (args.endDate) conditions.push(lte(transactions.date, args.endDate));
+                                            if (args.categoryId) conditions.push(eq(transactions.categoryId, args.categoryId));
+                                            if (args.type) conditions.push(eq(transactions.type, args.type));
+                                            if (args.minAmount) conditions.push(gte(transactions.amount, args.minAmount.toString()));
+                                            if (args.maxAmount) conditions.push(lte(transactions.amount, args.maxAmount.toString()));
+
                                             txs = await db.query.transactions.findMany({
-                                                where: and(
-                                                    inArray(transactions.currencyBalanceId, balanceIds),
-                                                    gte(transactions.date, args.startDate),
-                                                    lte(transactions.date, args.endDate)
-                                                ),
+                                                where: and(...conditions),
                                                 with: { category: true },
-                                                orderBy: [desc(transactions.date)]
+                                                orderBy: [desc(transactions.date)],
+                                                limit: 50
                                             });
                                         }
                                     }
                                 }
-
-                                const toolResult = {
+                                toolResult = {
                                     transactions: txs.map(t => ({
+                                        id: t.id,
                                         date: t.date,
                                         amount: t.amount,
                                         description: t.description,
-                                        category: t.category.name
+                                        category: t.category.name,
+                                        type: t.type
                                     }))
                                 };
-
-                                messages.push({
-                                    role: "tool",
-                                    tool_call_id: toolCall.id,
-                                    content: JSON.stringify(toolResult)
-                                });
                             } else if (toolCall.function.name === "get_account_balance") {
-                                // 1. Get user's banks with accounts and balances
                                 const userBalances = await db.query.banks.findMany({
                                     where: eq(banks.userId, userId),
-                                    with: {
-                                        accounts: {
-                                            with: {
-                                                currencyBalances: true
-                                            }
-                                        }
-                                    }
+                                    with: { accounts: { with: { currencyBalances: true } } }
                                 });
-
-                                const toolResult = {
+                                toolResult = {
                                     banks: userBalances.map(b => ({
                                         name: b.name,
                                         accounts: b.accounts.map(a => ({
                                             name: a.name,
                                             type: a.type,
                                             balances: a.currencyBalances.map(cb => ({
+                                                id: cb.id,
                                                 amount: cb.balance,
                                                 currency: cb.currencyCode
                                             }))
                                         }))
                                     }))
                                 };
-
-                                messages.push({
-                                    role: "tool",
-                                    tool_call_id: toolCall.id,
-                                    content: JSON.stringify(toolResult)
+                            } else if (toolCall.function.name === "get_categories") {
+                                const allCategories = await db.query.categories.findMany({
+                                    where: sql`${categories.userId} IS NULL OR ${categories.userId} = ${userId}`
                                 });
+                                toolResult = { categories: allCategories.map(c => ({ id: c.id, name: c.name, type: c.type, icon: c.icon })) };
+                            } else if (toolCall.function.name === "get_subscriptions") {
+                                const userSubs = await db.query.subscriptions.findMany({
+                                    where: eq(subscriptions.userId, userId)
+                                });
+                                toolResult = { subscriptions: userSubs.map(s => ({ id: s.id, name: s.name, amount: s.amount, currency: s.currency, frequency: s.frequency, status: s.status })) };
+                            } else if (toolCall.function.name === "get_portfolio") {
+                                const userHoldings = await db.query.portfolioHoldings.findMany({
+                                    where: eq(portfolioHoldings.userId, userId),
+                                    with: { stock: true }
+                                });
+                                toolResult = { holdings: userHoldings.map(h => ({ ticker: h.stock.ticker, name: h.stock.name, quantity: h.quantity, avgCost: h.averageCostBasis })) };
+                            } else if (toolCall.function.name === "analyze_spending") {
+                                const userBanks = await db.query.banks.findMany({ where: eq(banks.userId, userId) });
+                                let analysis: any[] = [];
+                                if (userBanks.length > 0) {
+                                    const bankIds = userBanks.map(b => b.id);
+                                    const userAccounts = await db.query.accounts.findMany({ where: inArray(accounts.bankId, bankIds) });
+                                    if (userAccounts.length > 0) {
+                                        const accountIds = userAccounts.map(a => a.id);
+                                        const userBalances = await db.query.currencyBalances.findMany({ where: inArray(currencyBalances.accountId, accountIds) });
+                                        if (userBalances.length > 0) {
+                                            const balanceIds = userBalances.map(b => b.id);
+                                            analysis = await db.select({
+                                                categoryName: categories.name,
+                                                totalAmount: sum(transactions.amount),
+                                                count: sql`count(*)`.mapWith(Number)
+                                            })
+                                                .from(transactions)
+                                                .leftJoin(categories, eq(transactions.categoryId, categories.id))
+                                                .where(and(
+                                                    inArray(transactions.currencyBalanceId, balanceIds),
+                                                    gte(transactions.date, args.startDate),
+                                                    lte(transactions.date, args.endDate),
+                                                    eq(transactions.type, 'expense')
+                                                ))
+                                                .groupBy(categories.name);
+                                        }
+                                    }
+                                }
+                                toolResult = { spending_by_category: analysis };
+                            } else if (toolCall.function.name === "create_transaction") {
+                                // Validate ownership of currencyBalanceId
+                                const balance = await db.query.currencyBalances.findFirst({
+                                    where: eq(currencyBalances.id, args.currencyBalanceId),
+                                    with: { account: { with: { bank: true } } }
+                                });
+
+                                if (!balance || balance.account.bank.userId !== userId) {
+                                    toolResult = { error: "Invalid account or access denied" };
+                                } else {
+                                    const [newTx] = await db.insert(transactions).values({
+                                        currencyBalanceId: args.currencyBalanceId,
+                                        categoryId: args.categoryId,
+                                        amount: args.amount.toString(),
+                                        description: args.description || "Added via AI",
+                                        date: args.date,
+                                        type: args.type
+                                    }).returning();
+                                    toolResult = { success: true, transactionId: newTx.id };
+                                }
+                            } else if (toolCall.function.name === "get_debts_and_credits") {
+                                const userDebts = await db.query.debts.findMany({ where: eq(debts.userId, userId) });
+                                // Credits and mortgages are linked to accounts, need to fetch user accounts first
+                                const userBanks = await db.query.banks.findMany({ where: eq(banks.userId, userId) });
+                                const bankIds = userBanks.map(b => b.id);
+                                let creditsList: any[] = [];
+                                let mortgagesList: any[] = [];
+
+                                if (bankIds.length > 0) {
+                                    const userAccounts = await db.query.accounts.findMany({ where: inArray(accounts.bankId, bankIds) });
+                                    if (userAccounts.length > 0) {
+                                        const accountIds = userAccounts.map(a => a.id);
+                                        creditsList = await db.query.credits.findMany({ where: inArray(credits.accountId, accountIds) });
+                                        mortgagesList = await db.query.mortgages.findMany({ where: inArray(mortgages.accountId, accountIds) });
+                                    }
+                                }
+
+                                toolResult = {
+                                    debts: userDebts.map(d => ({ person: d.personName, amount: d.amount, type: d.type, status: d.status })),
+                                    credits: creditsList.map(c => ({ name: c.name, principal: c.principalAmount, remaining: c.remainingBalance, monthly: c.monthlyPayment })),
+                                    mortgages: mortgagesList.map(m => ({ property: m.propertyName, remaining: m.remainingBalance, monthly: m.monthlyPayment }))
+                                };
+                            } else if (toolCall.function.name === "get_upcoming_payments") {
+                                const days = args.days || 30;
+                                const today = new Date();
+                                const futureDate = new Date();
+                                futureDate.setDate(today.getDate() + days);
+
+                                // Simplified logic: just returning the recurring items for now as "upcoming" candidates
+                                // In a real app, we'd calculate exact next payment dates based on billing cycles
+                                const userSubs = await db.query.subscriptions.findMany({ where: eq(subscriptions.userId, userId) });
+
+                                // Get debts/credits/mortgages (similar fetching logic as above)
+                                const userBanks = await db.query.banks.findMany({ where: eq(banks.userId, userId) });
+                                const bankIds = userBanks.map(b => b.id);
+                                let creditsList: any[] = [];
+                                let mortgagesList: any[] = [];
+                                if (bankIds.length > 0) {
+                                    const userAccounts = await db.query.accounts.findMany({ where: inArray(accounts.bankId, bankIds) });
+                                    if (userAccounts.length > 0) {
+                                        const accountIds = userAccounts.map(a => a.id);
+                                        creditsList = await db.query.credits.findMany({ where: inArray(credits.accountId, accountIds) });
+                                        mortgagesList = await db.query.mortgages.findMany({ where: inArray(mortgages.accountId, accountIds) });
+                                    }
+                                }
+
+                                toolResult = {
+                                    subscriptions: userSubs.map(s => ({ name: s.name, amount: s.amount, frequency: s.frequency, nextDate: "Check billing day " + s.billingDay })),
+                                    credits: creditsList.map(c => ({ name: c.name, amount: c.monthlyPayment, nextDate: "Monthly" })),
+                                    mortgages: mortgagesList.map(m => ({ name: m.propertyName, amount: m.monthlyPayment, nextDate: "Monthly on day " + m.paymentDay }))
+                                };
+                            } else if (toolCall.function.name === "get_net_worth_breakdown") {
+                                const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+                                const defaultCurrency = user?.defaultCurrency || 'USD';
+
+                                // Mock FX rates for now or fetch latest
+                                // Ideally we fetch from fxRates table
+                                const rates = await db.query.fxRates.findMany({
+                                    where: eq(fxRates.toCurrency, defaultCurrency),
+                                    orderBy: [desc(fxRates.date)],
+                                    limit: 50 // Get recent rates
+                                });
+                                // Create a Map for quick lookup: fromCurrency -> rate
+                                const rateMap = new Map<string, number>();
+                                rates.forEach(r => rateMap.set(r.fromCurrency, Number(r.rate)));
+                                rateMap.set(defaultCurrency, 1); // Base case
+
+                                const userBanks = await db.query.banks.findMany({
+                                    where: eq(banks.userId, userId),
+                                    with: { accounts: { with: { currencyBalances: true } } }
+                                });
+
+                                let totalNetWorth = 0;
+                                const breakdown = userBanks.map(b => {
+                                    let bankTotal = 0;
+                                    b.accounts.forEach(a => {
+                                        a.currencyBalances.forEach(cb => {
+                                            const rate = rateMap.get(cb.currencyCode) || 1; // Fallback to 1 if no rate found (simplified)
+                                            // TODO: Handle missing rates more gracefully in production
+                                            bankTotal += Number(cb.balance) * rate;
+                                        });
+                                    });
+                                    totalNetWorth += bankTotal;
+                                    return { bankName: b.name, totalValue: bankTotal.toFixed(2), currency: defaultCurrency };
+                                });
+
+                                // Sort by highest value
+                                breakdown.sort((a, b) => Number(b.totalValue) - Number(a.totalValue));
+
+                                toolResult = {
+                                    defaultCurrency,
+                                    totalNetWorth: totalNetWorth.toFixed(2),
+                                    breakdown
+                                };
+                            } else if (toolCall.function.name === "navigate_to") {
+                                toolResult = { success: true, path: args.path };
+                            } else if (toolCall.function.name === "query_docs") {
+                                const docs = [
+                                    { topic: "Dashboard", keywords: ["dashboard", "home", "overview", "summary"], content: "The Dashboard shows your net worth, recent transactions, and active accounts. You can customize widgets here." },
+                                    { topic: "Transactions", keywords: ["transaction", "add", "edit", "delete", "spending", "expense", "income"], content: "Go to the Transactions page to view history. Click 'Add Transaction' to log spending. You can filter by date, category, or account." },
+                                    { topic: "Accounts", keywords: ["account", "bank", "card", "manual", "sync"], content: "The Accounts page lists all connected banks and manual accounts. You can link new banks via Plaid or add manual cash wallets." },
+                                    { topic: "Insights", keywords: ["insight", "report", "graph", "chart", "analysis"], content: "Insights provide visual reports of your finances. View spending by category, monthly trends, and income vs expense flows." },
+                                    { topic: "Settings", keywords: ["setting", "preference", "currency", "theme", "profile"], content: "Manage your profile, default currency, app theme (dark/light), and notification preferences in Settings." },
+                                    { topic: "Budgets", keywords: ["budget", "limit", "save", "goal"], content: "Set monthly spending limits for specific categories in the Budgets section to track your saving goals." },
+                                    { topic: "AI Chat", keywords: ["ai", "woo", "chat", "assistant", "help"], content: "Woo is your AI assistant. Ask it about your spending, to add transactions, or for financial advice. It can search your data and perform actions." }
+                                ];
+
+                                const query = args.query.toLowerCase();
+                                const results = docs.filter(d =>
+                                    d.topic.toLowerCase().includes(query) ||
+                                    d.keywords.some(k => query.includes(k)) ||
+                                    d.content.toLowerCase().includes(query)
+                                ).map(d => `${d.topic}: ${d.content}`);
+
+                                toolResult = {
+                                    results: results.length > 0 ? results : ["No specific help article found. Try navigating to the relevant page or asking differently."]
+                                };
                             }
+
+                            messages.push({
+                                role: "tool",
+                                tool_call_id: toolCall.id,
+                                content: JSON.stringify(toolResult)
+                            });
                         }
                         // Continue loop to get fresh response after tool outputs
                     } else {
@@ -510,31 +804,49 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                     }
                 }
 
-                // 7. Save Model Response
+// Check if the FINAL turn contained a navigation action
+// We typically want to execute the action if the tool was called.
+// Scan all tool calls in the conversation added during this session.
+                let clientAction = null;
+// iterate backwards to find the last navigation
+                for (let i = messages.length - 1; i >= 0; i--) {
+                    const msg = messages[i];
+                    if (msg.role === 'assistant' && msg.tool_calls) {
+                        const navCall = msg.tool_calls.find(tc => tc.function.name === "navigate_to");
+                        if (navCall) {
+                            const args = JSON.parse(navCall.function.arguments);
+                            clientAction = { type: 'navigate', path: args.path };
+                            break;
+                        }
+                    }
+    // Stop if we hit user message (only look at current turn chains)
+                    if (msg.role === 'user') break;
+                }
+
+// 7. Save Model Response
                 await db.insert(chatMessages).values({
                     sessionId,
                     role: 'model',
                     content: finalResponseText || "(No response)"
                 });
 
-                // Increment usage
+// Increment usage
                 await AiUsageService.incrementUsage(userId);
 
-                return { response: finalResponseText, sessionId };
-
+                return { response: finalResponseText, sessionId, clientAction };
             } catch (error: any) {
                 console.error("AI Error:", error);
                 throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message || 'AI Service Error' });
             }
         }),
 
-    // Admin endpoints for managing AI configuration
-    getAiConfig: protectedProcedure
-        .query(async ({ ctx }) => {
-            // TODO: Add admin check
-            const config = await AiConfigService.getConfig();
-            return config;
-        }),
+// Admin endpoints for managing AI configuration
+getAiConfig: protectedProcedure
+    .query(async ({ ctx }) => {
+        // TODO: Add admin check
+        const config = await AiConfigService.getConfig();
+        return config;
+    }),
 
     updateAiConfig: protectedProcedure
         .input(z.object({
@@ -554,16 +866,16 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
             return updatedConfig;
         }),
 
-    resetAiConfig: protectedProcedure
-        .mutation(async ({ ctx }) => {
-            // TODO: Add admin check
-            const resetConfig = await AiConfigService.resetToDefault();
-            return resetConfig;
-        }),
+        resetAiConfig: protectedProcedure
+            .mutation(async ({ ctx }) => {
+                // TODO: Add admin check
+                const resetConfig = await AiConfigService.resetToDefault();
+                return resetConfig;
+            }),
 
-    getAiStatus: protectedProcedure
-        .query(async ({ ctx }) => {
-            // TODO: Add admin check
-            return await getAiStatus();
-        }),
+            getAiStatus: protectedProcedure
+                .query(async ({ ctx }) => {
+                    // TODO: Add admin check
+                    return await getAiStatus();
+                }),
 });
