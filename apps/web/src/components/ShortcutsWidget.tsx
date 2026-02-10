@@ -30,7 +30,7 @@ export function ShortcutsWidget({ shortcuts, onOpenShortcut, onClose, isVisible 
             className="w-full h-full pointer-events-none"
         >
             <div className="bg-background/80 backdrop-blur-xl border border-border rounded-2xl shadow-2xl p-3 sm:p-4 w-full h-full pointer-events-auto overflow-hidden flex flex-col">
-                <div className="flex items-center justify-between mb-2 px-1">
+                <div className="flex items-center justify-between mb-2 pl-0 pr-1">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">Starred Shortcuts</p>
                     <Button
                         size="icon"

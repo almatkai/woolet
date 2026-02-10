@@ -1516,11 +1516,11 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
             {createPortal(
                 <AnimatePresence>
                     {isOpen && (
-                        <div className="fixed inset-0 z-[46] flex items-end p-2 md:p-4 pointer-events-none w-full h-full">
-                            <div className="pointer-events-auto w-full md:w-auto h-full md:h-auto flex items-end justify-center md:justify-start overflow-hidden">
+                        <div className="fixed inset-0 z-[46] flex items-end p-2 min-[850px]:p-4 pointer-events-none w-full h-full">
+                            <div className="pointer-events-auto w-full min-[850px]:w-auto h-full min-[850px]:h-auto flex items-end justify-center min-[850px]:justify-start overflow-hidden">
                                 <motion.div
                                     layoutId="ai-chat-container"
-                                    className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-3xl overflow-hidden shadow-2xl border-purple-200 dark:border-purple-800 w-full md:w-[350px] h-[calc(100dvh-1rem)] md:h-[600px] max-h-[85vh] md:max-h-none flex flex-col mb-0"
+                                    className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-3xl overflow-hidden shadow-2xl border-purple-200 dark:border-purple-800 w-full min-[850px]:w-[350px] h-[calc(100dvh-1rem)] min-[850px]:h-[600px] max-h-[85vh] min-[850px]:max-h-none flex flex-col mb-0"
                                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                                 >
                                     <div className="flex-1 flex flex-col overflow-hidden">

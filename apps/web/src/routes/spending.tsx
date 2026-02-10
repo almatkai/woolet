@@ -1274,10 +1274,10 @@ export function SpendingPage() {
 
             {/* Floating Favorites Widget */}
             {favoritesWidgetVisible && (
-                <div className="fixed bottom-4 right-4 left-auto sm:right-6 sm:bottom-6 z-40 animate-in fade-in slide-in-from-bottom-5 duration-500">
+                <div className="fixed bottom-4 right-20 left-auto sm:right-20 sm:bottom-4 z-40 animate-in fade-in slide-in-from-bottom-5 duration-500">
                     <div className="flex items-end gap-2 min-[850px]:block">
                         <div className="bg-background/80 backdrop-blur-xl border border-border rounded-2xl shadow-2xl p-3 sm:p-4 w-fit min-w-[150px] max-w-sm mx-0 overflow-hidden">
-                            <div className="flex items-center justify-between mb-3 px-1">
+                            <div className="flex items-center justify-between mb-3 pl-0 pr-1">
                                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">Starred</p>
                                 <Button
                                     size="icon"

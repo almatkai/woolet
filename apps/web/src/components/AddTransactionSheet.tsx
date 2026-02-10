@@ -290,7 +290,7 @@ export function AddTransactionSheet({
                     </SheetDescription>
                 </SheetHeader>
                 {favoriteShortcuts.length > 0 && (
-                    <div className="px-1 py-6 border-b border-border/40">
+                    <div className="pl-0 pr-1 py-6 border-b border-border/40">
                         <div className="mb-4">
                             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Starred Shortcuts</p>
                         </div>
