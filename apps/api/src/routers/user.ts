@@ -30,10 +30,13 @@ import {
     stockPrices,
     currencies,
     DEFAULT_CURRENCIES,
+    exportHistories,
 } from '../db/schema';
 import * as schema from '../db/schema';
 import { TRPCError } from '@trpc/server';
 import crypto from 'crypto';
+import { subMonths, startOfDay, startOfWeek } from 'date-fns';
+import { gte, count, and } from 'drizzle-orm';
 
 const ISO_DATE_REGEXP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
@@ -154,6 +157,28 @@ const userPreferencesSchema = z.object({
         period: z.string().optional(),
     }).optional(),
 }).optional();
+
+type ExportTierLimits = {
+    transactionsMonths?: number;
+    maxPerDay: number;
+    maxPerWeek: number;
+};
+
+const EXPORT_LIMITS: Record<string, ExportTierLimits> = {
+    free: {
+        transactionsMonths: 2,
+        maxPerDay: 1, // Reasonable default for free
+        maxPerWeek: 3,
+    },
+    pro: {
+        maxPerDay: 3,
+        maxPerWeek: 7,
+    },
+    premium: {
+        maxPerDay: 6,
+        maxPerWeek: 14,
+    },
+};
 
 export const userRouter = router({
     me: protectedProcedure.query(async ({ ctx }) => {
@@ -374,6 +399,54 @@ export const userRouter = router({
         }),
 
     exportAllData: protectedProcedure.query(async ({ ctx }) => {
+        // 1. Get user and tier
+        const user = await ctx.db.query.users.findFirst({
+            where: eq(schema.users.id, ctx.userId!),
+        });
+
+        if (!user) {
+            throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found' });
+        }
+
+        const tier = user.subscriptionTier || 'free';
+        const limits = EXPORT_LIMITS[tier] || EXPORT_LIMITS.free;
+
+        // 2. Check frequency limits
+        const now = new Date();
+        const dailyStart = startOfDay(now);
+        const weeklyStart = startOfWeek(now);
+
+        const [dailyCount] = await ctx.db
+            .select({ value: count() })
+            .from(exportHistories)
+            .where(and(
+                eq(exportHistories.userId, ctx.userId!),
+                gte(exportHistories.timestamp, dailyStart)
+            ));
+
+        const [weeklyCount] = await ctx.db
+            .select({ value: count() })
+            .from(exportHistories)
+            .where(and(
+                eq(exportHistories.userId, ctx.userId!),
+                gte(exportHistories.timestamp, weeklyStart)
+            ));
+
+        if (dailyCount.value >= limits.maxPerDay) {
+            throw new TRPCError({
+                code: 'TOO_MANY_REQUESTS',
+                message: `Daily export limit reached (${limits.maxPerDay}). Please try again tomorrow.`
+            });
+        }
+
+        if (weeklyCount.value >= limits.maxPerWeek) {
+            throw new TRPCError({
+                code: 'TOO_MANY_REQUESTS',
+                message: `Weekly export limit reached (${limits.maxPerWeek}). Please try again next week.`
+            });
+        }
+
+        // 3. Fetch data with tier-based filters
         const userBanks = await ctx.db.query.banks.findMany({ where: eq(schema.banks.userId, ctx.userId!) });
         const bankIds = userBanks.map(b => b.id);
 
@@ -387,8 +460,15 @@ export const userRouter = router({
         }) : [];
         const balanceIds = balances.map(b => b.id);
 
-        const userTransactions = balanceIds.length ? await ctx.db.query.transactions.findMany({
-            where: inArray(schema.transactions.currencyBalanceId, balanceIds)
+        // Transaction history limit for free tier
+        let transactionCondition = balanceIds.length ? inArray(schema.transactions.currencyBalanceId, balanceIds) : undefined;
+        if (limits.transactionsMonths && transactionCondition) {
+            const dateLimit = subMonths(new Date(), limits.transactionsMonths);
+            transactionCondition = and(transactionCondition, gte(schema.transactions.createdAt, dateLimit));
+        }
+
+        const userTransactions = transactionCondition ? await ctx.db.query.transactions.findMany({
+            where: transactionCondition
         }) : [];
 
         const userCategories = await ctx.db.query.categories.findMany({ where: eq(schema.categories.userId, ctx.userId!) });
@@ -422,6 +502,15 @@ export const userRouter = router({
             where: inArray(schema.splitPayments.splitId, splitIds)
         }) : [];
 
+        // 4. Record export attempt
+        await ctx.db.insert(exportHistories).values({
+            userId: ctx.userId!,
+        });
+
+        // 5. Fetch additional data (settings, subscriptions)
+        const userSettingsData = await ctx.db.query.userSettings.findMany({ where: eq(schema.userSettings.userId, ctx.userId!) });
+        const dashboards = await ctx.db.query.dashboardLayouts.findMany({ where: eq(schema.dashboardLayouts.userId, ctx.userId!) });
+
         return {
             timestamp: new Date().toISOString(),
             version: 1,
@@ -449,6 +538,8 @@ export const userRouter = router({
                 splitParticipants: userSplitParticipants,
                 transactionSplits: userTransactionSplits,
                 splitPayments: userSplitPayments,
+                userSettings: userSettingsData,
+                dashboardLayouts: dashboards,
             }
         };
     }),
@@ -590,7 +681,7 @@ export const userRouter = router({
                 if (data.currencyBalances?.length) {
                     // Filter to only valid accounts first
                     const validBalances = data.currencyBalances.filter((cb: { accountId: string }) => validAccountIds.has(cb.accountId));
-                    
+
                     if (validBalances.length > 0) {
                         const currencyCodes = Array.from(new Set<string>(validBalances.map((cb: { currencyCode: string }) => cb.currencyCode)));
 

@@ -1,8 +1,10 @@
 import { createRootRoute, createRoute, Outlet, useLocation } from '@tanstack/react-router';
 import { SignedIn, useAuth } from '@clerk/clerk-react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
+import { AiChatFloatingItem } from '@/components/AiChatWidget';
 import { Separator } from '@/components/ui/separator';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { NotificationsMenu } from '@/components/NotificationsMenu';
@@ -37,7 +39,7 @@ import { PostHogPageviewTracker, PostHogUserIdentifier } from './components/Post
 function RootLayout() {
     const { isSignedIn } = useAuth();
     const location = useLocation();
-    const isSettingsRoute = location.pathname.startsWith('/account') || location.pathname.startsWith('/settings');
+    const isSettingsRoute = location.pathname.startsWith('/settings');
     const isAuthRoute = location.pathname.startsWith('/login')
         || location.pathname.startsWith('/register')
         || location.pathname.startsWith('/sso-callback');
@@ -49,7 +51,7 @@ function RootLayout() {
             <>
                 <PostHogUserIdentifier />
                 <PostHogPageviewTracker />
-                <main className="p-0">
+                <main className="h-full overflow-y-auto p-0">
                     <Outlet />
                 </main>
             </>
@@ -67,21 +69,29 @@ function RootLayout() {
                 <SidebarInset className={!isSignedIn || isAuthRoute ? "!m-0 !rounded-none !border-0 !shadow-none bg-background" : ""}>
                     <SignedIn>
                         {!isAuthRoute && (
-                            <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+                            <header className={cn(
+                                "sticky top-0 z-40 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4"
+                            )}>
                                 <SidebarTrigger className="-ml-1" />
-                                <Separator orientation="vertical" className="mr-2 h-4" />
-                                <div className="flex flex-1 items-center justify-between">
+                                <Separator orientation="vertical" className="hidden sm:block mr-2 h-4" />
+                                <div className="flex flex-1 items-center justify-between gap-2">
                                     <DateRangePicker />
                                     <NotificationsMenu />
                                 </div>
                             </header>
                         )}
                     </SignedIn>
-                    <main className={cn("flex-1", isSignedIn && !isSettingsRoute && !isAuthRoute ? "p-6" : "p-0")}>
+                    <main className={cn("flex-1 w-full overflow-y-auto overflow-x-hidden", isSignedIn && !isSettingsRoute && !isAuthRoute ? "p-3 md:p-6" : "p-0")}>
                         <Outlet />
                     </main>
                 </SidebarInset>
             </SidebarProvider>
+
+            <SignedIn>
+                {!isAuthRoute && (
+                    <AiChatFloatingItem variant="mobile" />
+                )}
+            </SignedIn>
         </>
     );
 }

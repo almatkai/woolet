@@ -44,24 +44,26 @@ export function DateRangePicker({ className, date, onDateChange }: DateRangePick
                         id="date"
                         variant={'outline'}
                         className={cn(
-                            'w-[280px] justify-start text-left font-normal',
+                            'w-[40px] px-0 sm:w-[280px] sm:px-4 justify-center sm:justify-start text-left font-normal',
                             !currentDate && 'text-muted-foreground'
                         )}
                     >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {currentDate?.from ? (
-                            currentDate.to ? (
-                                <>
-                                    {format(currentDate.from, 'LLL dd, y')} -{' '}
-                                    {format(currentDate.to, 'LLL dd, y')}
-                                </>
+                        <CalendarIcon className="sm:mr-2 h-4 w-4" />
+                        <span className="hidden sm:inline">
+                            {currentDate?.from ? (
+                                currentDate.to ? (
+                                    <>
+                                        {format(currentDate.from, 'LLL dd, y')} -{' '}
+                                        {format(currentDate.to, 'LLL dd, y')}
+                                    </>
+                                ) : (
+                                    format(currentDate.from, 'LLL dd, y')
+                                )
                             ) : (
-                                format(currentDate.from, 'LLL dd, y')
-                            )
-                        ) : (
-                            <span>Pick a date range</span>
-                        )}
-                        <ChevronDown className="ml-auto h-4 w-4 opacity-50" />
+                                <span>Pick a date range</span>
+                            )}
+                        </span>
+                        <ChevronDown className="hidden sm:block ml-auto h-4 w-4 opacity-50" />
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">

@@ -232,7 +232,7 @@ export function UniversalAddSheet() {
                                     
                                 </div>
                                 {/* Form Content */}
-                                <ScrollArea className="flex-1 p-6">
+                                <ScrollArea className="flex-1 p-1 md:p-6">
                                     {renderFormContent()}
                                 </ScrollArea>
                             </>

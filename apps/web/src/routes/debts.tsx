@@ -344,7 +344,7 @@ export function DebtsPage() {
             <div className="border rounded-lg p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                        <div className="font-medium">{debt.personName}</div>
+                        <div className="text-sm sm:text-md">{debt.personName}</div>
                         {debt.description && (
                             <div className="text-sm text-muted-foreground italic">
                                 {debt.description}
@@ -469,8 +469,8 @@ export function DebtsPage() {
         <div className="space-y-4 md:space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-bold">Debts</h1>
-                    <p className="text-sm md:text-base text-muted-foreground">Track who owes you and who you owe</p>
+                    <h1 className="text-2xl font-bold">Debts</h1>
+                    <p className="hidden sm:block text-sm md:text-base text-muted-foreground">Track who owes you and who you owe</p>
                 </div>
                 <AddDebtSheet />
             </div>
@@ -805,15 +805,16 @@ export function DebtsPage() {
 
                         <div className="flex items-center space-x-2">
                             <Switch
+                                id="is-payment-split"
                                 checked={isPaymentSplit}
                                 onCheckedChange={(checked: boolean) => setValuePayment('isSplit', checked)}
                             />
-                            <Label>Split across multiple accounts</Label>
+                            <Label htmlFor="is-payment-split">Split across multiple accounts</Label>
                         </div>
 
                         {!isPaymentSplit ? (
                             <div className="space-y-2">
-                                <Label>Destination Account</Label>
+                                <Label htmlFor="destination-account">Destination Account</Label>
                                 <Select
                                     value={watchPayment('distributions.0.currencyBalanceId')}
                                     onValueChange={(val: string) => {
@@ -821,7 +822,7 @@ export function DebtsPage() {
                                         setValuePayment('distributions.0.amount', paymentTotalAmount);
                                     }}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger id="destination-account">
                                         <SelectValue placeholder="Select account" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -850,12 +851,12 @@ export function DebtsPage() {
                                     {paymentFields.map((field, index) => (
                                         <div key={field.id} className="flex gap-2 items-end">
                                             <div className="flex-1 space-y-1">
-                                                <Label className="text-xs">Account</Label>
+                                                <Label className="text-xs" htmlFor={`distribution-account-${index}`}>Account</Label>
                                                 <Select
                                                     value={watchPayment(`distributions.${index}.currencyBalanceId`)}
                                                     onValueChange={(val: string) => setValuePayment(`distributions.${index}.currencyBalanceId`, val)}
                                                 >
-                                                    <SelectTrigger>
+                                                    <SelectTrigger id={`distribution-account-${index}`}>
                                                         <SelectValue placeholder="Select" />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -868,8 +869,9 @@ export function DebtsPage() {
                                                 </Select>
                                             </div>
                                             <div className="w-24 space-y-1">
-                                                <Label className="text-xs">Amount</Label>
+                                                <Label className="text-xs" htmlFor={`distribution-amount-${index}`}>Amount</Label>
                                                 <Input
+                                                    id={`distribution-amount-${index}`}
                                                     type="number"
                                                     step="0.01"
                                                     {...registerPayment(`distributions.${index}.amount`, { valueAsNumber: true })}
@@ -920,8 +922,10 @@ export function DebtsPage() {
                     </SheetHeader>
                     <div className="space-y-4 pt-6">
                         <div className="space-y-2">
-                            <Label>Amount ({recordPaymentSplit?.currencyCode})</Label>
+                            <Label htmlFor="split-payment-amount">Amount ({recordPaymentSplit?.currencyCode})</Label>
                             <Input
+                                id="split-payment-amount"
+                                name="split-payment-amount"
                                 type="number"
                                 placeholder={`Remaining: ${recordPaymentSplit?.remaining?.toLocaleString()}`}
                                 value={splitPaymentAmount}
@@ -932,20 +936,22 @@ export function DebtsPage() {
                             </p>
                         </div>
                         <div className="space-y-2">
-                            <Label>Date</Label>
+                            <Label htmlFor="split-payment-date">Date</Label>
                             <Input
+                                id="split-payment-date"
+                                name="split-payment-date"
                                 type="date"
                                 value={splitPaymentDate}
                                 onChange={(e) => setSplitPaymentDate(e.target.value)}
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label>Receive to Account</Label>
+                            <Label htmlFor="receive-account">Receive to Account</Label>
                             <Select
                                 value={splitPaymentAccountId}
                                 onValueChange={setSplitPaymentAccountId}
                             >
-                                <SelectTrigger>
+                                <SelectTrigger id="receive-account">
                                     <SelectValue placeholder="Select account" />
                                 </SelectTrigger>
                                 <SelectContent>

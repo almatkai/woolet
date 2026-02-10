@@ -32,3 +32,4 @@ export * from './ai-config';
 export * from './ai-usage';
 export * from './notifications';
 export * from './push-subscriptions';
+export * from './export-histories';

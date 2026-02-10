@@ -5,7 +5,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Pencil, Trash2, MoreHorizontal, Star, StarOff, Bookmark, X, Plus, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn, formatAccountLabel } from '@/lib/utils';
 import { AddTransactionSheet } from '@/components/AddTransactionSheet';
+import { AiChatFloatingItem } from '@/components/AiChatWidget';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +36,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { trpc } from '@/lib/trpc';
+import { CurrencyDisplay, formatAmountAbbreviated } from '@/components/CurrencyDisplay';
 
 interface SplitParticipant {
     id: string;
@@ -146,6 +149,8 @@ export function SpendingPage() {
     const [shortcutsListOpen, setShortcutsListOpen] = useState(false);
     const [editingShortcut, setEditingShortcut] = useState<TransactionShortcut | null>(null);
     const [shortcuts, setShortcuts] = useState<TransactionShortcut[]>([]);
+
+    const favoriteShortcuts = useMemo(() => shortcuts.filter(s => s.isFavorite), [shortcuts]);
 
     useEffect(() => {
         if (shortcuts.length > 0) {
@@ -357,6 +362,19 @@ export function SpendingPage() {
         return new Map<string, string>((categories || []).map((cat: { id: string; name: string; icon: string }) => [cat.id, `${cat.icon} ${cat.name} `]));
     }, [categories]);
 
+    const currencyCodeById = useMemo(() => {
+        const map = new Map<string, string>();
+        if (!banks) return map;
+        banks.forEach((bank: { accounts: Array<{ currencyBalances: Array<{ id: string; currencyCode: string }> }> }) => {
+            bank.accounts.forEach((acc) => {
+                acc.currencyBalances.forEach((cb) => {
+                    map.set(cb.id, cb.currencyCode);
+                });
+            });
+        });
+        return map;
+    }, [banks]);
+
     const handleCreateShortcut = (data: ShortcutForm) => {
         const amountValue = data.amount ? Number(data.amount) : undefined;
         const newShortcut: TransactionShortcut = {
@@ -442,8 +460,6 @@ export function SpendingPage() {
         setShortcutSheetOpen(true);
     };
 
-    const favoriteShortcuts = shortcuts.filter((s) => s.isFavorite).slice(0, 4);
-
     const handleDelete = (transaction: Transaction) => {
         const label = transaction.description || transaction.category?.name || 'Transaction';
         setPendingDeletes(prev => new Set(prev).add(transaction.id));
@@ -481,24 +497,26 @@ export function SpendingPage() {
         deleteTimeoutRef.current.set(transaction.id, timeout);
     };
 
-    const visibleTransactions = transactionsData?.transactions.filter(t => !pendingDeletes.has(t.id)) || [];
+    const visibleTransactions = (transactionsData?.transactions || []).filter(t => !pendingDeletes.has(t.id));
 
     return (
-        <div className={`space - y - 4 md: space - y - 6 ${favoritesWidgetVisible ? 'pb-32' : ''} `}>
+        <div className={cn("space-y-4 md:space-y-6", favoritesWidgetVisible ? "pb-32" : "")}>
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-bold">Spending</h1>
-                    <p className="text-sm md:text-base text-muted-foreground">Track your daily expenses</p>
+                    <h1 className="text-2xl font-bold">Spending</h1>
+                    <p className="hidden sm:block text-sm md:text-base text-muted-foreground">Track your daily expenses</p>
                 </div>
                 <div className="flex items-center gap-2 md:gap-3">
                     {/* Shortcuts button */}
                     <Button
                         variant="outline"
+                        size="sm"
                         onClick={() => setShortcutsListOpen(true)}
                         title="Shortcuts"
+                        className="px-2 md:px-3 h-8 md:h-9"
                     >
-                        <Bookmark className="h-4 w-4" />
-                        Shortcuts
+                        <Bookmark className="h-4 w-4 md:mr-2" />
+                        <span className="hidden md:inline">Shortcuts</span>
                     </Button>
                     <AddTransactionSheet
                         open={transactionSheetOpen}
@@ -524,16 +542,18 @@ export function SpendingPage() {
                             setShortcutSheetOpen(true);
                         }}
                         trigger={(
-                            <Button className="gap-2" onClick={() => setSelectedShortcut(null)}>
-                                Add Transaction
+                            <Button size="sm" className="gap-2 h-8 md:h-9" onClick={() => setSelectedShortcut(null)}>
+                                <Plus className="h-4 w-4" />
+                                <span className="hidden md:inline">Add Transaction</span>
+                                <span className="md:hidden">Add</span>
                             </Button>
                         )}
                     />
                 </div>
             </div>
 
-            <Card>
-                <CardContent className="p-4 md:p-6">
+            <Card className="border-none sm:border shadow-none sm:shadow-sm">
+                <CardContent className="p-0 sm:p-6">
                     {isLoading ? (
                         <p className="text-muted-foreground text-center py-8">Loading transactions...</p>
                     ) : visibleTransactions.length === 0 ? (
@@ -541,36 +561,38 @@ export function SpendingPage() {
                             No transactions yet. Add your first transaction to get started.
                         </p>
                     ) : (
-                        <div className="space-y-3 md:space-y-4">
+                        <div className="divide-y">
                             {visibleTransactions.map((tx: Transaction) => (
-                                <div key={tx.id} className="space-y-2 border-b last:border-0 pb-3 md:pb-4 group">
+                                <div key={tx.id} className="p-3 group hover:bg-muted/30 transition-colors">
                                     <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2 md:gap-3">
-                                            <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-muted flex items-center justify-center text-base md:text-lg">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="h-10 w-10 shrink-0 rounded-full bg-muted flex items-center justify-center text-lg">
                                                 {tx.category?.icon || '📄'}
                                             </div>
-                                            <div>
-                                                <p className="text-sm md:text-base font-medium">{tx.description || tx.category?.name || 'Unknown'}</p>
-                                                <div className="flex gap-1 md:gap-2 text-[10px] md:text-xs text-muted-foreground">
-                                                    <span>{new Date(tx.date).toLocaleDateString()}</span>
+                                            <div className="min-w-0">
+                                                <p className="text-sm md:text-base font-semibold truncate">{tx.description || tx.category?.name || 'Unknown'}</p>
+                                                <div className="flex items-center gap-1.5 text-[10px] md:text-sm text-muted-foreground">
+                                                    <span className="whitespace-nowrap">{new Date(tx.date).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })}</span>
                                                     <span>•</span>
-                                                    <span className="truncate max-w-[100px] md:max-w-none">
-                                                        {tx.currencyBalance?.account?.bank?.name ? `[${tx.currencyBalance.account.bank.name}]` : ''}
-                                                        {tx.currencyBalance?.account?.name || 'Unknown Account'}
+                                                    <span className="truncate">
+                                                        {tx.currencyBalance?.account?.bank?.name ? `${tx.currencyBalance.account.bank.name} • ` : ''}
+                                                        {tx.currencyBalance?.account?.name || 'Unknown'}
                                                     </span>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-1 md:gap-2">
+                                        <div className="flex items-center gap-1 md:gap-2 ml-2">
                                             <div className="flex flex-col items-end">
-                                                <span className={`text - sm md: text - base font - semibold ${tx.type === 'income' ? 'text-green-600' : tx.type === 'expense' ? 'text-red-600' : 'text-foreground'} `}>
-                                                    {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}
-                                                    {Math.abs(Number(tx.amount)).toLocaleString('en-US', { style: 'currency', currency: tx.currencyBalance?.currencyCode || 'USD', minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                                                </span>
+                                                <CurrencyDisplay
+                                                    amount={tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Math.abs(Number(tx.amount))}
+                                                    currency={tx.currencyBalance?.currencyCode}
+                                                    showSign
+                                                    className={cn(
+                                                        "text-sm md:text-base font-bold whitespace-nowrap",
+                                                        tx.type === 'income' ? 'text-green-600' : tx.type === 'expense' ? 'text-red-600' : 'text-foreground'
+                                                    )}
+                                                />
                                                 {tx.type === 'expense' && tx.splits && tx.splits.length > 0 && (() => {
-                                                    // Calculate how much has been paid back from splits
-                                                    // For settled splits, use owedAmount (fully paid)
-                                                    // For partial/pending, use paidAmount
                                                     const totalPaidBack = tx.splits.reduce((acc: number, s: TransactionSplit) => {
                                                         if (s.status === 'settled') {
                                                             return acc + Number(s.owedAmount || 0);
@@ -579,9 +601,14 @@ export function SpendingPage() {
                                                     }, 0);
                                                     const netSpend = Math.abs(Number(tx.amount)) - totalPaidBack;
                                                     return (
-                                                        <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">
-                                                            Net Spend: {tx.currencyBalance?.currencyCode} {netSpend.toLocaleString('en-US', { minimumFractionDigits: 0 })}
-                                                        </span>
+                                                        <div className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground whitespace-nowrap">
+                                                            <span>Net:</span>
+                                                            <CurrencyDisplay
+                                                                amount={netSpend}
+                                                                currency={tx.currencyBalance?.currencyCode}
+                                                                abbreviate={true}
+                                                            />
+                                                        </div>
                                                     );
                                                 })()}
                                             </div>
@@ -598,7 +625,7 @@ export function SpendingPage() {
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem
                                                         onClick={() => handleDelete(tx)}
-                                                        className="text-red-600 focus:text-red-600"
+                                                        className="text-red-500"
                                                     >
                                                         <Trash2 className="h-4 w-4 mr-2" />
                                                         Delete
@@ -610,7 +637,7 @@ export function SpendingPage() {
 
                                     {/* Split Bill Details - Collapsible */}
                                     {tx.type === 'expense' && tx.splits && tx.splits.length > 0 && (
-                                        <div className="ml-10">
+                                        <div className="ml-13 mt-1 pl-10">
                                             <button
                                                 onClick={() => toggleSplitExpand(tx.id)}
                                                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -631,7 +658,11 @@ export function SpendingPage() {
                                                             const pendingTotal = tx.splits
                                                                 .filter((s: TransactionSplit) => s.status !== 'settled')
                                                                 .reduce((acc: number, s: TransactionSplit) => acc + (Number(s.owedAmount) - Number(s.paidAmount)), 0);
-                                                            return <span className="text-orange-500 ml-1">• {tx.currencyBalance?.currencyCode} {pendingTotal.toLocaleString()} pending</span>;
+                                                            return (
+                                                                <span className="text-orange-500 ml-1 flex items-center gap-1 inline-flex">
+                                                                    • <CurrencyDisplay amount={pendingTotal} currency={tx.currencyBalance?.currencyCode} /> pending
+                                                                </span>
+                                                            );
                                                         }
                                                         return null;
                                                     })()}
@@ -655,13 +686,25 @@ export function SpendingPage() {
                                                                     </div>
                                                                     <div>
                                                                         <p className="text-xs font-medium">{split.participant?.name || 'Unknown'}</p>
-                                                                        <p className="text-[10px] text-muted-foreground">
+                                                                        <div className="text-[10px] text-muted-foreground flex items-center gap-1">
                                                                             {split.status === 'settled'
-                                                                                ? `Paid ${owed.toLocaleString()} `
+                                                                                ? (
+                                                                                    <>
+                                                                                        Paid <CurrencyDisplay amount={owed} currency={tx.currencyBalance?.currencyCode} />
+                                                                                    </>
+                                                                                )
                                                                                 : split.status === 'partial'
-                                                                                    ? `Paid ${paid.toLocaleString()} of ${owed.toLocaleString()} `
-                                                                                    : `Owes ${owed.toLocaleString()} `}
-                                                                        </p>
+                                                                                    ? (
+                                                                                        <>
+                                                                                            Paid <CurrencyDisplay amount={paid} currency={tx.currencyBalance?.currencyCode} /> of <CurrencyDisplay amount={owed} currency={tx.currencyBalance?.currencyCode} />
+                                                                                        </>
+                                                                                    )
+                                                                                    : (
+                                                                                        <>
+                                                                                            Owes <CurrencyDisplay amount={owed} currency={tx.currencyBalance?.currencyCode} />
+                                                                                        </>
+                                                                                    )}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
@@ -670,7 +713,7 @@ export function SpendingPage() {
                                                                     ) : (
                                                                         <>
                                                                             <span className="text-xs font-semibold text-orange-500">
-                                                                                {tx.currencyBalance?.currencyCode} {remaining.toLocaleString()}
+                                                                                <CurrencyDisplay amount={remaining} currency={tx.currencyBalance?.currencyCode} />
                                                                             </span>
                                                                             <Button
                                                                                 variant="outline"
@@ -871,9 +914,12 @@ export function SpendingPage() {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-sm font-semibold text-green-600">
-                                                    +{Number(child.amount).toLocaleString('en-US', { minimumFractionDigits: 0 })}
-                                                </span>
+                                                <CurrencyDisplay
+                                                    amount={child.amount}
+                                                    currency={child.currencyBalance?.currencyCode}
+                                                    showSign
+                                                    className="text-sm font-semibold text-green-600"
+                                                />
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
@@ -896,9 +942,11 @@ export function SpendingPage() {
                             {editingTransaction && (
                                 <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 flex justify-between items-center">
                                     <span className="text-sm font-medium">Net Personal Spend:</span>
-                                    <span className="text-lg font-bold text-primary">
-                                        {(editingTransaction?.currencyBalance?.currencyCode || 'KZT')} {(Number(watchEdit('amount')) - (editingTransaction.childTransactions || []).reduce((sum, t) => sum + Number(t.amount), 0)).toLocaleString('en-US', { minimumFractionDigits: 0 })}
-                                    </span>
+                                    <CurrencyDisplay
+                                        amount={Number(watchEdit('amount')) - (editingTransaction.childTransactions || []).reduce((sum, t) => sum + Number(t.amount), 0)}
+                                        currency={editingTransaction?.currencyBalance?.currencyCode || 'USD'}
+                                        className="text-lg font-bold text-primary"
+                                    />
                                 </div>
                             )}
                         </div>
@@ -1067,8 +1115,8 @@ export function SpendingPage() {
                                             setShortcutsListOpen(false);
                                         }}
                                         className={`h-12 w-12 rounded-2xl flex items-center justify-center text-xl shrink-0 transition-all duration-300 border-2 ${shortcut.type === 'income' ? 'border-green-500/20' :
-                                                shortcut.type === 'expense' ? 'border-red-500/20' :
-                                                    'border-blue-500/20'
+                                            shortcut.type === 'expense' ? 'border-red-500/20' :
+                                                'border-blue-500/20'
                                             }`}
                                         style={{
                                             background: shortcut.type === 'income'
@@ -1092,14 +1140,19 @@ export function SpendingPage() {
                                         <p className="font-semibold text-sm truncate">{shortcut.name}</p>
                                         <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1">
                                             <span className={`px-1.5 py-0.5 rounded-md font-bold uppercase ${shortcut.type === 'expense' ? 'bg-red-500/10 text-red-500' :
-                                                    shortcut.type === 'income' ? 'bg-green-500/10 text-green-500' :
-                                                        'bg-blue-500/10 text-blue-500'
+                                                shortcut.type === 'income' ? 'bg-green-500/10 text-green-500' :
+                                                    'bg-blue-500/10 text-blue-500'
                                                 }`}>
                                                 {shortcut.type}
                                             </span>
                                             <span className="truncate opacity-80">{categoryLabelById.get(shortcut.categoryId) || 'Category'}</span>
                                             {shortcut.amount !== undefined && (
-                                                <span className="font-bold text-foreground/80">{shortcut.amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
+                                                <CurrencyDisplay
+                                                    amount={shortcut.type === 'expense' ? -Math.abs(shortcut.amount) : Math.abs(shortcut.amount)}
+                                                    currency={currencyCodeById.get(shortcut.currencyBalanceId)}
+                                                    showSign
+                                                    className="font-bold text-foreground/80"
+                                                />
                                             )}
                                         </div>
                                     </button>
@@ -1153,13 +1206,13 @@ export function SpendingPage() {
                             <Label>Amount ({recordPaymentSplit?.currencyCode})</Label>
                             <Input
                                 type="number"
-                                placeholder={`Remaining: ${recordPaymentSplit?.remaining?.toLocaleString()} `}
+                                placeholder={`Remaining: ${recordPaymentSplit?.remaining ? formatAmountAbbreviated(recordPaymentSplit.remaining) : ''}`}
                                 value={paymentAmount}
                                 onChange={(e) => setPaymentAmount(e.target.value)}
                             />
-                            <p className="text-xs text-muted-foreground">
-                                Remaining: {recordPaymentSplit?.currencyCode} {recordPaymentSplit?.remaining?.toLocaleString()}
-                            </p>
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                Remaining: <CurrencyDisplay amount={recordPaymentSplit?.remaining || 0} currency={recordPaymentSplit?.currencyCode} />
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label>Date</Label>
@@ -1221,59 +1274,56 @@ export function SpendingPage() {
 
             {/* Floating Favorites Widget */}
             {favoritesWidgetVisible && (
-                <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-500">
-                    <div className="bg-background/60 backdrop-blur-xl border border-white/10 dark:border-white/5 rounded-3xl shadow-2xl p-5 w-fit min-w-[180px]">
-                        <div className="flex items-center justify-between mb-4">
-                            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Starred</p>
-                            <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-6 w-6 rounded-full hover:bg-muted/50 transition-colors"
-                                onClick={() => toggleFavoritesWidget(false)}
-                            >
-                                <X className="h-3.5 w-3.5" />
-                            </Button>
-                        </div>
-                        {favoriteShortcuts.length === 0 ? (
-                            <div className="text-center py-4">
-                                <p className="text-[11px] text-muted-foreground leading-tight">
-                                    Star shortcuts to see them here
-                                </p>
+                <div className="fixed bottom-4 right-4 left-auto sm:right-6 sm:bottom-6 z-40 animate-in fade-in slide-in-from-bottom-5 duration-500">
+                    <div className="flex items-end gap-2 min-[850px]:block">
+                        <div className="bg-background/80 backdrop-blur-xl border border-border rounded-2xl shadow-2xl p-3 sm:p-4 w-fit min-w-[150px] max-w-sm mx-0 overflow-hidden">
+                            <div className="flex items-center justify-between mb-3 px-1">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">Starred</p>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-5 w-5 rounded-full hover:bg-muted/30"
+                                    onClick={() => toggleFavoritesWidget(false)}
+                                >
+                                    <X className="h-3 w-3" />
+                                </Button>
                             </div>
-                        ) : (
-                            <div className="flex flex-wrap gap-4">
-                                {favoriteShortcuts.map((shortcut) => (
-                                    <button
-                                        key={shortcut.id}
-                                        onClick={() => openShortcut(shortcut)}
-                                        className={`flex flex-col items-center gap-2 group transition-all duration-300 transform hover:scale-105 ${selectedShortcut?.id === shortcut.id && transactionSheetOpen ? 'opacity-100' : 'opacity-90 hover:opacity-100'}`}
-                                    >
-                                        <div
-                                            className={`h-14 w-14 rounded-2xl flex items-center justify-center text-2xl transition-all duration-300 border-2 relative overflow-hidden shadow-sm ${selectedShortcut?.id === shortcut.id && transactionSheetOpen
-                                                ? 'border-primary ring-4 ring-primary/20 scale-105 shadow-primary/30'
-                                                : 'border-white/10 dark:border-white/5 hover:border-white/20'
-                                                }`}
-                                            title={shortcut.name}
-                                            style={{
-                                                background: shortcut.type === 'income'
-                                                    ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0.05))'
-                                                    : shortcut.type === 'expense'
-                                                        ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.05))'
-                                                        : 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.05))'
-                                            }}
+                            {favoriteShortcuts.length === 0 ? (
+                                <div className="text-center py-2">
+                                    <p className="text-[10px] text-muted-foreground leading-tight">
+                                        Star shortcuts to see them here
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="flex flex-row overflow-x-auto pb-1 gap-3 sm:flex-wrap sm:justify-start scrollbar-hide">
+                                    {favoriteShortcuts.map((shortcut) => (
+                                        <button
+                                            key={shortcut.id}
+                                            onClick={() => openShortcut(shortcut)}
+                                            className="flex flex-col items-center gap-1.5 shrink-0 group transition-all duration-300 transform active:scale-95"
                                         >
-                                            <div className="absolute inset-0 bg-white/5 group-hover:bg-white/10 transition-colors" />
-                                            <span className="relative z-10 drop-shadow-md group-hover:animate-bounce-short">
+                                            <div
+                                                className={cn(
+                                                    "h-12 w-12 sm:h-14 sm:w-14 rounded-xl flex items-center justify-center text-xl sm:text-2xl transition-all duration-300 border-2 shadow-sm",
+                                                    selectedShortcut?.id === shortcut.id && transactionSheetOpen
+                                                        ? 'border-primary ring-4 ring-primary/10 bg-primary/5'
+                                                        : 'border-border bg-muted/30 hover:bg-muted/50 hover:border-border/80'
+                                                )}
+                                                style={{
+                                                    background: shortcut.type === 'income'
+                                                        ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.02))'
+                                                        : shortcut.type === 'expense'
+                                                            ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.02))'
+                                                            : 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.02))'
+                                                }}
+                                            >
                                                 {shortcut.icon || '💰'}
-                                            </span>
-                                        </div>
-                                        <span className="text-[10px] font-semibold text-muted-foreground group-hover:text-foreground transition-colors max-w-[56px] truncate">
-                                            {shortcut.name}
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

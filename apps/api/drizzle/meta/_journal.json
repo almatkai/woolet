@@ -29,6 +29,13 @@
       "when": 1770609600000,
       "tag": "0003_seed_default_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1770653054858,
+      "tag": "0004_robust_kat_farrell",
+      "breakpoints": true
     }
   ]
 }

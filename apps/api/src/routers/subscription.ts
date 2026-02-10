@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { eq, and, desc, gte, lte, sql, inArray } from 'drizzle-orm';
+import { eq, and, or, isNull, desc, gte, lte, sql, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../lib/trpc';
 import {
@@ -574,6 +574,8 @@ export const subscriptionRouter = router({
         .query(async ({ ctx, input }) => {
             const startOfMonth = new Date(input.year, input.month - 1, 1);
             const endOfMonth = new Date(input.year, input.month, 0);
+            const startOfMonthStr = startOfMonth.toISOString().split('T')[0];
+            const endOfMonthStr = endOfMonth.toISOString().split('T')[0];
 
             // Build calendar data - group by billing day
             const calendarData: Record<number, Array<{
@@ -585,7 +587,9 @@ export const subscriptionRouter = router({
             const activeSubscriptions = await ctx.db.query.subscriptions.findMany({
                 where: and(
                     eq(subscriptions.userId, ctx.userId!),
-                    eq(subscriptions.status, 'active')
+                    eq(subscriptions.status, 'active'),
+                    // Only include subscriptions that haven't ended before the requested month
+                    or(isNull(subscriptions.endDate), gte(subscriptions.endDate, startOfMonthStr))
                 ),
                 with: {
                     payments: {
@@ -626,7 +630,9 @@ export const subscriptionRouter = router({
                 const userCredits = await ctx.db.query.credits.findMany({
                     where: and(
                         inArray(credits.accountId, accountIds),
-                        eq(credits.status, 'active')
+                        eq(credits.status, 'active'),
+                        // Only include credits that haven't ended before the requested month
+                        gte(credits.endDate, startOfMonthStr)
                     ),
                     with: {
                         payments: {
@@ -666,7 +672,9 @@ export const subscriptionRouter = router({
                 const userMortgages = await ctx.db.query.mortgages.findMany({
                     where: and(
                         inArray(mortgages.accountId, accountIds),
-                        eq(mortgages.status, 'active')
+                        eq(mortgages.status, 'active'),
+                        // Include mortgages with no endDate or that end on/after the month start
+                        or(isNull(mortgages.endDate), gte(mortgages.endDate, startOfMonthStr))
                     ),
                     with: {
                         payments: {

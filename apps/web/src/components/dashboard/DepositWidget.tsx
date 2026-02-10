@@ -130,9 +130,9 @@ export function DepositWidget({ gridParams }: { gridParams?: { w: number; h: num
                             <p className="dashboard-widget__meta text-[10px]">{is2x2 ? `All Deposits (${activeDeposits.length})` : 'Top Deposits (4)'}</p>
                             <div className="space-y-1">
                                 {displayDeposits.map((deposit: any) => (
-                                    <div key={deposit.id} className="dashboard-widget__item flex items-center justify-between text-[11px]">
-                                        <span className="truncate pr-2 font-medium">{deposit.depositName}</span>
-                                        <span className="font-medium whitespace-nowrap text-[11px]">
+                                    <div key={deposit.id} className="dashboard-widget__item flex items-center justify-between text-[11px] gap-2">
+                                        <span className="truncate flex-1 font-medium">{deposit.depositName}</span>
+                                        <span className="font-medium whitespace-nowrap text-[11px] flex-shrink-0">
                                             <CurrencyDisplay amount={deposit.currentBalance} currency={deposit.currency} />
                                         </span>
                                     </div>
@@ -169,12 +169,12 @@ export function DepositWidget({ gridParams }: { gridParams?: { w: number; h: num
                             <p className="dashboard-widget__meta">Active Deposits ({activeDeposits.length})</p>
                             <div className="space-y-1.5">
                                 {activeDeposits.map((deposit: any) => (
-                                    <div key={deposit.id} className="dashboard-widget__item flex items-center justify-between">
-                                        <div className="flex flex-col">
-                                            <span className="truncate pr-2 font-medium">{deposit.depositName}</span>
+                                    <div key={deposit.id} className="dashboard-widget__item flex items-center justify-between gap-2">
+                                        <div className="flex flex-col min-w-0 flex-1">
+                                            <span className="truncate font-medium">{deposit.depositName}</span>
                                             <span className="dashboard-widget__meta">{deposit.interestRate}% • {deposit.compoundingFrequency}</span>
                                         </div>
-                                        <span className="font-medium whitespace-nowrap">
+                                        <span className="font-medium whitespace-nowrap flex-shrink-0">
                                             <CurrencyDisplay amount={deposit.currentBalance} currency={deposit.currency} />
                                         </span>
                                     </div>
@@ -186,9 +186,9 @@ export function DepositWidget({ gridParams }: { gridParams?: { w: number; h: num
                     <div className="space-y-1">
                         <div className="space-y-0.5 mt-0.5">
                             {activeDeposits.slice(0, 1).map((deposit: any) => (
-                                <div key={deposit.id} className="dashboard-widget__item flex items-center justify-between bg-muted/30 p-1 rounded-md">
-                                    <span className="truncate pr-2 font-medium">{deposit.depositName}</span>
-                                    <span className="font-medium whitespace-nowrap">
+                                <div key={deposit.id} className="dashboard-widget__item flex items-center justify-between bg-muted/30 p-1 rounded-md gap-2">
+                                    <span className="truncate flex-1 font-medium">{deposit.depositName}</span>
+                                    <span className="font-medium whitespace-nowrap flex-shrink-0">
                                         <CurrencyDisplay amount={deposit.currentBalance} currency={deposit.currency} />
                                     </span>
                                 </div>
