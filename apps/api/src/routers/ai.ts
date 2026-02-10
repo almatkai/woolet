@@ -804,33 +804,33 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                     }
                 }
 
-// Check if the FINAL turn contained a navigation action
-// We typically want to execute the action if the tool was called.
-// Scan all tool calls in the conversation added during this session.
+                // Check if the FINAL turn contained a navigation action
+                // We typically want to execute the action if the tool was called.
+                // Scan all tool calls in the conversation added during this session.
                 let clientAction = null;
-// iterate backwards to find the last navigation
+                // iterate backwards to find the last navigation
                 for (let i = messages.length - 1; i >= 0; i--) {
                     const msg = messages[i];
                     if (msg.role === 'assistant' && msg.tool_calls) {
-                        const navCall = msg.tool_calls.find(tc => tc.function.name === "navigate_to");
-                        if (navCall) {
+                        const navCall = msg.tool_calls.find(tc => tc.type === 'function' && tc.function.name === "navigate_to");
+                        if (navCall && navCall.type === 'function') {
                             const args = JSON.parse(navCall.function.arguments);
                             clientAction = { type: 'navigate', path: args.path };
                             break;
                         }
                     }
-    // Stop if we hit user message (only look at current turn chains)
+                    // Stop if we hit user message (only look at current turn chains)
                     if (msg.role === 'user') break;
                 }
 
-// 7. Save Model Response
+                // 7. Save Model Response
                 await db.insert(chatMessages).values({
                     sessionId,
                     role: 'model',
                     content: finalResponseText || "(No response)"
                 });
 
-// Increment usage
+                // Increment usage
                 await AiUsageService.incrementUsage(userId);
 
                 return { response: finalResponseText, sessionId, clientAction };
@@ -840,13 +840,13 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
             }
         }),
 
-// Admin endpoints for managing AI configuration
-getAiConfig: protectedProcedure
-    .query(async ({ ctx }) => {
-        // TODO: Add admin check
-        const config = await AiConfigService.getConfig();
-        return config;
-    }),
+    // Admin endpoints for managing AI configuration
+    getAiConfig: protectedProcedure
+        .query(async ({ ctx }) => {
+            // TODO: Add admin check
+            const config = await AiConfigService.getConfig();
+            return config;
+        }),
 
     updateAiConfig: protectedProcedure
         .input(z.object({
@@ -866,16 +866,16 @@ getAiConfig: protectedProcedure
             return updatedConfig;
         }),
 
-        resetAiConfig: protectedProcedure
-            .mutation(async ({ ctx }) => {
-                // TODO: Add admin check
-                const resetConfig = await AiConfigService.resetToDefault();
-                return resetConfig;
-            }),
+    resetAiConfig: protectedProcedure
+        .mutation(async ({ ctx }) => {
+            // TODO: Add admin check
+            const resetConfig = await AiConfigService.resetToDefault();
+            return resetConfig;
+        }),
 
-            getAiStatus: protectedProcedure
-                .query(async ({ ctx }) => {
-                    // TODO: Add admin check
-                    return await getAiStatus();
-                }),
+    getAiStatus: protectedProcedure
+        .query(async ({ ctx }) => {
+            // TODO: Add admin check
+            return await getAiStatus();
+        }),
 });
