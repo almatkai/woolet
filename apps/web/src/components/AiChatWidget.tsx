@@ -892,6 +892,7 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
     const [sidebarPressed, setSidebarPressed] = useState(false);
     const [hasSentMessage, setHasSentMessage] = useState(false);
     const [isAngry, setIsAngry] = useState(false);
+    const [mobileViewportHeight, setMobileViewportHeight] = useState<number | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -924,6 +925,35 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
             return () => clearTimeout(timer);
         }
     }, [isOpen, view]);
+
+    useEffect(() => {
+        if (!isOpen || variant !== 'mobile') return;
+
+        const updateHeight = () => {
+            const nextHeight = Math.max(window.visualViewport?.height ?? window.innerHeight, 320) * 0.8;
+            setMobileViewportHeight(Math.max(320, Math.floor(nextHeight)));
+        };
+
+        updateHeight();
+
+        const viewport = window.visualViewport;
+        viewport?.addEventListener('resize', updateHeight);
+        viewport?.addEventListener('scroll', updateHeight);
+        window.addEventListener('resize', updateHeight);
+
+        const previousBodyOverflow = document.body.style.overflow;
+        const previousBodyOverscrollBehavior = document.body.style.overscrollBehavior;
+        document.body.style.overflow = 'hidden';
+        document.body.style.overscrollBehavior = 'none';
+
+        return () => {
+            viewport?.removeEventListener('resize', updateHeight);
+            viewport?.removeEventListener('scroll', updateHeight);
+            window.removeEventListener('resize', updateHeight);
+            document.body.style.overflow = previousBodyOverflow;
+            document.body.style.overscrollBehavior = previousBodyOverscrollBehavior;
+        };
+    }, [isOpen, variant]);
 
     // Queries
     const { data: usage } = trpc.ai.getChatUsage.useQuery(undefined, { enabled: isOpen });
@@ -981,6 +1011,10 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
         setCurrentSessionId(null);
         setView('chat');
     };
+
+    const mobilePanelHeight = mobileViewportHeight
+        ? `${Math.max(320, mobileViewportHeight - 8)}px`
+        : 'calc(100dvh - 0.5rem)';
 
     function MomoIcon({
         className,
@@ -1516,15 +1550,16 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
             {createPortal(
                 <AnimatePresence>
                     {isOpen && (
-                        <div className="fixed inset-y-0 left-0 z-[46] flex items-end p-4 pointer-events-none w-full h-full">
+                        <div className="fixed inset-0 left-0 z-[46] flex items-end p-2 md:p-4 pointer-events-none w-full h-full">
                             <div className="pointer-events-auto w-full md:w-auto h-full md:h-auto flex items-end justify-center md:justify-start">
                                 <motion.div
                                     layoutId="ai-chat-container"
-                                    className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-3xl overflow-hidden shadow-2xl border-purple-200 dark:border-purple-800 w-full md:w-[350px] h-[85vh] md:h-[600px] flex flex-col mb-4 md:mb-0"
+                                    className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl border-purple-200 dark:border-purple-800 w-full md:w-[350px] flex flex-col md:h-[600px]"
+                                    style={variant === 'mobile' ? { height: mobilePanelHeight, maxHeight: mobilePanelHeight } : undefined}
                                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                                 >
-                                    <div className="flex-1 flex flex-col overflow-hidden">
-                                        <CardHeader className="p-3 border-b bg-purple-50/50 dark:bg-purple-900/20 flex flex-row items-center justify-between space-y-0">
+                                    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                                        <CardHeader className="px-3 py-2 md:p-3 border-b bg-purple-50/50 dark:bg-purple-900/20 flex flex-row items-center justify-between space-y-0 shrink-0">
                                             <div className="flex items-center gap-2">
                                                 <motion.div
                                                     layoutId="woo-wallet-icon-box"
@@ -1563,10 +1598,10 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
                                             </div>
                                         </CardHeader>
 
-                                        <CardContent className="flex-1 p-0 overflow-hidden relative">
+                                        <CardContent className="flex-1 min-h-0 p-0 overflow-hidden relative">
                                             {/* Chat View */}
                                             {view === 'chat' ? (
-                                                <div className="absolute inset-0 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
+                                                <div className="absolute inset-0 overflow-y-auto overscroll-contain p-4 space-y-4" ref={scrollRef}>
                                                     {loadSessionMutation.isLoading ? (
                                                         <div className="space-y-4">
                                                             {[1, 2, 3].map((i) => (
@@ -1595,7 +1630,7 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
                                                 </div>
                                             ) : (
                                                 /* History View */
-                                                <div className="absolute inset-0 overflow-y-auto">
+                                                <div className="absolute inset-0 overflow-y-auto overscroll-contain">
                                                     <div className="p-2 space-y-2">
                                                         <h3 className="text-xs font-semibold text-muted-foreground px-2 py-1 uppercase">Recent Chats</h3>
                                                         {isHistoryLoading ? (
@@ -1623,7 +1658,7 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
                                             )}
                                         </CardContent>
 
-                                        <CardFooter className="p-3 border-t bg-background/50 backdrop-blur-sm">
+                                        <CardFooter className="px-3 py-2 md:p-3 border-t bg-background/50 backdrop-blur-sm shrink-0">
                                             {view === 'chat' && (
                                                 <form
                                                     className="flex w-full items-center space-x-2 pointer-events-auto"
