@@ -14,6 +14,10 @@ jobs:
     runs-on: namespace-profile-default
     outputs:
       apps: ${{ steps.filter.outputs.apps }}
+      api: ${{ steps.filter.outputs.api }}
+      web: ${{ steps.filter.outputs.web }}
+      landing: ${{ steps.filter.outputs.landing }}
+      shared: ${{ steps.filter.outputs.shared }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -24,8 +28,24 @@ jobs:
               - 'apps/**'
               - 'packages/**'
               - 'bun.lock'
-              - 'Dockerfile'
-              - '**/Dockerfile'
+              - 'package.json'
+              - 'turbo.json'
+              - '.dockerignore'
+            api:
+              - 'apps/api/**'
+              - 'apps/api/Dockerfile'
+            web:
+              - 'apps/web/**'
+              - 'apps/web/Dockerfile'
+            landing:
+              - 'apps/landing/**'
+              - 'apps/landing/Dockerfile'
+            shared:
+              - 'packages/**'
+              - 'bun.lock'
+              - 'package.json'
+              - 'turbo.json'
+              - '.dockerignore'
 
   test-api:
     needs: changes
@@ -106,11 +126,21 @@ jobs:
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
+        if: |
+          needs.changes.outputs.shared == 'true' ||
+          (matrix.component == 'api' && needs.changes.outputs.api == 'true') ||
+          (matrix.component == 'web' && needs.changes.outputs.web == 'true') ||
+          (matrix.component == 'landing' && needs.changes.outputs.landing == 'true')
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.component }}
 
       - name: Build and push Docker image
+        if: |
+          needs.changes.outputs.shared == 'true' ||
+          (matrix.component == 'api' && needs.changes.outputs.api == 'true') ||
+          (matrix.component == 'web' && needs.changes.outputs.web == 'true') ||
+          (matrix.component == 'landing' && needs.changes.outputs.landing == 'true')
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -217,13 +247,17 @@ jobs:
           VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          API_CHANGED: ${{ needs.changes.outputs.api }}
+          WEB_CHANGED: ${{ needs.changes.outputs.web }}
+          LANDING_CHANGED: ${{ needs.changes.outputs.landing }}
+          SHARED_CHANGED: ${{ needs.changes.outputs.shared }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: DB_ADMIN_USER,DB_ADMIN_PASSWORD,DB_USER,DB_PASSWORD,DB_NAME,DB_PORT,GLITCHTIP_DB_PASSWORD,GLITCHTIP_DOMAIN,GLITCHTIP_FROM_EMAIL,GLITCHTIP_SECRET_KEY,REDIS_PASSWORD,CLERK_SECRET_KEY,CLERK_PUBLISHABLE_KEY,VITE_CLERK_PUBLISHABLE_KEY,WOOLET_API_IMAGE,WOOLET_WEB_IMAGE,WOOLET_LANDING_IMAGE,NODE_ENV,API_URL,WEB_URL,GLITCHTIP_DSN_API,VITE_GLITCHTIP_DSN_WEB,VITE_PUBLIC_POSTHOG_KEY,VITE_PUBLIC_POSTHOG_HOST,LOG_LEVEL,AI_PROVIDER_ORDER,OPEN_ROUTER_API_KEY,OPENROUTER_CHAT_MODEL,OPENROUTER_SITE_URL,OPENROUTER_APP_NAME,OPENAI_API_KEY,OPENAI_CHAT_MODEL,GEMINI_API_KEY,GEMINI_MODEL,CURRENCY_API_KEY,GROQ_API_KEY,TWELVE_DATA,VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY,VAPID_SUBJECT
+          envs: DB_ADMIN_USER,DB_ADMIN_PASSWORD,DB_USER,DB_PASSWORD,DB_NAME,DB_PORT,GLITCHTIP_DB_PASSWORD,GLITCHTIP_DOMAIN,GLITCHTIP_FROM_EMAIL,GLITCHTIP_SECRET_KEY,REDIS_PASSWORD,CLERK_SECRET_KEY,CLERK_PUBLISHABLE_KEY,VITE_CLERK_PUBLISHABLE_KEY,WOOLET_API_IMAGE,WOOLET_WEB_IMAGE,WOOLET_LANDING_IMAGE,NODE_ENV,API_URL,WEB_URL,GLITCHTIP_DSN_API,VITE_GLITCHTIP_DSN_WEB,VITE_PUBLIC_POSTHOG_KEY,VITE_PUBLIC_POSTHOG_HOST,LOG_LEVEL,AI_PROVIDER_ORDER,OPEN_ROUTER_API_KEY,OPENROUTER_CHAT_MODEL,OPENROUTER_SITE_URL,OPENROUTER_APP_NAME,OPENAI_API_KEY,OPENAI_CHAT_MODEL,GEMINI_API_KEY,GEMINI_MODEL,CURRENCY_API_KEY,GROQ_API_KEY,TWELVE_DATA,VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY,VAPID_SUBJECT,API_CHANGED,WEB_CHANGED,LANDING_CHANGED,SHARED_CHANGED
           timeout: 60s
-          command_timeout: 20m
+          command_timeout: 45m
           debug: true
           script: |
             cd ~/woolet

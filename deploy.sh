@@ -79,13 +79,30 @@ if [ -n "$CURRENCY_API_KEY" ]; then
 fi
 
 # 3. Pull and start services
-echo "🏗️ Pulling application images..."
-# Only pull application images by default to speed up deployment. 
-# Infrastructure images (Postgres, Redis, PgBouncer) change rarely.
-docker compose -f docker-compose.prod.yml pull woolet-api woolet-web woolet-landing
+APP_SERVICES=""
 
-echo "🚀 Starting services..."
-docker compose -f docker-compose.prod.yml up -d
+# If shared deps changed, all app images are considered updated.
+if [ "${SHARED_CHANGED:-false}" = "true" ]; then
+    APP_SERVICES="woolet-api woolet-web woolet-landing"
+else
+    [ "${API_CHANGED:-false}" = "true" ] && APP_SERVICES="$APP_SERVICES woolet-api"
+    [ "${WEB_CHANGED:-false}" = "true" ] && APP_SERVICES="$APP_SERVICES woolet-web"
+    [ "${LANDING_CHANGED:-false}" = "true" ] && APP_SERVICES="$APP_SERVICES woolet-landing"
+
+APP_SERVICES=$(echo "$APP_SERVICES" | xargs || true)
+
+if [ -n "$APP_SERVICES" ]; then
+    echo "🏗️ Pulling updated application images: $APP_SERVICES"
+    docker compose -f docker-compose.prod.yml pull $APP_SERVICES
+
+    echo "🚀 Restarting updated app services..."
+    docker compose -f docker-compose.prod.yml up -d --no-deps $APP_SERVICES
+else
+    echo "ℹ️ No application image changes detected; skipping app image pull."
+fi
+
+echo "🚀 Ensuring core services are running..."
+docker compose -f docker-compose.prod.yml up -d woolet-postgres woolet-pgbouncer woolet-redis
 
 # Wait for Postgres to be healthy before running migrations
 echo "⏳ Waiting for Postgres to be ready..."

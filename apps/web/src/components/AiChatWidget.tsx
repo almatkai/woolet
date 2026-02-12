@@ -100,7 +100,7 @@ export function AiChatSidebarItem() {
 
     const loadSessionMutation = trpc.ai.getSession.useMutation({
         onSuccess: (data: any) => {
-            setMessages(data.messages.map((m: any) => ({
+            setMessages((data.messages || []).map((m: any) => ({
                 role: m.role,
                 text: m.content
             })));
@@ -650,7 +650,7 @@ export function AiChatSidebarItem() {
                         onMouseEnter={() => setSidebarHovered(true)}
                         onMouseLeave={() => { setSidebarHovered(false); setSidebarPressed(false); }}
                         onMouseDown={() => setSidebarPressed(true)}
-                        onMouseUp={() => setSidebarPressed(false)}
+                        onMouseUp={() => { setSidebarPressed(false); setIsOpen(true); }}
                         className="group relative h-auto py-1.5 px-3 rounded-2xl cursor-pointer transition-all duration-200 border-none flex items-center gap-3 w-full bg-transparent hover:bg-transparent text-white"
                     >
                         {!isOpen && (
@@ -978,7 +978,7 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
 
     const loadSessionMutation = trpc.ai.getSession.useMutation({
         onSuccess: (data: any) => {
-            setMessages(data.messages.map((m: any) => ({ role: m.role, text: m.content })));
+            setMessages((data.messages || []).map((m: any) => ({ role: m.role, text: m.content })));
             setCurrentSessionId(data.id);
         }
     });
