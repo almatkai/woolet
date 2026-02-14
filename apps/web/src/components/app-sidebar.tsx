@@ -44,6 +44,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AiChatSidebarItem } from '@/components/AiChatWidget';
 import { PricingCtaBanner } from '@/components/PricingCtaBanner';
+import { NotificationsMenu } from '@/components/NotificationsMenu';
 import { useState } from 'react';
 
 const mainNavItems = [
@@ -84,7 +85,7 @@ export function AppSidebar() {
         <Sidebar variant="sidebar">
             <SidebarHeader>
                 <SidebarMenu>
-                    <SidebarMenuItem>
+                    <SidebarMenuItem className="flex items-center">
                         <SidebarMenuButton size="lg" asChild>
                             <Link to="/" {...preloadProps}>
                                 <img src="/assets/woolet-icon.png" alt="Woolet " className="size-8 rounded-lg" />
@@ -93,6 +94,9 @@ export function AppSidebar() {
                                 </div>
                             </Link>
                         </SidebarMenuButton>
+                        <div className="ml-auto pr-2 group-data-[collapsible=icon]:hidden">
+                            <NotificationsMenu />
+                        </div>
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarHeader>

@@ -6,8 +6,6 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/s
 import { AppSidebar } from '@/components/app-sidebar';
 import { AiChatFloatingItem } from '@/components/AiChatWidget';
 import { Separator } from '@/components/ui/separator';
-import { DateRangePicker } from '@/components/ui/date-range-picker';
-import { NotificationsMenu } from '@/components/NotificationsMenu';
 
 // Routes
 import { Dashboard } from './routes/index';
@@ -74,10 +72,6 @@ function RootLayout() {
                             )}>
                                 <SidebarTrigger className="-ml-1" />
                                 <Separator orientation="vertical" className="hidden sm:block mr-2 h-4" />
-                                <div className="flex flex-1 items-center justify-between gap-2">
-                                    <DateRangePicker />
-                                    <NotificationsMenu />
-                                </div>
                             </header>
                         )}
                     </SignedIn>
