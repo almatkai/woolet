@@ -11,9 +11,13 @@ env:
 
 jobs:
   changes:
-    runs-on: ubuntu-24.04
+    runs-on: namespace-profile-default
     outputs:
       apps: ${{ steps.filter.outputs.apps }}
+      api: ${{ steps.filter.outputs.api }}
+      web: ${{ steps.filter.outputs.web }}
+      landing: ${{ steps.filter.outputs.landing }}
+      shared: ${{ steps.filter.outputs.shared }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -24,13 +28,29 @@ jobs:
               - 'apps/**'
               - 'packages/**'
               - 'bun.lock'
-              - 'Dockerfile'
-              - '**/Dockerfile'
+              - 'package.json'
+              - 'turbo.json'
+              - '.dockerignore'
+            api:
+              - 'apps/api/**'
+              - 'apps/api/Dockerfile'
+            web:
+              - 'apps/web/**'
+              - 'apps/web/Dockerfile'
+            landing:
+              - 'apps/landing/**'
+              - 'apps/landing/Dockerfile'
+            shared:
+              - 'packages/**'
+              - 'bun.lock'
+              - 'package.json'
+              - 'turbo.json'
+              - '.dockerignore'
 
   test-api:
     needs: changes
     if: needs.changes.outputs.apps == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: namespace-profile-default
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -56,7 +76,7 @@ jobs:
   test-web:
     needs: changes
     if: needs.changes.outputs.apps == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: namespace-profile-default
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -82,7 +102,7 @@ jobs:
   build-and-push:
     needs: [changes, test-api, test-web]
     if: needs.changes.outputs.apps == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: namespace-profile-default
     permissions:
       contents: read
       packages: write
@@ -106,11 +126,21 @@ jobs:
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
+        if: |
+          needs.changes.outputs.shared == 'true' ||
+          (matrix.component == 'api' && needs.changes.outputs.api == 'true') ||
+          (matrix.component == 'web' && needs.changes.outputs.web == 'true') ||
+          (matrix.component == 'landing' && needs.changes.outputs.landing == 'true')
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.component }}
 
       - name: Build and push Docker image
+        if: |
+          needs.changes.outputs.shared == 'true' ||
+          (matrix.component == 'api' && needs.changes.outputs.api == 'true') ||
+          (matrix.component == 'web' && needs.changes.outputs.web == 'true') ||
+          (matrix.component == 'landing' && needs.changes.outputs.landing == 'true')
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -132,27 +162,57 @@ jobs:
       always() &&
       github.ref == 'refs/heads/main' &&
       (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped')
-    runs-on: ubuntu-24.04
+    runs-on: namespace-profile-default
     environment: SSH_PRIVATE_KEY
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check Connectivity
+        run: |
+          for i in {1..3}; do
+            nc -zv -w 5 ${{ secrets.SERVER_HOST }} 22 && break || sleep 5
+            if [ $i -eq 3 ]; then echo "❌ SSH port 22 is unreachable"; exit 1; fi
+          done
+          sleep 2
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H -p ${{ secrets.SERVER_PORT || 22 }} ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
       - name: Copy Files to Server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.prod.yml,docker-compose.monitoring.yml,nginx.conf,deploy.sh"
-          target: "~/woolet"
+        run: |
+          for i in {1..5}; do
+            scp -i ~/.ssh/deploy_key \
+              -P ${{ secrets.SERVER_PORT || 22 }} \
+              -o StrictHostKeyChecking=no \
+              docker-compose.prod.yml \
+              docker-compose.monitoring.yml \
+              nginx.conf \
+              deploy.sh \
+              .env.example \
+              ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:~/woolet/ && break
+            
+            echo "⚠️ SCP failed, retrying in 5s... ($i/5)"
+            sleep 5
+            
+            if [ $i -eq 5 ]; then
+              echo "❌ SCP failed after 5 attempts"
+              exit 1
+            fi
+          done
 
       - name: Deploy to Server
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.0
         env:
           DB_ADMIN_USER: ${{ secrets.DB_ADMIN_USER }}
           DB_ADMIN_PASSWORD: ${{ secrets.DB_ADMIN_PASSWORD }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_PORT: ${{ secrets.DB_PORT }}
           GLITCHTIP_DB_PASSWORD: ${{ secrets.GLITCHTIP_DB_PASSWORD }}
           GLITCHTIP_DOMAIN: ${{ secrets.GLITCHTIP_DOMAIN }}
           GLITCHTIP_FROM_EMAIL: ${{ secrets.GLITCHTIP_FROM_EMAIL }}
@@ -161,8 +221,6 @@ jobs:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          REDIS_URL: ${{ secrets.REDIS_URL }}
           WOOLET_API_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:main
           WOOLET_WEB_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:main
           WOOLET_LANDING_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/landing:main
@@ -186,12 +244,21 @@ jobs:
           CURRENCY_API_KEY: ${{ secrets.CURRENCY_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           TWELVE_DATA: ${{ secrets.TWELVE_DATA }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          API_CHANGED: ${{ needs.changes.outputs.api }}
+          WEB_CHANGED: ${{ needs.changes.outputs.web }}
+          LANDING_CHANGED: ${{ needs.changes.outputs.landing }}
+          SHARED_CHANGED: ${{ needs.changes.outputs.shared }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: DB_ADMIN_USER,DB_ADMIN_PASSWORD,DB_USER,DB_PASSWORD,GLITCHTIP_DB_PASSWORD,GLITCHTIP_DOMAIN,GLITCHTIP_FROM_EMAIL,GLITCHTIP_SECRET_KEY,REDIS_PASSWORD,CLERK_SECRET_KEY,CLERK_PUBLISHABLE_KEY,VITE_CLERK_PUBLISHABLE_KEY,DATABASE_URL,REDIS_URL,WOOLET_API_IMAGE,WOOLET_WEB_IMAGE,WOOLET_LANDING_IMAGE,NODE_ENV,API_URL,WEB_URL,GLITCHTIP_DSN_API,VITE_GLITCHTIP_DSN_WEB,VITE_PUBLIC_POSTHOG_KEY,VITE_PUBLIC_POSTHOG_HOST,LOG_LEVEL,AI_PROVIDER_ORDER,OPEN_ROUTER_API_KEY,OPENROUTER_CHAT_MODEL,OPENROUTER_SITE_URL,OPENROUTER_APP_NAME,OPENAI_API_KEY,OPENAI_CHAT_MODEL,GEMINI_API_KEY,GEMINI_MODEL,CURRENCY_API_KEY,GROQ_API_KEY,TWELVE_DATA
-          command_timeout: 20m
+          envs: DB_ADMIN_USER,DB_ADMIN_PASSWORD,DB_USER,DB_PASSWORD,DB_NAME,DB_PORT,GLITCHTIP_DB_PASSWORD,GLITCHTIP_DOMAIN,GLITCHTIP_FROM_EMAIL,GLITCHTIP_SECRET_KEY,REDIS_PASSWORD,CLERK_SECRET_KEY,CLERK_PUBLISHABLE_KEY,VITE_CLERK_PUBLISHABLE_KEY,WOOLET_API_IMAGE,WOOLET_WEB_IMAGE,WOOLET_LANDING_IMAGE,NODE_ENV,API_URL,WEB_URL,GLITCHTIP_DSN_API,VITE_GLITCHTIP_DSN_WEB,VITE_PUBLIC_POSTHOG_KEY,VITE_PUBLIC_POSTHOG_HOST,LOG_LEVEL,AI_PROVIDER_ORDER,OPEN_ROUTER_API_KEY,OPENROUTER_CHAT_MODEL,OPENROUTER_SITE_URL,OPENROUTER_APP_NAME,OPENAI_API_KEY,OPENAI_CHAT_MODEL,GEMINI_API_KEY,GEMINI_MODEL,CURRENCY_API_KEY,GROQ_API_KEY,TWELVE_DATA,VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY,VAPID_SUBJECT,API_CHANGED,WEB_CHANGED,LANDING_CHANGED,SHARED_CHANGED
+          timeout: 60s
+          command_timeout: 45m
+          debug: true
           script: |
             cd ~/woolet
             chmod +x deploy.sh

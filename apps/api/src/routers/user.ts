@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { eq, inArray, or } from 'drizzle-orm';
+import { eq, inArray, or, isNull } from 'drizzle-orm';
 import { router, protectedProcedure } from '../lib/trpc';
 import { investingCache } from '../lib/investing-cache';
 import { redis } from '../lib/redis';
@@ -22,6 +22,10 @@ import {
     stocks,
     userSettings,
     subscriptions,
+    subscriptionPayments,
+    splitParticipants,
+    transactionSplits,
+    splitPayments,
     admins,
     stockPrices,
     currencies,
@@ -44,7 +48,8 @@ const VALID_TABLES = [
     'banks', 'accounts', 'currencyBalances', 'categories', 'transactions',
     'debts', 'debtPayments', 'credits', 'mortgages', 'deposits',
     'stocks', 'stockPrices', 'portfolioHoldings', 'investmentTransactions',
-    'subscriptions', 'subscriptionPayments', 'splitParticipants', 'transactionSplits', 'splitPayments'
+    'subscriptions', 'subscriptionPayments', 'splitParticipants', 'transactionSplits', 'splitPayments',
+    'userSettings', 'dashboardLayouts'
 ] as const;
 
 // Schema for validating imported data structure
@@ -833,6 +838,16 @@ export const userRouter = router({
                     if (validSplitPayments.length > 0) {
                         await tx.insert(schema.splitPayments).values(validSplitPayments);
                     }
+                }
+
+                // Insert user settings
+                if (data.userSettings?.length) {
+                    await tx.insert(schema.userSettings).values(withUser(data.userSettings));
+                }
+
+                // Insert dashboard layouts
+                if (data.dashboardLayouts?.length) {
+                    await tx.insert(schema.dashboardLayouts).values(withUser(data.dashboardLayouts));
                 }
             });
 

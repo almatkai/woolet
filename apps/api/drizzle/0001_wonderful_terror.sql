@@ -1,0 +1,1 @@
+ALTER TABLE "currencies" ADD COLUMN "exchange_rate" numeric(20, 10) DEFAULT '1' NOT NULL;

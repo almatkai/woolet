@@ -991,7 +991,7 @@ export function SpendingPage() {
                                         key={emoji}
                                         type="button"
                                         onClick={() => setShortcutValue('icon', emoji)}
-                                        className={`h - 10 w - 10 rounded - full flex items - center justify - center text - lg border - 2 transition - colors ${watchShortcut('icon') === emoji
+                                        className={`h-10 w-10 rounded-md flex items-center justify-center text-lg border-2 transition-colors ${watchShortcut('icon') === emoji
                                             ? 'border-primary bg-primary/10'
                                             : 'border-muted hover:border-muted-foreground/50'
                                             } `}
@@ -1104,10 +1104,10 @@ export function SpendingPage() {
                             shortcuts.map((shortcut) => (
                                 <div
                                     key={shortcut.id}
-                                    className={`flex items - center gap - 3 p - 3 rounded - lg border transition - all group ${selectedShortcut?.id === shortcut.id && transactionSheetOpen
-                                        ? 'bg-primary/10 border-primary/50 shadow-md'
-                                        : 'bg-card hover:bg-muted/50 border-border'
-                                        } `}
+                                    className={`flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300 group ${selectedShortcut?.id === shortcut.id && transactionSheetOpen
+                                        ? 'bg-primary/5 border-primary/50 shadow-md translate-x-1'
+                                        : 'bg-card hover:bg-muted/30 border-border hover:border-border-foreground/10'
+                                        }`}
                                 >
                                     <button
                                         onClick={() => {
@@ -1145,7 +1145,7 @@ export function SpendingPage() {
                                                 }`}>
                                                 {shortcut.type}
                                             </span>
-                                            <span className="truncate">{categoryLabelById.get(shortcut.categoryId) || 'Category'}</span>
+                                            <span className="truncate opacity-80">{categoryLabelById.get(shortcut.categoryId) || 'Category'}</span>
                                             {shortcut.amount !== undefined && (
                                                 <CurrencyDisplay
                                                     amount={shortcut.type === 'expense' ? -Math.abs(shortcut.amount) : Math.abs(shortcut.amount)}
@@ -1156,11 +1156,11 @@ export function SpendingPage() {
                                             )}
                                         </div>
                                     </button>
-                                    <div className="flex items-center gap-0.5 shrink-0">
+                                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                         <Button
                                             size="icon"
                                             variant="ghost"
-                                            className={`h - 8 w - 8 ${shortcut.isFavorite ? 'text-yellow-500' : 'opacity-0 group-hover:opacity-100'} `}
+                                            className={`h-8 w-8 rounded-full ${shortcut.isFavorite ? 'text-yellow-500 opacity-100' : 'text-muted-foreground'}`}
                                             onClick={() => toggleFavorite(shortcut.id)}
                                         >
                                             {shortcut.isFavorite ? <Star className="h-4 w-4 fill-current" /> : <StarOff className="h-4 w-4" />}
@@ -1168,7 +1168,7 @@ export function SpendingPage() {
                                         <Button
                                             size="icon"
                                             variant="ghost"
-                                            className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                                            className="h-8 w-8 rounded-full text-muted-foreground"
                                             onClick={() => {
                                                 openEditShortcut(shortcut);
                                                 setShortcutsListOpen(false);
@@ -1179,7 +1179,7 @@ export function SpendingPage() {
                                         <Button
                                             size="icon"
                                             variant="ghost"
-                                            className="h-8 w-8 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive"
+                                            className="h-8 w-8 rounded-full text-destructive hover:text-white hover:bg-destructive transition-all"
                                             onClick={() => handleDeleteShortcut(shortcut.id)}
                                         >
                                             <Trash2 className="h-4 w-4" />
@@ -1274,10 +1274,10 @@ export function SpendingPage() {
 
             {/* Floating Favorites Widget */}
             {favoritesWidgetVisible && (
-                <div className="fixed bottom-4 right-4 left-auto sm:right-6 sm:bottom-6 z-40 animate-in fade-in slide-in-from-bottom-5 duration-500">
+                <div className="fixed bottom-4 right-20 left-auto sm:right-20 sm:bottom-4 z-40 animate-in fade-in slide-in-from-bottom-5 duration-500">
                     <div className="flex items-end gap-2 min-[850px]:block">
                         <div className="bg-background/80 backdrop-blur-xl border border-border rounded-2xl shadow-2xl p-3 sm:p-4 w-fit min-w-[150px] max-w-sm mx-0 overflow-hidden">
-                            <div className="flex items-center justify-between mb-3 px-1">
+                            <div className="flex items-center justify-between mb-3 pl-0 pr-1">
                                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">Starred</p>
                                 <Button
                                     size="icon"

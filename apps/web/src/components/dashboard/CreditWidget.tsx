@@ -69,7 +69,7 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                             <div>
                                 <p className="dashboard-widget__meta text-[10px]">This Month</p>
                                 <div className="dashboard-widget__value text-lg">
-                                    <CurrencyDisplay amount={monthlyPayment} currency="KZT" />
+                                    <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} />
                                 </div>
                             </div>
                             <Badge variant={allPaidThisMonth ? "default" : "destructive"} className="dashboard-widget__badge flex items-center gap-1 text-[10px] h-5 px-2">
@@ -98,7 +98,7 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                                 </Badge>
                             </div>
                             <div className="dashboard-widget__value text-base">
-                                <CurrencyDisplay amount={monthlyPayment} currency="KZT" />
+                                <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} />
                             </div>
                         </div>
                         <div className="space-y-1.5">
@@ -140,7 +140,7 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                                 </Badge>
                             </div>
                             <div className="dashboard-widget__value">
-                                <CurrencyDisplay amount={monthlyPayment} currency="KZT" />
+                                <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} />
                             </div>
                         </div>
                         <div className="space-y-2">

@@ -50,10 +50,11 @@ services:
       dockerfile: apps/api/Dockerfile
     restart: always
     ports:
-      - "3001:3001"
+      - "3005:3005"
     environment:
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-password}@woolet-pgbouncer:5432/${DB_NAME:-woolet}
       REDIS_URL: redis://woolet-redis:6379
+      PORT: 3005
     env_file:
       - .env
     depends_on:

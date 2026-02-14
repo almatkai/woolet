@@ -11,7 +11,6 @@ import { mortgageRouter } from './mortgage';
 import { depositRouter } from './deposit';
 import { dashboardRouter } from './dashboard';
 import { investingRouter } from './investing';
-import { dataRouter } from './data';
 import { subscriptionRouter } from './subscription';
 import { newsRouter } from './news';
 import { aiRouter } from './ai';
@@ -33,7 +32,6 @@ export const appRouter = router({
     deposit: depositRouter,
     dashboard: dashboardRouter,
     investing: investingRouter,
-    data: dataRouter,
     subscription: subscriptionRouter,
     news: newsRouter,
     ai: aiRouter,

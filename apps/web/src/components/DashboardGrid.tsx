@@ -625,6 +625,7 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                     margin={currentBreakpoint === 'xs' ? [4, 4] : currentBreakpoint === 'sm' ? [6, 6] : [16, 16]}
                     containerPadding={[0, 0]}
                     draggableHandle=".drag-handle"
+                    draggableCancel=".no-drag"
                     compactType="vertical"
                     preventCollision={false}
                     useCSSTransforms={true}
@@ -647,12 +648,20 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
 
                         return (
                             <div key={widgetId} className={isEditing ? "border-2 border-dashed border-primary/50 rounded-lg relative bg-background/50" : "relative"}>
-                                <div className="h-full w-full rounded-lg">
+                                <div className="no-drag h-full w-full rounded-lg">
                                     {childWithProps}
+                                    {isEditing && (
+                                        <div
+                                            className="absolute inset-0 z-40 bg-transparent"
+                                            onMouseDown={(e) => e.stopPropagation()}
+                                            onTouchStart={(e) => e.stopPropagation()}
+                                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                                        />
+                                    )}
                                 </div>
                                 {isEditing && (
                                     <>
-                                        <div className="drag-handle absolute top-0 left-0 right-0 h-6 bg-primary/5 cursor-move rounded-t-lg z-[41] flex items-center justify-center">
+                                        <div className="drag-handle absolute top-0 left-0 right-0 h-8 bg-primary/5 cursor-move rounded-t-lg z-[41] flex items-center justify-center">
                                             <div className="w-12 h-1.5 bg-primary/30 rounded-full" />
                                             <Button
                                                 variant="ghost"

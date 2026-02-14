@@ -13,7 +13,7 @@ DB_ADMIN_PASSWORD="${DB_ADMIN_PASSWORD:-password}"
 DB_USER="${DB_USER:-woolet_app}"
 DB_PASSWORD="${DB_PASSWORD:-password}"
 DB_NAME="${DB_NAME:-woolet}"
-DB_PORT="${DB_PORT:-5432}"
+DB_PORT="${DB_PORT:-5433}"
 POSTGRES_HOST="woolet-postgres"
 
 # Helper function to URL encode values (requires python3)
@@ -21,109 +21,165 @@ url_encode() {
     python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=''))" "$1"
 }
 
-# Function to read env var from .env file safely
-get_env_value() {
-    local key=$1
-    local file=.env
-    if [ -f "$file" ]; then
-        # Grep the line, cut the value part, remove surrounding quotes if any
-        grep "^${key}=" "$file" | cut -d'=' -f2- | sed 's/^"//;s/"$//' | sed "s/^'//;s/'$//"
-    fi
-}
+# 2. Generate .env file from .env.example
+echo "🏗️  Generating .env file from environment variables..."
 
-# 2. Handle .env file and defaults
-if [ -f .env ] && [ -s .env ]; then
-    echo "ℹ️ .env file exists. Reading values safely..."
-    
-    # Read values directly to avoid evaluation issues with special chars
-    FILE_DB_ADMIN_USER=$(get_env_value "DB_ADMIN_USER")
-    FILE_DB_ADMIN_PASSWORD=$(get_env_value "DB_ADMIN_PASSWORD")
-    FILE_DB_USER=$(get_env_value "DB_USER")
-    FILE_DB_PASSWORD=$(get_env_value "DB_PASSWORD")
-    FILE_DB_NAME=$(get_env_value "DB_NAME")
-    FILE_DB_PORT=$(get_env_value "DB_PORT")
-    
-    # Use existing values from file or fall back to shell/defaults
-    DB_ADMIN_USER="${FILE_DB_ADMIN_USER:-$DB_ADMIN_USER}"
-    DB_ADMIN_PASSWORD="${FILE_DB_ADMIN_PASSWORD:-$DB_ADMIN_PASSWORD}"
-    DB_USER="${FILE_DB_USER:-$DB_USER}"
-    DB_PASSWORD="${FILE_DB_PASSWORD:-$DB_PASSWORD}"
-    DB_NAME="${FILE_DB_NAME:-$DB_NAME}"
-    DB_PORT="${FILE_DB_PORT:-$DB_PORT}"
-    
-    # Check if we should backfill the .env file if it's missing critical info
-    if [ -z "$FILE_DB_PASSWORD" ] && [ "$DB_PASSWORD" != "password" ]; then
-        echo "ℹ️ Critical credentials found in shell but missing in .env. Running repair..."
-        mv .env .env.bak
-        DO_GENERATE=true
-    fi
+if [ ! -f .env.example ]; then
+    echo "❌ Error: .env.example file not found!"
+    exit 1
 fi
 
-if [ ! -f .env ] || [ ! -s .env ] || [ "$DO_GENERATE" = true ]; then
-    if [ "$DO_GENERATE" = true ]; then
-        echo "🔄 Repairing .env file..."
-    else
-        echo "🏗️ Generating .env file..."
-    fi
-    # Function to escape $ to $$ for Docker Compose
-    escape_env() {
-        echo "${1//$/\$\$}"
-    }
+# Remove old .env to force regeneration
+rm -f .env
 
-    {
-        printf "DB_ADMIN_USER=%s\n" "$(escape_env "$DB_ADMIN_USER")"
-        printf "DB_ADMIN_PASSWORD=%s\n" "$(escape_env "$DB_ADMIN_PASSWORD")"
-        printf "DB_USER=%s\n" "$(escape_env "$DB_USER")"
-        printf "DB_PASSWORD=%s\n" "$(escape_env "$DB_PASSWORD")"
-        printf "DB_NAME=%s\n" "$(escape_env "$DB_NAME")"
-        printf "DB_PORT=%s\n" "$(escape_env "$DB_PORT")"
-        printf "GLITCHTIP_DB_PASSWORD=%s\n" "$(escape_env "$GLITCHTIP_DB_PASSWORD")"
-        printf "GLITCHTIP_DOMAIN=%s\n" "$(escape_env "$GLITCHTIP_DOMAIN")"
-        printf "GLITCHTIP_FROM_EMAIL=%s\n" "$(escape_env "$GLITCHTIP_FROM_EMAIL")"
-        printf "GLITCHTIP_SECRET_KEY=%s\n" "$(escape_env "$GLITCHTIP_SECRET_KEY")"
-        printf "REDIS_PASSWORD=%s\n" "$(escape_env "$REDIS_PASSWORD")"
-        printf "CLERK_SECRET_KEY=%s\n" "$(escape_env "$CLERK_SECRET_KEY")"
-        printf "CLERK_PUBLISHABLE_KEY=%s\n" "$(escape_env "$CLERK_PUBLISHABLE_KEY")"
-        printf "VITE_CLERK_PUBLISHABLE_KEY=%s\n" "$(escape_env "$VITE_CLERK_PUBLISHABLE_KEY")"
-        # Provide the default DATABASE_URL for the app (using PgBouncer) if not set in env
-        # Note: We can't easily URL encode here in generation block without python logic availability check, 
-        # but for generation we assume current env vars are safe-ish or standard.
-        printf "DATABASE_URL=%s\n" "$(escape_env "postgresql://$DB_USER:$DB_PASSWORD@woolet-pgbouncer:5432/$DB_NAME")"
-        printf "REDIS_URL=%s\n" "$(escape_env "$REDIS_URL")"
-        printf "WOOLET_API_IMAGE=%s\n" "$(escape_env "$WOOLET_API_IMAGE")"
-        printf "WOOLET_WEB_IMAGE=%s\n" "$(escape_env "$WOOLET_WEB_IMAGE")"
-        printf "WOOLET_LANDING_IMAGE=%s\n" "$(escape_env "$WOOLET_LANDING_IMAGE")"
-        printf "NODE_ENV=%s\n" "$(escape_env "$NODE_ENV")"
-        printf "API_URL=%s\n" "$(escape_env "$API_URL")"
-        printf "WEB_URL=%s\n" "$(escape_env "$WEB_URL")"
-        printf "GLITCHTIP_DSN_API=%s\n" "$(escape_env "$GLITCHTIP_DSN_API")"
-        printf "VITE_GLITCHTIP_DSN_WEB=%s\n" "$(escape_env "$VITE_GLITCHTIP_DSN_WEB")"
-        printf "VITE_PUBLIC_POSTHOG_KEY=%s\n" "$(escape_env "$VITE_PUBLIC_POSTHOG_KEY")"
-        printf "VITE_PUBLIC_POSTHOG_HOST=%s\n" "$(escape_env "$VITE_PUBLIC_POSTHOG_HOST")"
-        printf "LOG_LEVEL=%s\n" "$(escape_env "$LOG_LEVEL")"
-        printf "AI_PROVIDER_ORDER=%s\n" "$(escape_env "$AI_PROVIDER_ORDER")"
-        printf "OPEN_ROUTER_API_KEY=%s\n" "$(escape_env "$OPEN_ROUTER_API_KEY")"
-        printf "OPENROUTER_CHAT_MODEL=%s\n" "$(escape_env "$OPENROUTER_CHAT_MODEL")"
-        printf "OPENROUTER_SITE_URL=%s\n" "$(escape_env "$OPENROUTER_SITE_URL")"
-        printf "OPENROUTER_APP_NAME=%s\n" "$(escape_env "$OPENROUTER_APP_NAME")"
-        printf "OPENAI_API_KEY=%s\n" "$(escape_env "$OPENAI_API_KEY")"
-        printf "OPENAI_CHAT_MODEL=%s\n" "$(escape_env "$OPENAI_CHAT_MODEL")"
-        printf "GEMINI_API_KEY=%s\n" "$(escape_env "$GEMINI_API_KEY")"
-        printf "GEMINI_MODEL=%s\n" "$(escape_env "$GEMINI_MODEL")"
-        printf "CURRENCY_API_KEY=%s\n" "$(escape_env "$CURRENCY_API_KEY")"
-        printf "GROQ_API_KEY=%s\n" "$(escape_env "$GROQ_API_KEY")"
-        printf "TWELVE_DATA=%s\n" "$(escape_env "$TWELVE_DATA")"
-    } > .env
+# Clear .env file
+> .env
+
+# Read .env.example line by line
+while IFS= read -r line || [ -n "$line" ]; do
+    # Skip comments and empty lines
+    if [[ "$line" =~ ^#.* ]] || [[ -z "$line" ]]; then
+        continue
+    fi
+
+    # Extract key (everything before the first =)
+    key=$(echo "$line" | cut -d '=' -f 1)
+    
+    # Get value from environment variable
+    value=$(printenv "$key" || true)
+    
+    # If the variable is set in the environment, use it
+    if [ -n "$value" ]; then
+        # Escape single quotes for .env format
+        # Replace ' with '\''
+        escaped_value=$(echo "$value" | sed "s/'/'\\\\''/g")
+        echo "$key='$escaped_value'" >> .env
+    else
+        # If not in env, check if .env.example has a default value
+        default_value=$(echo "$line" | cut -d '=' -f 2-)
+        
+        if [ -n "$default_value" ]; then
+             echo "$key=$default_value" >> .env
+        else
+             echo "# $key is missing from environment" >> .env
+             echo "⚠️  Warning: $key not found in environment and no default in .env.example"
+        fi
+    fi
+done < .env.example
+
+# Fallback for DATABASE_URL if it wasn't set
+if ! grep -q "^DATABASE_URL=" .env; then
+    echo "ℹ️  DATABASE_URL not found in env, constructing default..."
+    echo "DATABASE_URL=\"postgresql://$DB_USER:$DB_PASSWORD@woolet-pgbouncer:5432/$DB_NAME\"" >> .env
+fi
+
+# Export CURRENCY_API_KEY for use in this session if needed
+if [ -n "$CURRENCY_API_KEY" ]; then
+    export CURRENCY_API_KEY
 fi
 
 # 3. Pull and start services
-echo "🏗️ Pulling application images..."
-# Only pull application images by default to speed up deployment. 
-# Infrastructure images (Postgres, Redis, PgBouncer) change rarely.
-docker compose -f docker-compose.prod.yml pull woolet-api woolet-web woolet-landing
+APP_SERVICES=""
 
-echo "🚀 Starting services..."
-docker compose -f docker-compose.prod.yml up -d
+# If shared deps changed, all app images are considered updated.
+if [ "${SHARED_CHANGED:-false}" = "true" ]; then
+    APP_SERVICES="woolet-api woolet-web woolet-landing"
+else
+    [ "${API_CHANGED:-false}" = "true" ] && APP_SERVICES="$APP_SERVICES woolet-api"
+    [ "${WEB_CHANGED:-false}" = "true" ] && APP_SERVICES="$APP_SERVICES woolet-web"
+    [ "${LANDING_CHANGED:-false}" = "true" ] && APP_SERVICES="$APP_SERVICES woolet-landing"
+
+APP_SERVICES=$(echo "$APP_SERVICES" | xargs || true)
+
+if [ -n "$APP_SERVICES" ]; then
+    echo "🏗️ Pulling updated application images: $APP_SERVICES"
+    docker compose -f docker-compose.prod.yml pull $APP_SERVICES
+
+    echo "🚀 Restarting updated app services..."
+    docker compose -f docker-compose.prod.yml up -d --no-deps $APP_SERVICES
+else
+    echo "ℹ️ No application image changes detected; skipping app image pull."
+fi
+
+echo "🚀 Ensuring core services are running..."
+docker compose -f docker-compose.prod.yml up -d woolet-postgres woolet-pgbouncer woolet-redis
+
+# Wait for Postgres to be healthy before running migrations
+echo "⏳ Waiting for Postgres to be ready..."
+for i in {1..30}; do
+    if docker compose -f docker-compose.prod.yml exec -T woolet-postgres pg_isready -U "${DB_ADMIN_USER}" -d "${DB_NAME}" > /dev/null 2>&1; then
+        echo "✅ Postgres is ready"
+        break
+    fi
+    echo "Waiting for Postgres... ($i/30)"
+    sleep 2
+done
+
+# Check for containers that are restarting or exited and print recent logs to help debugging
+echo "🔍 Checking container statuses for restarting/exited states..."
+for i in {1..10}; do
+    ps_out=$(docker compose -f docker-compose.prod.yml ps 2>/dev/null || true)
+    echo "$ps_out"
+    problem_containers=$(echo "$ps_out" | awk '/Restarting|Exit/ {print $1}' | tr '\n' ' ')
+    if [ -z "$problem_containers" ]; then
+        echo "✅ No restarting/exited containers detected"
+        break
+    fi
+
+    echo "⚠️ Detected restarting/exited containers: $problem_containers. Collecting detailed diagnostics..."
+    for c in $problem_containers; do
+        echo "----- Recent logs (compose) for $c -----"
+        docker compose -f docker-compose.prod.yml logs --details --timestamps --tail 1000 "$c" || true
+
+        # Try to resolve the underlying container id and show Docker-level logs + inspect
+        cid=$(docker compose -f docker-compose.prod.yml ps -q "$c" 2>/dev/null || true)
+        if [ -z "$cid" ]; then
+            # fallback to matching by name via docker ps
+            cid=$(docker ps -aq --filter "name=$c" | head -n1 || true)
+        fi
+
+        if [ -n "$cid" ]; then
+            echo "----- Docker logs (container id: $cid) for $c -----"
+            docker logs --details --timestamps --tail 1000 "$cid" || true
+
+            echo "----- Docker inspect (state summary) for $c -----"
+            docker inspect "$cid" --format 'State.Status={{.State.Status}}  ExitCode={{.State.ExitCode}}  Error={{.State.Error}}  OOMKilled={{.State.OOMKilled}}  RestartCount={{.RestartCount}}  StartedAt={{.State.StartedAt}}  FinishedAt={{.State.FinishedAt}}' || true
+
+            echo "----- Full State JSON for $c -----"
+            docker inspect "$cid" --format '{{json .State}}' || true
+
+            # If high restart count, save detailed logs to a temp file for later inspection
+            rc=$(docker inspect "$cid" --format '{{.RestartCount}}' 2>/dev/null || true)
+            if [ "${rc:-0}" -ge 3 ]; then
+                fn="/tmp/${c}-logs-$(date +%s).log"
+                echo "⚠️ High restart count ($rc) for $c — saving logs and inspect output to $fn"
+                {
+                    echo "=== compose logs ===";
+                    docker compose -f docker-compose.prod.yml logs --details --timestamps --tail 2000 "$c" || true;
+                    echo "=== docker logs ===";
+                    docker logs --details --timestamps --tail 2000 "$cid" || true;
+                    echo "=== docker inspect ===";
+                    docker inspect "$cid" || true;
+                } > "$fn" 2>&1 || true
+                echo "Saved diagnostics to: $fn"
+            fi
+        else
+            echo "❌ Could not find container id for $c (compose may not have started it)."
+        fi
+    done
+
+    # Sleep briefly and retry status check
+    sleep 3
+done
+
+# After retries, if we still see failing containers, abort so the issue can be fixed
+ps_out=$(docker compose -f docker-compose.prod.yml ps 2>/dev/null || true)
+problem_containers=$(echo "$ps_out" | awk '/Restarting|Exit/ {print $1}' | tr '\n' ' ')
+if [ -n "$problem_containers" ]; then
+    echo "❌ Containers still in restarting/exited state: $problem_containers"
+    echo "Please inspect the logs above (and any files under /tmp) and fix the root cause before re-running the deployment. Aborting."
+    exit 1
+fi
 
 # 4. Run database setup and migrations
 echo "🔄 Running database setup and migrations..."
@@ -137,7 +193,7 @@ MIGRATION_DATABASE_URL="postgresql://${ENCODED_ADMIN_USER}:${ENCODED_ADMIN_PASS}
 sleep 5
 echo "🏗️ Ensuring database exists..."
 # Connect as DB_ADMIN_USER to setup the database and grant permissions
-docker compose -f docker-compose.prod.yml exec -T \
+docker compose -f docker-compose.prod.yml run --rm --no-deps \
     -e DATABASE_URL="$MIGRATION_DATABASE_URL" \
     -e DB_USER="$DB_USER" \
     -e DB_PASSWORD="$DB_PASSWORD" \
@@ -145,12 +201,12 @@ docker compose -f docker-compose.prod.yml exec -T \
 
 echo "🔄 Running migrations..."
 # Connect as DB_ADMIN_USER to perform migrations (needs high privileges)
-docker compose -f docker-compose.prod.yml exec -T \
+docker compose -f docker-compose.prod.yml run --rm --no-deps \
     -e DATABASE_URL="$MIGRATION_DATABASE_URL" \
     woolet-api bun run db:migrate
 
 echo "🛡️ Running fallback migrations..."
-docker compose -f docker-compose.prod.yml exec -T \
+docker compose -f docker-compose.prod.yml run --rm --no-deps \
     -e DATABASE_URL="$MIGRATION_DATABASE_URL" \
     woolet-api bun run run-migration.ts
 
@@ -160,7 +216,7 @@ sleep 5
 
 # Check if API is healthy
 for i in {1..30}; do
-    if docker compose -f docker-compose.prod.yml exec -T woolet-api curl -s http://localhost:3001/health > /dev/null 2>&1; then
+    if docker compose -f docker-compose.prod.yml exec -T woolet-api curl -s http://localhost:3005/health > /dev/null 2>&1; then
         echo "✅ API is healthy!"
         break
     fi

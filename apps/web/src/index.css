@@ -164,3 +164,16 @@
 .cl-component {
   z-index: 10000 !important;
 }
+
+@keyframes bounce-short {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-bounce-short {
+  animation: bounce-short 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}

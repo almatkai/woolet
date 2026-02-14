@@ -102,7 +102,7 @@ export default function AdminPanel() {
   };
 
   const handleProviderOrderChange = (index: number, direction: 'up' | 'down') => {
-    if (!config) return;
+    if (!config || !config.providerOrder) return;
     const newOrder = [...config.providerOrder];
     if (direction === 'up' && index > 0) {
       [newOrder[index], newOrder[index - 1]] = [newOrder[index - 1], newOrder[index]];
@@ -251,7 +251,7 @@ export default function AdminPanel() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {config.providerOrder.map((provider, index) => (
+                  {(config.providerOrder || []).map((provider, index) => (
                     <div
                       key={provider}
                       className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-muted/30 transition-colors"
@@ -271,7 +271,7 @@ export default function AdminPanel() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 hover:bg-background"
-                          disabled={index === config.providerOrder.length - 1}
+                          disabled={index === (config.providerOrder?.length || 0) - 1}
                           onClick={() => handleProviderOrderChange(index, 'down')}
                         >
                           <ChevronDown className="h-4 w-4" />

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { ArrowRight, ArrowLeftRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
+import { formatAccountLabel } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -170,7 +171,7 @@ export function TransferSheet({ preselectedSenderId, trigger }: TransferSheetPro
                                 {allBalances.map((b: any) => (
                                     <SelectItem key={b.id} value={b.id}>
                                         <div className="flex flex-col items-start py-1">
-                                            <span className="font-medium text-sm">{b.bankName ? `[${b.bankName}${b.last4Digits ? ` ${b.last4Digits}` : ''}] ` : ''}{b.accountName}</span>
+                                            <span className="font-medium text-sm">{formatAccountLabel(b.bankName || 'Unknown Bank', b.accountName, b.last4Digits)}</span>
                                             <span className="text-xs text-muted-foreground">{b.currencyCode} • {b.balance.toLocaleString()}</span>
                                         </div>
                                     </SelectItem>
@@ -199,7 +200,7 @@ export function TransferSheet({ preselectedSenderId, trigger }: TransferSheetPro
                                     .map((b: any) => (
                                         <SelectItem key={b.id} value={b.id}>
                                             <div className="flex flex-col items-start py-1">
-                                                <span className="font-medium text-sm">{b.bankName ? `[${b.bankName}${b.last4Digits ? ` ${b.last4Digits}` : ''}] ` : ''}{b.accountName}</span>
+                                                <span className="font-medium text-sm">{formatAccountLabel(b.bankName || 'Unknown Bank', b.accountName, b.last4Digits)}</span>
                                                 <span className="text-xs text-muted-foreground">{b.currencyCode} • {b.balance.toLocaleString()}</span>
                                             </div>
                                         </SelectItem>

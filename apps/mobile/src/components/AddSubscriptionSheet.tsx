@@ -6,6 +6,7 @@ import { Input } from './ui/input';
 import { Button } from './ui/button';
 import BottomSheet from './ui/modal';
 import clsx from 'clsx';
+import { CurrencySelector } from './CurrencySelector';
 
 const typeIcons: Record<string, { icon: string; color: string }> = {
     mobile: { icon: '📱', color: '#3b82f6' },
@@ -91,6 +92,21 @@ export function AddSubscriptionSheet({ open, onOpenChange }: { open: boolean; on
                                 keyboardType="numeric"
                                 onChangeText={onChange}
                                 value={value}
+                            />
+                        )}
+                    />
+                </View>
+
+                {/* Currency */}
+                <View className="mb-4">
+                    <Text className="text-xs font-bold mb-2 text-zinc-400 uppercase tracking-widest px-1">Currency</Text>
+                    <Controller
+                        control={control}
+                        name="currency"
+                        render={({ field: { onChange, value } }) => (
+                            <CurrencySelector
+                                value={value}
+                                onValueChange={onChange}
                             />
                         )}
                     />
