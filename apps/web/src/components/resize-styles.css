@@ -17,6 +17,20 @@
     cursor: default !important;
 }
 
+/* Touch device drag handle support */
+.drag-handle {
+    touch-action: none;
+}
+
+.no-drag {
+    touch-action: auto;
+}
+
+/* In edit mode, prevent the grid item itself from capturing touch drags */
+.layout.is-editing .react-grid-item {
+    touch-action: auto;
+}
+
 /* Resizable handles - only visible in edit mode */
 .layout.is-editing .react-grid-item>.react-resizable-handle {
     position: absolute;
