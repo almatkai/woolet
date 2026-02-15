@@ -8,6 +8,22 @@ interface TooltipData {
     [key: string]: any;
 }
 
+const withAlpha = (color: string, alpha: number) => {
+    if (!color) return `rgba(99, 102, 241, ${alpha})`;
+    if (!color.startsWith('#')) return color;
+
+    const hex = color.slice(1);
+    const normalized = hex.length === 3
+        ? hex.split('').map((c) => c + c).join('')
+        : hex;
+    if (normalized.length !== 6) return color;
+
+    const r = parseInt(normalized.slice(0, 2), 16);
+    const g = parseInt(normalized.slice(2, 4), 16);
+    const b = parseInt(normalized.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 interface TooltipProProps {
     data?: TooltipData[];
     children: ReactNode;
@@ -41,7 +57,14 @@ export function useTooltipPro(data: TooltipData[] = [], formatValue?: (value: nu
     useEffect(() => {
         const handle = setTimeout(() => {
             if (typeof window === 'undefined') return;
-            setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+            const hasTouchPoints = navigator.maxTouchPoints > 0;
+            const hasCoarsePointer = typeof window.matchMedia === 'function'
+                ? window.matchMedia('(any-pointer: coarse)').matches
+                : false;
+            const noHover = typeof window.matchMedia === 'function'
+                ? window.matchMedia('(hover: none)').matches
+                : false;
+            setIsTouchDevice(hasTouchPoints && (hasCoarsePointer || noHover));
             setPortalTarget(document.body);
         }, 0);
         return () => clearTimeout(handle);
@@ -64,9 +87,11 @@ export function useTooltipPro(data: TooltipData[] = [], formatValue?: (value: nu
 
     const handleMouseMove = (event: React.MouseEvent) => {
         if (isTouchDevice) return;
+        const nextX = Math.min(event.clientX + 12, window.innerWidth - 140);
+        const nextY = Math.min(event.clientY + 12, window.innerHeight - 84);
         setMousePos({
-            x: event.clientX + 12,
-            y: event.clientY + 12,
+            x: Math.max(8, nextX),
+            y: Math.max(8, nextY),
         });
     };
 
@@ -104,42 +129,58 @@ export function useTooltipPro(data: TooltipData[] = [], formatValue?: (value: nu
         return createPortal(
             <>
                 {/* Custom cursor-following tooltip */}
-                {!isTouchDevice && hoveredItem && (
-                    <div
-                        className="fixed rounded-xl border border-purple-200/50 dark:border-purple-800/50 bg-background/70 backdrop-blur-xl px-2.5 py-1.5 z-[9999] pointer-events-none shadow-2xl ring-1 ring-white/10 min-w-[110px]"
-                        style={{ left: mousePos.x, top: mousePos.y }}
-                    >
-                        <div className="text-[9px] uppercase tracking-widest text-muted-foreground font-medium mb-0.5 line-clamp-1">
-                            {hoveredItem.name}
-                        </div>
-                        <div className="text-sm font-bold text-foreground">
-                            {valueFormatter(hoveredItem.value)}
-                        </div>
-                        {showPercentage && total > 0 && (
-                            <div className="text-[8px] text-muted-foreground mt-0.5">
-                                {((hoveredItem.value / total) * 100).toFixed(1)}%
+                {!isTouchDevice && hoveredItem && (() => {
+                    const accent = hoveredItem.color || '#6366f1';
+                    return (
+                        <div
+                            className="fixed rounded-xl border bg-background/70 backdrop-blur-xl px-2.5 py-1.5 z-[9999] pointer-events-none shadow-2xl ring-1 ring-white/10 min-w-[110px]"
+                            style={{
+                                left: mousePos.x,
+                                top: mousePos.y,
+                                borderColor: withAlpha(accent, 0.7),
+                                boxShadow: `0 0 0 1px ${withAlpha(accent, 0.25)}`,
+                            }}
+                        >
+                            <div className="text-[9px] uppercase tracking-widest text-muted-foreground font-medium mb-0.5 line-clamp-1 flex items-center gap-1">
+                                <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: accent }} />
+                                {hoveredItem.name}
                             </div>
-                        )}
-                    </div>
-                )}
+                            <div className="text-sm font-bold" style={{ color: accent }}>
+                                {valueFormatter(hoveredItem.value)}
+                            </div>
+                            {showPercentage && total > 0 && (
+                                <div className="text-[8px] text-muted-foreground mt-0.5">
+                                    {((hoveredItem.value / total) * 100).toFixed(1)}%
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {/* Mobile tooltip */}
-                {isTouchDevice && showMobileTooltip && selectedItem && (
-                    <div
-                        className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-2xl border border-purple-200/50 dark:border-purple-800/50 bg-background/70 backdrop-blur-xl px-4 py-2 z-[9999] shadow-2xl ring-1 ring-white/10 whitespace-nowrap"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="font-bold text-sm">{selectedItem.name}</div>
-                        <div className="text-sm font-medium text-muted-foreground">
-                            {valueFormatter(selectedItem.value)}
-                        </div>
-                        {showPercentage && total > 0 && (
-                            <div className="text-xs text-muted-foreground mt-0.5">
-                                {((selectedItem.value / total) * 100).toFixed(1)}%
+                {isTouchDevice && showMobileTooltip && selectedItem && (() => {
+                    const accent = selectedItem.color || '#6366f1';
+                    return (
+                        <div
+                            className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-2xl border bg-background/70 backdrop-blur-xl px-4 py-2 z-[9999] shadow-2xl ring-1 ring-white/10 whitespace-nowrap"
+                            style={{ borderColor: withAlpha(accent, 0.7) }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="font-bold text-sm flex items-center gap-1.5">
+                                <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: accent }} />
+                                {selectedItem.name}
                             </div>
-                        )}
-                    </div>
-                )}
+                            <div className="text-sm font-medium" style={{ color: accent }}>
+                                {valueFormatter(selectedItem.value)}
+                            </div>
+                            {showPercentage && total > 0 && (
+                                <div className="text-xs text-muted-foreground mt-0.5">
+                                    {((selectedItem.value / total) * 100).toFixed(1)}%
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
             </>,
             portalTarget
         );

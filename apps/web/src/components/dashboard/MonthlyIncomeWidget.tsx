@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Area, AreaChart, ResponsiveContainer, XAxis } from 'recharts';
-import { TooltipPro } from '@/components/ui/tooltip-pro';
 import { Link } from '@tanstack/react-router';
 
 interface Transaction {
@@ -46,14 +45,16 @@ export function MonthlyIncomeWidget({ gridParams }: { gridParams?: GridParams })
     const isSmallBp = bp === 'sm' || bp === 'xs';
     const compactHeightThreshold = isSmallBp ? 2 : 1;
     const tallHeightThreshold = isSmallBp ? 2 : 1;
+    const isNarrowCard = (gridParams?.w ?? 0) <= 1 && (gridParams?.h ?? 0) <= 2;
 
-    const isCompact = (gridParams?.h ?? 0) <= compactHeightThreshold;
+    const isCompact = (gridParams?.h ?? 0) <= compactHeightThreshold || isNarrowCard;
     const isTall = (gridParams?.h ?? 0) > tallHeightThreshold;
     const isWide = (gridParams?.w ?? 0) >= 2;
 
     const transactions = incomeData?.transactions || [];
     const transactionCount = transactions.length;
     const totalIncome = transactions.reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0);
+    const averageIncome = transactionCount > 0 ? totalIncome / transactionCount : 0;
     
     // Sort by date descending (newest first)
     const sortedTransactions = [...transactions].sort((a, b) => 
@@ -70,7 +71,7 @@ export function MonthlyIncomeWidget({ gridParams }: { gridParams?: GridParams })
     if (isLoading) {
         return (
             <Card className={cn('dashboard-widget h-full', isCompact && 'dashboard-widget--compact')}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
                     <Skeleton className="h-4 w-28" />
                 </CardHeader>
                 <CardContent className="p-3 pt-0">
@@ -85,20 +86,28 @@ export function MonthlyIncomeWidget({ gridParams }: { gridParams?: GridParams })
         return (
             <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
                 <Link to="/spending" className="block">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Monthly Income</CardTitle>
-                        <TrendingUp className="dashboard-widget__icon text-green-500" />
+                    <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
+                        <CardTitle className="dashboard-widget__title truncate">Monthly Income</CardTitle>
+                        <div className="dashboard-widget__header-value text-green-600">
+                            {totalIncome > 0 ? (
+                                <CurrencyDisplay amount={totalIncome} showSign abbreviate />
+                            ) : (
+                                <CurrencyDisplay amount={0} abbreviate />
+                            )}
+                        </div>
                     </CardHeader>
                 </Link>
-                <CardContent className="p-2 pt-0">
-                    <div className="dashboard-widget__value" style={{ color: totalIncome > 0 ? '#22c55e' : '#6b7280' }}>
-                        {totalIncome > 0 ? (
-                            <CurrencyDisplay amount={totalIncome} showSign abbreviate />
+                <CardContent className="p-2 pt-1 pb-2 flex-1 flex flex-col">
+                    <p className="dashboard-widget__meta truncate">
+                        {transactionCount > 0 ? (
+                            <>
+                                Avg <CurrencyDisplay amount={averageIncome} abbreviate />
+                            </>
                         ) : (
-                            <CurrencyDisplay amount={0} abbreviate />
+                            'No transactions yet'
                         )}
-                    </div>
-                    <p className="dashboard-widget__sub mt-0.5 truncate">
+                    </p>
+                    <p className="dashboard-widget__sub w-full truncate mt-auto">
                         {transactionCount} transactions
                     </p>
                 </CardContent>
@@ -110,8 +119,8 @@ export function MonthlyIncomeWidget({ gridParams }: { gridParams?: GridParams })
     return (
         <Card className="dashboard-widget h-full flex flex-col">
             <Link to="/spending" className="block">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1 hover:bg-muted/50 transition-colors">
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Monthly Income</CardTitle>
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
+                    <CardTitle className="dashboard-widget__title truncate">Monthly Income</CardTitle>
                     <TrendingUp className="dashboard-widget__icon text-green-500" />
                 </CardHeader>
             </Link>
@@ -164,7 +173,7 @@ export function MonthlyIncomeWidget({ gridParams }: { gridParams?: GridParams })
                                             <span className="text-xs font-medium line-clamp-2 break-words">
                                                 {tx.description || tx.category?.name || 'Income'}
                                             </span>
-                                            <span className="text-[10px] text-muted-foreground">
+                                            <span className="text-xs text-muted-foreground">
                                                 {new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                             </span>
                                         </div>

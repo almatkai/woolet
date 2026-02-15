@@ -46,33 +46,45 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
     return (
         <Card className={cn('dashboard-widget h-full flex flex-col', isCompactStyle && 'dashboard-widget--compact')}>
             <Link to="/financial/credits" className="block">
-                <CardHeader className={cn('p-3 pb-1 hover:bg-muted/50 transition-colors', isCompactStyle && 'p-2 pb-0')}>
-                    <div className="flex items-center justify-between">
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Credits</CardTitle>
-                        <CreditCard className="dashboard-widget__icon" />
+                <CardHeader className="dashboard-widget__header p-2 pb-1 hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                        <CardTitle className="dashboard-widget__title truncate">Credits</CardTitle>
+                        {isCompactStyle ? (
+                            <div className="dashboard-widget__header-value">
+                                <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} abbreviate />
+                            </div>
+                        ) : (
+                            <CreditCard className="dashboard-widget__icon" />
+                        )}
                     </div>
-                    {!hideCardDescription && <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">Your credit cards & loans</CardDescription>}
+                    {!hideCardDescription && <CardDescription className="dashboard-widget__desc truncate">Your credit cards & loans</CardDescription>}
                 </CardHeader>
             </Link>
-            <CardContent className={cn('flex-1 overflow-y-auto p-3 pt-0', isCompactStyle && 'p-2 pt-0')}>
+            <CardContent className={cn('flex-1 overflow-y-auto p-3 pt-0', isCompactStyle && 'p-2 pt-1 pb-2')}>
                 {isLoading ? (
                     <div className="space-y-2">
                         <Skeleton className="h-4 w-32" />
                         <Skeleton className="h-4 w-48" />
                     </div>
                 ) : activeCredits.length === 0 ? (
-                    <p className="dashboard-widget__desc text-[10px] sm:text-xs">No active credits.</p>
+                    <p className="dashboard-widget__desc">No active credits.</p>
+                ) : isCompactStyle ? (
+                    <div className="h-full flex items-end">
+                        <p className="dashboard-widget__sub w-full truncate">
+                            {activeCredits.length} active • {allPaidThisMonth ? 'paid' : 'unpaid'}
+                        </p>
+                    </div>
                 ) : isNx1 ? (
                     // Nx1 layout (height=1, width>1): Show only the most important info - monthly payment
                     <div className="flex items-center justify-between h-full">
                         <div className="flex items-center gap-3">
                             <div>
-                                <p className="dashboard-widget__meta text-[10px]">This Month</p>
+                                <p className="dashboard-widget__meta">This Month</p>
                                 <div className="dashboard-widget__value text-lg">
                                     <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} />
                                 </div>
                             </div>
-                            <Badge variant={allPaidThisMonth ? "default" : "destructive"} className="dashboard-widget__badge flex items-center gap-1 text-[10px] h-5 px-2">
+                            <Badge variant={allPaidThisMonth ? "default" : "destructive"} className="dashboard-widget__badge flex items-center gap-1 text-xs h-5 px-2">
                                 {allPaidThisMonth ? (
                                     <><Check className="h-2.5 w-2.5" /> Paid</>
                                 ) : (
@@ -81,15 +93,15 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                             </Badge>
                         </div>
                         <div className="text-right">
-                            <p className="dashboard-widget__meta text-[10px]">{activeCredits.length} Active</p>
+                            <p className="dashboard-widget__meta">{activeCredits.length} Active</p>
                         </div>
                     </div>
                 ) : showTwoColumn ? (
                     <div className="grid grid-cols-2 gap-4 h-full">
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                                <p className="dashboard-widget__meta text-[10px]">This Month</p>
-                                <Badge variant={allPaidThisMonth ? "default" : "destructive"} className="dashboard-widget__badge flex items-center gap-1 text-[10px] h-5 px-2">
+                                <p className="dashboard-widget__meta">This Month</p>
+                                <Badge variant={allPaidThisMonth ? "default" : "destructive"} className="dashboard-widget__badge flex items-center gap-1 text-xs h-5 px-2">
                                     {allPaidThisMonth ? (
                                         <><Check className="h-2.5 w-2.5" /> Paid</>
                                     ) : (
@@ -97,18 +109,18 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                                     )}
                                 </Badge>
                             </div>
-                            <div className="dashboard-widget__value text-base">
+                            <div className="dashboard-widget__value">
                                 <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} />
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <p className="dashboard-widget__meta text-[10px]">{is2x2 ? `All Credits (${activeCredits.length})` : 'Top Credits (4)'}</p>
+                            <p className="dashboard-widget__meta">{is2x2 ? `All Credits (${activeCredits.length})` : 'Top Credits (4)'}</p>
                             <div className="space-y-1">
                                 {displayCredits.map((credit: any) => {
                                     const targetMonthStr = getTargetMonthStr(credit.billingDay, { logic, period });
                                     const isPaidThisMonth = isPaidForTargetMonth(credit.payments, targetMonthStr, true);
                                     return (
-                                        <div key={credit.id} className="dashboard-widget__item flex items-center justify-between p-1.5 rounded-md bg-muted/30 text-[11px] gap-2">
+                                        <div key={credit.id} className="dashboard-widget__item flex items-center justify-between p-1.5 rounded-md bg-muted/30 text-xs gap-2">
                                             <div className="flex items-center gap-1.5 min-w-0 flex-1">
                                                 {isPaidThisMonth ? (
                                                     <Check className="h-2.5 w-2.5 text-green-600 flex-shrink-0" />
@@ -117,7 +129,7 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                                                 )}
                                                 <span className="truncate">{credit.name}</span>
                                             </div>
-                                            <span className="font-medium whitespace-nowrap flex-shrink-0 text-[11px]">
+                                            <span className="font-medium whitespace-nowrap flex-shrink-0 text-xs">
                                                 <CurrencyDisplay amount={credit.monthlyPayment} currency={credit.currency} />
                                             </span>
                                         </div>

@@ -136,7 +136,7 @@ export function SubscriptionsWidget({ gridParams }: { gridParams?: { w: number; 
     if (isLoading) {
         return (
             <Card className={cn('dashboard-widget h-full', isCompact && 'dashboard-widget--compact')}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
                     <Skeleton className="h-4 w-28" />
                 </CardHeader>
                 <CardContent className="p-3 pt-0">
@@ -151,16 +151,15 @@ export function SubscriptionsWidget({ gridParams }: { gridParams?: { w: number; 
         return (
             <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
                 <Link to="/subscriptions" className="block">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Subscriptions</CardTitle>
-                        <Repeat className="dashboard-widget__icon" />
+                    <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
+                        <CardTitle className="dashboard-widget__title truncate">Subscriptions</CardTitle>
+                        <div className="dashboard-widget__header-value">
+                            <CurrencyDisplay amount={primaryAmount} currency={primaryCurrency} abbreviate />
+                        </div>
                     </CardHeader>
                 </Link>
-                <CardContent className="p-2 pt-0">
-                    <div className="dashboard-widget__value">
-                        <CurrencyDisplay amount={primaryAmount} currency={primaryCurrency} abbreviate />
-                    </div>
-                    <p className="dashboard-widget__sub mt-0.5 truncate">
+                <CardContent className="p-2 pt-1 pb-2 flex-1 flex items-end">
+                    <p className="dashboard-widget__sub w-full truncate">
                         {totalSubscriptions} {totalSubscriptions === 1 ? 'subscription' : 'subscriptions'}
                     </p>
                 </CardContent>
@@ -172,8 +171,8 @@ export function SubscriptionsWidget({ gridParams }: { gridParams?: { w: number; 
     return (
         <Card className="dashboard-widget h-full flex flex-col">
             <Link to="/subscriptions" className="block">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1 hover:bg-muted/50 transition-colors">
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Subscriptions</CardTitle>
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
+                    <CardTitle className="dashboard-widget__title truncate">Subscriptions</CardTitle>
                     <Repeat className="dashboard-widget__icon" />
                 </CardHeader>
             </Link>
@@ -200,7 +199,7 @@ export function SubscriptionsWidget({ gridParams }: { gridParams?: { w: number; 
                                         </span>
                                         <div className="flex flex-col min-w-0">
                                             <span className="text-xs font-medium truncate">{subscription.name}</span>
-                                            <span className="text-[10px] text-muted-foreground truncate">
+                                            <span className="text-xs text-muted-foreground truncate">
                                                 {subscription.daysUntilBilling === 0 
                                                     ? 'Today' 
                                                     : subscription.daysUntilBilling === 1

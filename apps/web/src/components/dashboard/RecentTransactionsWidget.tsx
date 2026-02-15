@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { trpc } from '@/lib/trpc';
 import { Link } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
-import { CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
@@ -145,50 +144,20 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
 
     if (isCompact) {
         const transactions = recentTransactions?.transactions || [];
+        const latestTransaction = transactions[0];
 
         return (
             <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1 flex-shrink-0">
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 flex-shrink-0">
                     <CardTitle className="dashboard-widget__title">Recent</CardTitle>
-                    <CreditCard className="dashboard-widget__icon" />
+                    <div className="dashboard-widget__header-value">{transactions.length}</div>
                 </CardHeader>
-                <CardContent className="p-3 pt-1 flex-1 overflow-auto scrollbar-hide">
-                    <div className="space-y-2.5">
-                        {transactions.length > 0 ? (
-                            transactions.map((tx) => (
-                                <div key={tx.id} className="flex items-center justify-between gap-3 group">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <div className="h-7 w-7 rounded-full bg-muted/50 flex items-center justify-center text-xs flex-shrink-0 group-hover:bg-muted transition-colors">
-                                            {tx.category?.icon || '📄'}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-[11px] font-semibold text-foreground truncate leading-tight">
-                                                {tx.description || tx.category?.name || 'Unknown'}
-                                            </p>
-                                            <p className="text-[9px] text-muted-foreground truncate leading-tight">
-                                                {format(new Date(tx.date), 'MM/dd')} • {tx.currencyBalance?.account?.name || 'Account'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className={cn(
-                                        "text-[11px] font-bold whitespace-nowrap",
-                                        tx.type === 'income' ? 'text-green-600' : tx.type === 'expense' ? 'text-red-600' : 'text-foreground'
-                                    )}>
-                                        <CurrencyDisplay
-                                            amount={tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Number(tx.amount)}
-                                            currency={tx.currencyBalance?.currencyCode || 'USD'}
-                                            showSign
-                                            abbreviate
-                                        />
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className="text-[10px] text-muted-foreground text-center py-4 italic">
-                                No transactions
-                            </div>
-                        )}
-                    </div>
+                <CardContent className="p-2 pt-1 pb-2 flex-1 flex items-end">
+                    <p className="dashboard-widget__sub w-full truncate">
+                        {latestTransaction
+                            ? `${format(new Date(latestTransaction.date), 'MM/dd')} • ${latestTransaction.description || latestTransaction.category?.name || 'Transaction'}`
+                            : 'No transactions'}
+                    </p>
                 </CardContent>
             </Card>
         );
@@ -197,9 +166,8 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
     return (
         <Card className={cn('dashboard-widget h-full flex flex-col', isCompact && 'dashboard-widget--compact')}>
             <Link to="/spending" className="block">
-                <CardHeader className="p-3 pb-1 hover:bg-muted/50 transition-colors">
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Recent Transactions</CardTitle>
-                    <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">Your latest spending activity</CardDescription>
+                <CardHeader className="dashboard-widget__header p-2 pb-1 hover:bg-muted/50 transition-colors">
+                    <CardTitle className="dashboard-widget__title truncate">Recent Transactions</CardTitle>
                 </CardHeader>
             </Link>
             <CardContent className="flex-1 overflow-auto p-3 pt-0">
@@ -209,14 +177,17 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
                             <p className="dashboard-widget__desc">No recent transactions</p>
                         </div>
                     ) : (
-                        recentTransactions?.transactions.map((tx: Transaction) => (
-                            <div key={tx.id} className="flex items-center justify-between py-1 px-1 sm:p-2 hover:bg-muted/50 rounded-lg transition-colors">
-                                <div className="flex items-center gap-2 sm:gap-3">
-                                    <div className="h-6 w-6 sm:h-10 sm:w-10 rounded-full bg-muted flex items-center justify-center dashboard-widget__item">
+                        recentTransactions?.transactions.map((tx: Transaction) => {
+                            const txAmount = tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Number(tx.amount);
+                            const shouldAbbreviate = Math.abs(txAmount) > 999;
+                            return (
+                            <div key={tx.id} className="flex items-center justify-between py-1 px-1 sm:p-1.5 hover:bg-muted/50 rounded-lg transition-colors gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-full bg-muted/60 flex items-center justify-center dashboard-widget__item text-xs flex-shrink-0">
                                         {tx.category?.icon || '📄'}
                                     </div>
-                                    <div>
-                                        <p className="dashboard-widget__item font-medium truncate max-w-[100px] sm:max-w-[150px]">{tx.description || tx.category?.name || 'Unknown'}</p>
+                                    <div className="min-w-0">
+                                        <p className="dashboard-widget__item font-medium truncate max-w-[95px] sm:max-w-[140px]">{tx.description || tx.category?.name || 'Unknown'}</p>
                                         <p className="dashboard-widget__meta">
                                             {new Date(tx.date).toLocaleDateString()}
                                         </p>
@@ -224,13 +195,14 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
                                 </div>
                                 <span className={`dashboard-widget__item font-semibold whitespace-nowrap ${tx.type === 'income' ? 'text-green-600' : tx.type === 'expense' ? 'text-red-600' : 'text-foreground'}`}>
                                     <CurrencyDisplay
-                                        amount={tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Number(tx.amount)}
+                                        amount={txAmount}
                                         currency={tx.currencyBalance?.currencyCode || 'USD'}
                                         showSign={tx.type === 'income'}
+                                        abbreviate={shouldAbbreviate}
                                     />
                                 </span>
                             </div>
-                        ))
+                        )})
                     )}
                 </div>
                 {(recentTransactions?.transactions || []).length > 0 && (

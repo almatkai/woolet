@@ -101,7 +101,7 @@ export function CurrencyExchangeWidget({ gridParams }: CurrencyExchangeWidgetPro
     if (isLoading) {
         return (
             <Card className={cn('dashboard-widget h-full', isCompact && 'dashboard-widget--compact')}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
                     <Skeleton className="h-4 w-32" />
                 </CardHeader>
                 <CardContent className="p-3 pt-0">
@@ -114,8 +114,8 @@ export function CurrencyExchangeWidget({ gridParams }: CurrencyExchangeWidgetPro
     if (error) {
         return (
             <Card className={cn('dashboard-widget h-full', isCompact && 'dashboard-widget--compact')}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Exchange Rates</CardTitle>
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
+                    <CardTitle className="dashboard-widget__title truncate">Exchange Rates</CardTitle>
                     <ArrowRightLeft className="dashboard-widget__icon" />
                 </CardHeader>
                 <CardContent className="p-3 pt-0">
@@ -136,24 +136,18 @@ export function CurrencyExchangeWidget({ gridParams }: CurrencyExchangeWidgetPro
         
         return (
             <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1">
-                    <Link to="/accounts" className="flex-1 min-w-0">
-                        <CardTitle className="dashboard-widget__title truncate text-sm hover:underline">Exchange Rates</CardTitle>
-                    </Link>
-                    <button 
-                        onClick={(e) => { e.stopPropagation(); setIsReversed(!isReversed); }}
-                        className="dashboard-widget__icon cursor-pointer hover:text-primary transition-colors"
-                    >
-                        <ArrowRightLeft className="h-4 w-4" />
-                    </button>
-                </CardHeader>
-                <CardContent className="p-2 pt-0">
-                    <div className="dashboard-widget__value">
-                        1 {fromCurrency} = {rate.toFixed(rate >= 1 ? 2 : 4)} {toCurrency}
+                <Link to="/accounts" className="block">
+                    <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
+                        <CardTitle className="dashboard-widget__title truncate">Exchange Rates</CardTitle>
+                        <div className="dashboard-widget__header-value">
+                            {rate.toFixed(rate >= 1 ? 2 : 4)}
+                        </div>
+                    </CardHeader>
+                </Link>
+                <CardContent className="p-2 pt-1 pb-2 flex-1 flex items-end">
+                    <div className="dashboard-widget__sub w-full truncate">
+                        {fromCurrency} {'->'} {toCurrency} • {Object.keys(exchangeRates || {}).length} currencies
                     </div>
-                    <p className="dashboard-widget__sub mt-0.5 truncate">
-                        {Object.keys(exchangeRates || {}).length} currencies
-                    </p>
                 </CardContent>
             </Card>
         );
@@ -163,11 +157,11 @@ export function CurrencyExchangeWidget({ gridParams }: CurrencyExchangeWidgetPro
     if (isMedium && !isLarge) {
         return (
             <Card className="dashboard-widget h-full flex flex-col">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
                     <Link to="/accounts" className="flex-1 min-w-0">
                         <div className="hover:underline">
-                            <CardTitle className="dashboard-widget__title truncate text-sm">Exchange Rates</CardTitle>
-                            <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
+                            <CardTitle className="dashboard-widget__title truncate">Exchange Rates</CardTitle>
+                            <CardDescription className="dashboard-widget__desc truncate">
                                 {isReversed ? `To ${baseCurrency}` : `From ${baseCurrency}`}
                             </CardDescription>
                         </div>
@@ -193,7 +187,7 @@ export function CurrencyExchangeWidget({ gridParams }: CurrencyExchangeWidgetPro
                                     className="dashboard-widget__item rounded-md bg-muted/50 p-2"
                                 >
                                     <div className="flex items-center gap-1.5">
-                                        <span className="text-base">{CURRENCY_FLAGS[currency]}</span>
+                                        <span className="text-sm">{CURRENCY_FLAGS[currency]}</span>
                                         <span className="font-medium text-xs">{fromCurrency}→{toCurrency}</span>
                                     </div>
                                     <div className="text-sm font-semibold mt-0.5">
@@ -216,11 +210,11 @@ export function CurrencyExchangeWidget({ gridParams }: CurrencyExchangeWidgetPro
 
     return (
         <Card className="dashboard-widget h-full flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+            <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
                 <Link to="/accounts" className="flex-1 min-w-0">
                     <div className="hover:underline">
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Exchange Rates</CardTitle>
-                        <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
+                        <CardTitle className="dashboard-widget__title truncate">Exchange Rates</CardTitle>
+                        <CardDescription className="dashboard-widget__desc truncate">
                             {isReversed ? `To ${baseCurrency}` : `From ${baseCurrency}`}
                         </CardDescription>
                     </div>

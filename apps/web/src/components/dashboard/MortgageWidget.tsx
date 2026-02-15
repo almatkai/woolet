@@ -36,19 +36,19 @@ export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: nu
         return (
             <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
                 <Link to="/financial/mortgages" className="block">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Mortgages</CardTitle>
-                        <Home className="dashboard-widget__icon" />
+                    <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
+                        <CardTitle className="dashboard-widget__title truncate">Mortgages</CardTitle>
+                        <div className="dashboard-widget__header-value">
+                            <CurrencyDisplay
+                                amount={totalBalance}
+                                currency={activeMortgages.length > 0 ? activeMortgages[0].currency : undefined}
+                                abbreviate
+                            />
+                        </div>
                     </CardHeader>
                 </Link>
-                <CardContent className="p-2 pt-0">
-                    <div className="dashboard-widget__value">
-                        <CurrencyDisplay 
-                            amount={totalBalance} 
-                            currency={activeMortgages.length > 0 ? activeMortgages[0].currency : undefined} 
-                        />
-                    </div>
-                    <p className="dashboard-widget__sub mt-1">
+                <CardContent className="p-2 pt-1 pb-2 flex-1 flex items-end">
+                    <p className="dashboard-widget__sub w-full">
                         {activeMortgages.length} active {activeMortgages.length === 1 ? 'loan' : 'loans'}
                     </p>
                 </CardContent>
@@ -60,9 +60,9 @@ export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: nu
         <>
             <Card className={cn('dashboard-widget h-full flex flex-col', isCompact && 'dashboard-widget--compact')}>
                 <Link to="/financial/mortgages" className="block">
-                    <CardHeader className="p-3 pb-1 hover:bg-muted/50 transition-colors">
+                    <CardHeader className="dashboard-widget__header p-2 pb-1 hover:bg-muted/50 transition-colors">
                         <div className="flex items-center justify-between">
-                            <CardTitle className="dashboard-widget__title truncate text-sm">Mortgages</CardTitle>
+                            <CardTitle className="dashboard-widget__title truncate">Mortgages</CardTitle>
                             <Home className="dashboard-widget__icon" />
                         </div>
                     </CardHeader>
@@ -74,7 +74,7 @@ export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: nu
                             <Skeleton className="h-4 w-48" />
                         </div>
                     ) : activeMortgages.length === 0 ? (
-                        <p className="dashboard-widget__desc text-[10px] sm:text-xs">No active mortgages found.</p>
+                        <p className="dashboard-widget__desc">No active mortgages found.</p>
                     ) : (
                         <div className="space-y-3">
                             {/* This Month Status */}

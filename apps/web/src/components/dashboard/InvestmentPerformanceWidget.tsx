@@ -29,7 +29,7 @@ export function InvestmentPerformanceWidget({ gridParams }: InvestmentPerformanc
     if (isLoading) {
         return (
             <Card className={cn('dashboard-widget h-full', isCompact && 'dashboard-widget--compact')}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
                     <Skeleton className="h-4 w-32" />
                 </CardHeader>
                 <CardContent className="p-3 pt-0">
@@ -50,17 +50,16 @@ export function InvestmentPerformanceWidget({ gridParams }: InvestmentPerformanc
         return (
             <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
                 <Link to="/investing" className="block">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Performance</CardTitle>
-                        <BarChart3 className="dashboard-widget__icon" />
+                    <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
+                        <CardTitle className="dashboard-widget__title truncate">Performance</CardTitle>
+                        <div className={cn('dashboard-widget__header-value', totalROI >= 0 ? 'text-green-600' : 'text-red-600')}>
+                            {totalROI >= 0 ? '+' : ''}{totalROI.toFixed(2)}%
+                        </div>
                     </CardHeader>
                 </Link>
-                <CardContent className="p-2 pt-0">
-                    <div className={cn('dashboard-widget__value', totalROI >= 0 ? 'text-green-600' : 'text-red-600')}>
-                        {totalROI >= 0 ? '+' : ''}{totalROI.toFixed(2)}%
-                    </div>
-                    <p className="dashboard-widget__sub mt-0.5 truncate">
-                        ROI
+                <CardContent className="p-2 pt-1 pb-2 flex-1 flex items-end">
+                    <p className="dashboard-widget__sub w-full truncate">
+                        ROI • <CurrencyDisplay amount={totalPL} showSign abbreviate />
                     </p>
                 </CardContent>
             </Card>
@@ -71,10 +70,10 @@ export function InvestmentPerformanceWidget({ gridParams }: InvestmentPerformanc
     if (isMedium && !isLarge) {
         return (
             <Card className="dashboard-widget h-full flex flex-col">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
                     <div>
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Performance</CardTitle>
-                        <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
+                        <CardTitle className="dashboard-widget__title truncate">Performance</CardTitle>
+                        <CardDescription className="dashboard-widget__desc truncate">
                             Returns & P/L
                         </CardDescription>
                     </div>
@@ -84,7 +83,7 @@ export function InvestmentPerformanceWidget({ gridParams }: InvestmentPerformanc
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                             <p className="dashboard-widget__meta">Total ROI</p>
-                            <div className={cn('dashboard-widget__value text-base', 
+                            <div className={cn('dashboard-widget__value', 
                                 totalROI >= 0 ? 'text-green-600' : 'text-red-600'
                             )}>
                                 {totalROI >= 0 ? '+' : ''}{totalROI.toFixed(2)}%
@@ -92,7 +91,7 @@ export function InvestmentPerformanceWidget({ gridParams }: InvestmentPerformanc
                         </div>
                         <div className="space-y-1">
                             <p className="dashboard-widget__meta">Unrealized P/L</p>
-                            <div className={cn('dashboard-widget__value text-base', 
+                            <div className={cn('dashboard-widget__value', 
                                 totalPL >= 0 ? 'text-green-600' : 'text-red-600'
                             )}>
                                 <CurrencyDisplay amount={totalPL} showSign abbreviate />
@@ -100,7 +99,7 @@ export function InvestmentPerformanceWidget({ gridParams }: InvestmentPerformanc
                         </div>
                         <div className="col-span-2 space-y-1">
                             <p className="dashboard-widget__meta">Realized P/L</p>
-                            <div className={cn('dashboard-widget__value text-base', 
+                            <div className={cn('dashboard-widget__value', 
                                 realizedPL >= 0 ? 'text-green-600' : 'text-red-600'
                             )}>
                                 <CurrencyDisplay amount={realizedPL} showSign abbreviate />
@@ -122,10 +121,10 @@ export function InvestmentPerformanceWidget({ gridParams }: InvestmentPerformanc
     return (
         <Card className="dashboard-widget h-full flex flex-col">
             <Link to="/investing" className="block">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1 hover:bg-muted/50 transition-colors">
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
                     <div>
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Portfolio Performance</CardTitle>
-                        <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
+                        <CardTitle className="dashboard-widget__title truncate">Portfolio Performance</CardTitle>
+                        <CardDescription className="dashboard-widget__desc truncate">
                             Value vs Cost Basis
                         </CardDescription>
                     </div>
@@ -136,7 +135,7 @@ export function InvestmentPerformanceWidget({ gridParams }: InvestmentPerformanc
                 {/* Stats Row */}
                 <div className="grid grid-cols-3 gap-2">
                     <div className="space-y-0.5">
-                        <p className="dashboard-widget__meta text-[10px]">ROI</p>
+                        <p className="dashboard-widget__meta">ROI</p>
                         <div className={cn('font-semibold text-sm', 
                             totalROI >= 0 ? 'text-green-600' : 'text-red-600'
                         )}>
@@ -144,7 +143,7 @@ export function InvestmentPerformanceWidget({ gridParams }: InvestmentPerformanc
                         </div>
                     </div>
                     <div className="space-y-0.5">
-                        <p className="dashboard-widget__meta text-[10px]">Unrealized</p>
+                        <p className="dashboard-widget__meta">Unrealized</p>
                         <div className={cn('font-semibold text-sm', 
                             totalPL >= 0 ? 'text-green-600' : 'text-red-600'
                         )}>
@@ -152,7 +151,7 @@ export function InvestmentPerformanceWidget({ gridParams }: InvestmentPerformanc
                         </div>
                     </div>
                     <div className="space-y-0.5">
-                        <p className="dashboard-widget__meta text-[10px]">Realized</p>
+                        <p className="dashboard-widget__meta">Realized</p>
                         <div className={cn('font-semibold text-sm', 
                             realizedPL >= 0 ? 'text-green-600' : 'text-red-600'
                         )}>

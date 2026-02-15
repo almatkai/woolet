@@ -43,7 +43,6 @@ export function Dashboard() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-                        <p className="text-muted-foreground hidden sm:block">Overview of your financial health.</p>
                     </div>
                     <div className="flex gap-2">
                         {isEditing ? (

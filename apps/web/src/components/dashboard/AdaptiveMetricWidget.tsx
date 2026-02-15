@@ -1,7 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
-import { TooltipPro } from '@/components/ui/tooltip-pro';
+import { Area, AreaChart, ResponsiveContainer, XAxis } from 'recharts';
 import { cn } from '@/lib/utils';
 
 interface AdaptiveMetricWidgetProps {
@@ -26,7 +25,6 @@ export function AdaptiveMetricWidget({
     gridParams
 }: AdaptiveMetricWidgetProps) {
     const isExpanded = (gridParams?.w || 1) >= 2;
-    const isTall = (gridParams?.h || 1) >= 2;
     const isCompact = (gridParams?.w ?? 0) <= 1 || (gridParams?.h ?? 0) <= 2;
 
     const resolvedIcon = React.isValidElement(icon)
@@ -36,8 +34,8 @@ export function AdaptiveMetricWidget({
     if (isExpanded && chartData && chartData.length > 0) {
         return (
             <Card className={cn('dashboard-widget h-full flex flex-col', isCompact && 'dashboard-widget--compact')}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
-                    <CardTitle className="dashboard-widget__title truncate text-sm">{title}</CardTitle>
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
+                    <CardTitle className="dashboard-widget__title truncate">{title}</CardTitle>
                     <div className="flex-shrink-0">{resolvedIcon}</div>
                 </CardHeader>
                 <CardContent className="flex-1 min-h-0 flex flex-col p-3 pt-0">
@@ -71,14 +69,20 @@ export function AdaptiveMetricWidget({
 
     return (
         <Card className={cn('dashboard-widget h-full', isCompact && 'dashboard-widget--compact')}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
-                <CardTitle className="dashboard-widget__title truncate text-sm">{title}</CardTitle>
-                <div className="flex-shrink-0">{resolvedIcon}</div>
+            <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
+                <CardTitle className="dashboard-widget__title truncate">{title}</CardTitle>
+                {isCompact ? (
+                    <div className="dashboard-widget__header-value" style={valueColor ? { color: valueColor } : {}}>
+                        {value}
+                    </div>
+                ) : (
+                    <div className="flex-shrink-0">{resolvedIcon}</div>
+                )}
             </CardHeader>
-            <CardContent className="p-3 pt-0">
-                <div className="dashboard-widget__value" style={valueColor ? { color: valueColor } : {}}>{value}</div>
+            <CardContent className={isCompact ? 'p-2 pt-1 pb-2 flex-1 flex items-end' : 'p-3 pt-0'}>
+                {!isCompact && <div className="dashboard-widget__value" style={valueColor ? { color: valueColor } : {}}>{value}</div>}
                 {subValue && (
-                    <p className="dashboard-widget__sub mt-0.5 truncate">
+                    <p className={cn('dashboard-widget__sub truncate', isCompact ? 'w-full' : 'mt-0.5')}>
                         {subValue}
                     </p>
                 )}

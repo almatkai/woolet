@@ -59,44 +59,56 @@ export function DepositWidget({ gridParams }: { gridParams?: { w: number; h: num
     return (
         <Card className={cn('dashboard-widget h-full flex flex-col', isCompactStyle && 'dashboard-widget--compact')}>
             <Link to="/financial/deposits" className="block">
-                <CardHeader className={cn('p-3 pb-1 hover:bg-muted/50 transition-colors', isCompactStyle && 'p-2 pb-0')}>
-                    <div className="flex items-center justify-between">
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Deposits</CardTitle>
-                        <PiggyBank className="dashboard-widget__icon" />
+                <CardHeader className="dashboard-widget__header p-2 pb-1 hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                        <CardTitle className="dashboard-widget__title truncate">Deposits</CardTitle>
+                        {isCompactStyle ? (
+                            <div className="dashboard-widget__header-value">
+                                <CurrencyDisplay amount={totalBalance} abbreviate />
+                            </div>
+                        ) : (
+                            <PiggyBank className="dashboard-widget__icon" />
+                        )}
                     </div>
-                    {!hideCardDescription && <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">Your savings & deposits</CardDescription>}
+                    {!hideCardDescription && <CardDescription className="dashboard-widget__desc truncate">Your savings & deposits</CardDescription>}
                 </CardHeader>
             </Link>
-            <CardContent className={cn('flex-1 overflow-y-auto p-3 pt-0', isCompactStyle && 'p-2 pt-0')}>
+            <CardContent className={cn('flex-1 overflow-y-auto p-3 pt-0', isCompactStyle && 'p-2 pt-1 pb-2')}>
                 {isLoading ? (
                     <div className="space-y-2">
                         <Skeleton className="h-4 w-32" />
                         <Skeleton className="h-4 w-48" />
                     </div>
                 ) : activeDeposits.length === 0 ? (
-                    <p className="dashboard-widget__desc text-[10px] sm:text-xs">No active deposits.</p>
+                    <p className="dashboard-widget__desc">No active deposits.</p>
+                ) : isCompactStyle ? (
+                    <div className="h-full flex items-end">
+                        <p className="dashboard-widget__sub w-full truncate">
+                            {activeDeposits.length} active • +<CurrencyDisplay amount={totalEarned} abbreviate />
+                        </p>
+                    </div>
                 ) : isNx1 ? (
                     // Nx1 layout (height=1, width>1): Show only the most important info - total balance
                     <div className="flex items-center justify-between h-full">
                         <div className="flex items-center gap-4">
                             <div>
-                                <p className="dashboard-widget__meta text-[10px]">Total Balance</p>
+                                <p className="dashboard-widget__meta">Total Balance</p>
                                 <div className="dashboard-widget__value text-lg">
                                     <CurrencyDisplay amount={totalBalance} />
                                 </div>
                             </div>
                             <div>
-                                <p className="dashboard-widget__meta flex items-center gap-1 text-[10px]">
+                                <p className="dashboard-widget__meta flex items-center gap-1 text-xs">
                                     <TrendingUp className="h-2.5 w-2.5 text-green-600" />
                                     Earned
                                 </p>
-                                <div className="dashboard-widget__value text-green-600 text-base">
+                                <div className="dashboard-widget__value text-green-600 text-sm">
                                     <CurrencyDisplay amount={totalEarned} />
                                 </div>
                             </div>
                         </div>
                         <div className="text-right">
-                            <p className="dashboard-widget__meta text-[10px]">{activeDeposits.length} Active</p>
+                            <p className="dashboard-widget__meta">{activeDeposits.length} Active</p>
                         </div>
                     </div>
                 ) : showTwoColumn ? (
@@ -104,35 +116,35 @@ export function DepositWidget({ gridParams }: { gridParams?: { w: number; h: num
                         <div className="space-y-2">
                             <div className="grid grid-cols-2 gap-2">
                                 <div className="space-y-0.5">
-                                    <p className="dashboard-widget__meta text-[10px]">Total Balance</p>
-                                    <div className="dashboard-widget__value text-base">
+                                    <p className="dashboard-widget__meta">Total Balance</p>
+                                    <div className="dashboard-widget__value">
                                         <CurrencyDisplay amount={totalBalance} />
                                     </div>
                                 </div>
                                 <div className="space-y-0.5">
-                                    <p className="dashboard-widget__meta flex items-center gap-1 text-[10px]">
+                                    <p className="dashboard-widget__meta flex items-center gap-1 text-xs">
                                         <TrendingUp className="h-2.5 w-2.5 text-green-600" />
                                         Earned
                                     </p>
-                                    <div className="dashboard-widget__value text-green-600 text-base">
+                                    <div className="dashboard-widget__value text-green-600 text-sm">
                                         <CurrencyDisplay amount={totalEarned} />
                                     </div>
                                 </div>
                             </div>
                             <div className="space-y-0.5">
-                                <p className="dashboard-widget__meta text-[10px]">Expected This Month</p>
-                                <div className="dashboard-widget__value text-blue-600 text-base">
+                                <p className="dashboard-widget__meta">Expected This Month</p>
+                                <div className="dashboard-widget__value text-blue-600 text-sm">
                                     ~<CurrencyDisplay amount={expectedThisMonth} />
                                 </div>
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <p className="dashboard-widget__meta text-[10px]">{is2x2 ? `All Deposits (${activeDeposits.length})` : 'Top Deposits (4)'}</p>
+                            <p className="dashboard-widget__meta">{is2x2 ? `All Deposits (${activeDeposits.length})` : 'Top Deposits (4)'}</p>
                             <div className="space-y-1">
                                 {displayDeposits.map((deposit: any) => (
-                                    <div key={deposit.id} className="dashboard-widget__item flex items-center justify-between text-[11px] gap-2">
+                                    <div key={deposit.id} className="dashboard-widget__item flex items-center justify-between text-xs gap-2">
                                         <span className="truncate flex-1 font-medium">{deposit.depositName}</span>
-                                        <span className="font-medium whitespace-nowrap text-[11px] flex-shrink-0">
+                                        <span className="font-medium whitespace-nowrap text-xs flex-shrink-0">
                                             <CurrencyDisplay amount={deposit.currentBalance} currency={deposit.currency} />
                                         </span>
                                     </div>

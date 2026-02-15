@@ -22,7 +22,7 @@ export function InvestmentPortfolioWidget({ gridParams }: InvestmentPortfolioWid
     if (isLoading) {
         return (
             <Card className={cn('dashboard-widget h-full', isCompact && 'dashboard-widget--compact')}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
                     <Skeleton className="h-4 w-32" />
                 </CardHeader>
                 <CardContent className="p-3 pt-0">
@@ -43,16 +43,15 @@ export function InvestmentPortfolioWidget({ gridParams }: InvestmentPortfolioWid
         return (
             <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
                 <Link to="/investing" className="block">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Portfolio</CardTitle>
-                        <Briefcase className="dashboard-widget__icon" />
+                    <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
+                        <CardTitle className="dashboard-widget__title truncate">Portfolio</CardTitle>
+                        <div className="dashboard-widget__header-value">
+                            <CurrencyDisplay amount={totalValue} abbreviate />
+                        </div>
                     </CardHeader>
                 </Link>
-                <CardContent className="p-2 pt-0">
-                    <div className="dashboard-widget__value">
-                        <CurrencyDisplay amount={totalValue} abbreviate />
-                    </div>
-                    <div className={cn('dashboard-widget__sub mt-0.5 truncate flex items-center gap-1', 
+                <CardContent className="p-2 pt-1 pb-2 flex-1 flex items-end">
+                    <div className={cn('dashboard-widget__sub w-full truncate flex items-center gap-1', 
                         unrealizedPL >= 0 ? 'text-green-600' : 'text-red-600'
                     )}>
                         {unrealizedPL >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
@@ -67,10 +66,10 @@ export function InvestmentPortfolioWidget({ gridParams }: InvestmentPortfolioWid
     if (isMedium && !isLarge) {
         return (
             <Card className="dashboard-widget h-full flex flex-col">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
                     <div>
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Investment Portfolio</CardTitle>
-                        <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
+                        <CardTitle className="dashboard-widget__title truncate">Investment Portfolio</CardTitle>
+                        <CardDescription className="dashboard-widget__desc truncate">
                             {holdings.length} positions
                         </CardDescription>
                     </div>
@@ -80,13 +79,13 @@ export function InvestmentPortfolioWidget({ gridParams }: InvestmentPortfolioWid
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                             <p className="dashboard-widget__meta">Total Value</p>
-                            <div className="dashboard-widget__value text-base">
+                            <div className="dashboard-widget__value">
                                 <CurrencyDisplay amount={totalValue} />
                             </div>
                         </div>
                         <div className="space-y-1">
                             <p className="dashboard-widget__meta">Total Cost</p>
-                            <div className="dashboard-widget__value text-base">
+                            <div className="dashboard-widget__value">
                                 <CurrencyDisplay amount={totalCost} />
                             </div>
                         </div>
@@ -99,7 +98,7 @@ export function InvestmentPortfolioWidget({ gridParams }: InvestmentPortfolioWid
                                 )}
                                 Unrealized P/L
                             </p>
-                            <div className={cn('dashboard-widget__value text-base', 
+                            <div className={cn('dashboard-widget__value', 
                                 unrealizedPL >= 0 ? 'text-green-600' : 'text-red-600'
                             )}>
                                 <CurrencyDisplay amount={unrealizedPL} showSign /> ({unrealizedPLPercent.toFixed(2)}%)
@@ -115,10 +114,10 @@ export function InvestmentPortfolioWidget({ gridParams }: InvestmentPortfolioWid
     return (
         <Card className="dashboard-widget h-full flex flex-col">
             <Link to="/investing" className="block">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1 hover:bg-muted/50 transition-colors">
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
                     <div>
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Investment Portfolio</CardTitle>
-                        <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
+                        <CardTitle className="dashboard-widget__title truncate">Investment Portfolio</CardTitle>
+                        <CardDescription className="dashboard-widget__desc truncate">
                             Your investment holdings
                         </CardDescription>
                     </div>
@@ -129,19 +128,19 @@ export function InvestmentPortfolioWidget({ gridParams }: InvestmentPortfolioWid
                 {/* Summary */}
                 <div className="grid grid-cols-3 gap-2 pb-2 border-b">
                     <div className="space-y-0.5">
-                        <p className="dashboard-widget__meta text-[10px]">Value</p>
+                        <p className="dashboard-widget__meta">Value</p>
                         <div className="font-semibold text-sm">
                             <CurrencyDisplay amount={totalValue} abbreviate />
                         </div>
                     </div>
                     <div className="space-y-0.5">
-                        <p className="dashboard-widget__meta text-[10px]">Cost</p>
+                        <p className="dashboard-widget__meta">Cost</p>
                         <div className="font-semibold text-sm">
                             <CurrencyDisplay amount={totalCost} abbreviate />
                         </div>
                     </div>
                     <div className="space-y-0.5">
-                        <p className="dashboard-widget__meta text-[10px]">P/L</p>
+                        <p className="dashboard-widget__meta">P/L</p>
                         <div className={cn('font-semibold text-sm', 
                             unrealizedPL >= 0 ? 'text-green-600' : 'text-red-600'
                         )}>

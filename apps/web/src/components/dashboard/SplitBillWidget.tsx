@@ -35,7 +35,7 @@ export function SplitBillWidget({ gridParams }: SplitBillWidgetProps) {
     if (isLoading) {
         return (
             <Card className={cn('dashboard-widget h-full', isCompact && 'dashboard-widget--compact')}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
                     <Skeleton className="h-4 w-32" />
                 </CardHeader>
                 <CardContent className="p-3 pt-0">
@@ -50,16 +50,15 @@ export function SplitBillWidget({ gridParams }: SplitBillWidgetProps) {
         return (
             <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
                 <Link to="/spending" className="block">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Split Bills</CardTitle>
-                        <Users className="dashboard-widget__icon" />
+                    <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
+                        <CardTitle className="dashboard-widget__title truncate">Split Bills</CardTitle>
+                        <div className="dashboard-widget__header-value">
+                            <CurrencyDisplay amount={summary?.total || 0} abbreviate />
+                        </div>
                     </CardHeader>
                 </Link>
-                <CardContent className="p-2 pt-0">
-                    <div className="dashboard-widget__value">
-                        <CurrencyDisplay amount={summary?.total || 0} />
-                    </div>
-                    <p className="dashboard-widget__sub mt-0.5 truncate">
+                <CardContent className="p-2 pt-1 pb-2 flex-1 flex items-end">
+                    <p className="dashboard-widget__sub w-full truncate">
                         {summary?.byParticipant.length || 0} people owe you
                     </p>
                 </CardContent>
@@ -71,10 +70,10 @@ export function SplitBillWidget({ gridParams }: SplitBillWidgetProps) {
     return (
         <Card className="dashboard-widget h-full flex flex-col">
             <Link to="/spending" className="block">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1 hover:bg-muted/50 transition-colors">
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
                     <div>
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Split Bills</CardTitle>
-                        <CardDescription className="dashboard-widget__desc text-[10px] sm:text-xs truncate">
+                        <CardTitle className="dashboard-widget__title truncate">Split Bills</CardTitle>
+                        <CardDescription className="dashboard-widget__desc truncate">
                             Who owes you money
                         </CardDescription>
                     </div>
@@ -95,7 +94,7 @@ export function SplitBillWidget({ gridParams }: SplitBillWidgetProps) {
                         {/* Total */}
                         <div className="bg-muted rounded-lg p-3 mb-3">
                             <div className="text-xs text-muted-foreground">Total owed to you</div>
-                            <div className="text-2xl font-bold">
+                            <div className="text-lg font-semibold">
                                 <CurrencyDisplay amount={summary.total} />
                             </div>
                         </div>
@@ -154,7 +153,7 @@ export function SplitBillWidget({ gridParams }: SplitBillWidgetProps) {
                                                     <Badge
                                                         key={s.id}
                                                         variant={s.status === 'settled' ? 'secondary' : 'outline'}
-                                                        className="text-[10px] h-5"
+                                                        className="text-xs h-5"
                                                         style={{ borderColor: s.participant.color }}
                                                     >
                                                         {s.status === 'pending' && <Clock className="h-2.5 w-2.5 mr-0.5" />}

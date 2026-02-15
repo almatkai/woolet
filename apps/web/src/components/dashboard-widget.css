@@ -1,5 +1,5 @@
 .dashboard-widget {
-    @apply transition-all duration-300 ease-in-out border-border/60 bg-card;
+    @apply transition-all duration-300 ease-in-out border-border/60 bg-card overflow-hidden min-w-0;
 }
 
 .dashboard-widget:hover {
@@ -18,40 +18,73 @@
     z-index: 40 !important;
 }
 
+.dashboard-widget,
+.dashboard-widget > *,
+.dashboard-widget * {
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.dashboard-widget [class*='overflow-x-auto'],
+.dashboard-widget [class*='overflow-x-scroll'] {
+    overflow-x: hidden !important;
+}
+
+.dashboard-widget__header {
+    padding: 8px !important;
+    padding-left: 12px !important;
+}
+
+.dashboard-widget__header--interactive {
+    @apply hover:bg-muted/50 transition-colors;
+}
+
 .dashboard-widget__title {
-    @apply text-sm font-medium;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    line-height: 1.25 !important;
 }
 
 .dashboard-widget--compact .dashboard-widget__title {
-    @apply text-xs;
+    font-size: 16px !important;
+}
+
+.dashboard-widget__header-value {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    line-height: 1.25 !important;
+    @apply truncate text-right;
 }
 
 .dashboard-widget__desc {
-    @apply text-xs text-muted-foreground;
+    @apply text-xs font-normal text-muted-foreground leading-tight;
 }
 
 .dashboard-widget--compact .dashboard-widget__desc {
-    @apply text-[10px];
+    @apply text-xs;
 }
 
 .dashboard-widget__value {
-    @apply text-[20px] font-bold;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    line-height: 1.25 !important;
+    @apply truncate;
 }
 
 .dashboard-widget--compact .dashboard-widget__value {
-    @apply text-lg;
+    font-size: 16px !important;
 }
 
 .dashboard-widget__sub {
-    @apply text-xs text-muted-foreground;
+    @apply text-xs font-normal text-muted-foreground leading-tight truncate;
 }
 
 .dashboard-widget--compact .dashboard-widget__sub {
-    @apply text-[10px];
+    @apply text-xs;
 }
 
 .dashboard-widget__item {
-    @apply text-sm;
+    @apply text-xs font-medium leading-tight;
 }
 
 .dashboard-widget--compact .dashboard-widget__item {
@@ -59,11 +92,11 @@
 }
 
 .dashboard-widget__meta {
-    @apply text-xs text-muted-foreground;
+    @apply text-xs font-normal text-muted-foreground leading-tight;
 }
 
 .dashboard-widget--compact .dashboard-widget__meta {
-    @apply text-[10px];
+    @apply text-xs;
 }
 
 .dashboard-widget__icon {
@@ -71,29 +104,34 @@
 }
 
 .dashboard-widget--compact .dashboard-widget__icon {
-    @apply h-3 w-3;
+    @apply h-4 w-4;
 }
 
 .dashboard-widget__tab {
-    @apply text-xs;
+    @apply text-xs font-medium;
 }
 
 .dashboard-widget--compact .dashboard-widget__tab {
-    @apply text-[10px];
+    @apply text-xs;
 }
 
 .dashboard-widget__button {
-    @apply text-xs;
+    @apply text-xs font-medium;
 }
 
 .dashboard-widget--compact .dashboard-widget__button {
-    @apply text-[10px];
-}
-
-.dashboard-widget__badge {
     @apply text-xs;
 }
 
+.dashboard-widget__badge {
+    @apply text-xs font-medium;
+}
+
 .dashboard-widget--compact .dashboard-widget__badge {
-    @apply text-[10px];
+    @apply text-xs;
+}
+
+/* Hide low-value helper lines in headers to keep a single, consistent title row. */
+.dashboard-widget .dashboard-widget__header .dashboard-widget__desc {
+    display: none;
 }

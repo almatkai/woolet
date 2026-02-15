@@ -54,7 +54,9 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
     const { ref: chartAreaRef, size: chartAreaSize } = useElementSize<HTMLDivElement>();
 
     const gridW = gridParams?.w ?? 0;
-    const showSelector = gridW === 1;
+    const gridH = gridParams?.h ?? 0;
+    const isUltraCompact = gridW === 1 && gridH <= 1;
+    const showSelector = gridW === 1 && gridH > 1;
 
     const { data: balanceData } = trpc.account.getTotalBalance.useQuery();
 
@@ -161,23 +163,30 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
     }
 
     const allCategories = stats?.categoryData || [];
+    
+    // Ensure allCategories is always an array
+    const safeAllCategories = Array.isArray(allCategories) ? allCategories : [];
 
     return (
         <Card className="dashboard-widget h-full flex flex-col">
-            <CardHeader className="pb-2 px-2 sm:px-4 pt-2 sm:pt-4">
+            <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
                 <div className="flex items-center justify-between gap-2">
                     <Link to="/spending" className="min-w-0 flex-1">
-                        <CardTitle className="text-sm font-semibold hover:underline">Category Spending</CardTitle>
+                        <CardTitle className="dashboard-widget__title">
+                            Spending
+                        </CardTitle>
                     </Link>
-                    <Tabs value={period} onValueChange={(v) => setPeriod(v as 'weekly' | 'monthly')}>
-                        <TabsList className="h-7 bg-muted/50 p-0.5">
-                            <TabsTrigger value="weekly" className="h-full px-2 text-[10px]">W</TabsTrigger>
-                            <TabsTrigger value="monthly" className="h-full px-2 text-[10px]">M</TabsTrigger>
-                        </TabsList>
-                    </Tabs>
+                    {!isUltraCompact && (
+                        <Tabs value={period} onValueChange={(v) => setPeriod(v as 'weekly' | 'monthly')}>
+                            <TabsList className="h-7 bg-muted/50 p-0.5">
+                                <TabsTrigger value="weekly" className="h-full px-2 text-[10px]">W</TabsTrigger>
+                                <TabsTrigger value="monthly" className="h-full px-2 text-[10px]">M</TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    )}
                 </div>
             </CardHeader>
-            <CardContent className="flex-1 min-h-0 p-2 sm:p-4 pt-0 sm:pt-2 overflow-hidden flex flex-col">
+            <CardContent className={isUltraCompact ? 'flex-1 min-h-0 p-1.5 pt-0 overflow-hidden flex flex-col' : 'flex-1 min-h-0 p-2 sm:p-4 pt-0 sm:pt-2 overflow-hidden flex flex-col'}>
                 {showSelector ? (
                     <>
                         {/* Category Selector */}
@@ -186,7 +195,7 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
                                 value="all"
                                 onValueChange={(value) => {
                                     if (value === 'all') {
-                                        setEnabledCategories(new Set(allCategories.map((c: any) => c.id)));
+                                        setEnabledCategories(new Set(safeAllCategories.map((c: any) => c.id)));
                                     } else if (value === 'none') {
                                         setEnabledCategories(new Set());
                                     } else {
@@ -200,7 +209,7 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
                                 <SelectContent>
                                     <SelectItem value="all">
                                         <div className="flex items-center gap-2">
-                                            <Checkbox checked={enabledCategories.size === allCategories.length} className="pointer-events-none" />
+                                            <Checkbox checked={enabledCategories.size === safeAllCategories.length} className="pointer-events-none" />
                                             <span>Select All</span>
                                         </div>
                                     </SelectItem>
@@ -210,7 +219,7 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
                                             <span>Deselect All</span>
                                         </div>
                                     </SelectItem>
-                                    {allCategories.map((entry: any, index: number) => (
+                                    {safeAllCategories.map((entry: any, index: number) => (
                                         <SelectItem key={entry.id} value={entry.id}>
                                             <div className="flex items-center gap-2 w-full">
                                                 <Checkbox
@@ -274,18 +283,22 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
                                         >
                                             {formatAmountAbbreviated(filteredTotal)}
                                         </span>
-                                        <span
-                                            className="text-muted-foreground uppercase font-medium tracking-widest leading-none mt-1"
-                                            style={{ fontSize: Math.max(chartSize * 0.05, 7) }}
-                                        >
-                                            {enabledCategories.size} Categories
-                                        </span>
-                                        <span
-                                            className="text-muted-foreground font-medium mt-0.5"
-                                            style={{ fontSize: Math.max(chartSize * 0.05, 8) }}
-                                        >
-                                            {formatCurrency(filteredTotal)}
-                                        </span>
+                                        {!isUltraCompact && (
+                                            <>
+                                                <span
+                                                    className="text-muted-foreground uppercase font-medium tracking-widest leading-none mt-1"
+                                                    style={{ fontSize: Math.max(chartSize * 0.05, 7) }}
+                                                >
+                                                    {enabledCategories.size} Categories
+                                                </span>
+                                                <span
+                                                    className="text-muted-foreground font-medium mt-0.5"
+                                                    style={{ fontSize: Math.max(chartSize * 0.05, 8) }}
+                                                >
+                                                    {formatCurrency(filteredTotal)}
+                                                </span>
+                                            </>
+                                        )}
                                     </div>
 
                                     {tooltip.renderTooltip()}
@@ -340,18 +353,22 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
                                         >
                                             {formatAmountAbbreviated(filteredTotal)}
                                         </span>
-                                        <span
-                                            className="text-muted-foreground uppercase font-medium tracking-widest leading-none mt-1"
-                                            style={{ fontSize: Math.max(chartSize * 0.05, 7) }}
-                                        >
-                                            {enabledCategories.size} Categories
-                                        </span>
-                                        <span
-                                            className="text-muted-foreground font-medium mt-0.5"
-                                            style={{ fontSize: Math.max(chartSize * 0.05, 8) }}
-                                        >
-                                            {formatCurrency(filteredTotal)}
-                                        </span>
+                                        {!isUltraCompact && (
+                                            <>
+                                                <span
+                                                    className="text-muted-foreground uppercase font-medium tracking-widest leading-none mt-1"
+                                                    style={{ fontSize: Math.max(chartSize * 0.05, 7) }}
+                                                >
+                                                    {enabledCategories.size} Categories
+                                                </span>
+                                                <span
+                                                    className="text-muted-foreground font-medium mt-0.5"
+                                                    style={{ fontSize: Math.max(chartSize * 0.05, 8) }}
+                                                >
+                                                    {formatCurrency(filteredTotal)}
+                                                </span>
+                                            </>
+                                        )}
                                     </div>
 
                                     {tooltip.renderTooltip()}
@@ -362,7 +379,7 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
                         {/* Right: Category list with checkboxes */}
                         <div className="w-32 lg:w-44 flex flex-col overflow-hidden">
                             <div className="flex-1 overflow-auto space-y-1">
-                                {allCategories.map((entry: any, index: number) => {
+                                {safeAllCategories.map((entry: any, index: number) => {
                                     const isEnabled = enabledCategories.has(entry.id);
                                     const percentage = stats?.total ? (entry.value / stats.total * 100) : 0;
                                     return (

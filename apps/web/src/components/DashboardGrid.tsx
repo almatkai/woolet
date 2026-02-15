@@ -31,6 +31,11 @@ type Layouts = {
     xs?: InternalLayout[];
 };
 
+const MIN_WIDGET_W = 1;
+const MIN_WIDGET_H = 1;
+const MAX_WIDGET_W = 4;
+const MAX_WIDGET_H = 4;
+
 // Breakpoint type for type safety
 type Breakpoint = 'lg' | 'md' | 'sm' | 'xs';
 
@@ -96,15 +101,33 @@ interface DashboardGridProps {
     onEditingChange: (isEditing: boolean) => void;
 }
 
+function applyLayoutConstraints(layouts: Layouts): Layouts {
+    const constrained: Layouts = {};
+    (Object.keys(layouts) as Array<keyof Layouts>).forEach((key) => {
+        const layout = layouts[key];
+        if (!layout) return;
+        constrained[key] = layout.map((item) => ({
+            ...item,
+            w: Math.min(item.w ?? MIN_WIDGET_W, item.maxW ?? MAX_WIDGET_W, MAX_WIDGET_W),
+            h: Math.min(item.h ?? MIN_WIDGET_H, item.maxH ?? MAX_WIDGET_H, MAX_WIDGET_H),
+            minW: Math.max(item.minW ?? MIN_WIDGET_W, MIN_WIDGET_W),
+            minH: Math.max(item.minH ?? MIN_WIDGET_H, MIN_WIDGET_H),
+            maxW: Math.min(item.maxW ?? MAX_WIDGET_W, MAX_WIDGET_W),
+            maxH: Math.min(item.maxH ?? MAX_WIDGET_H, MAX_WIDGET_H),
+        })) as InternalLayout[];
+    });
+    return constrained;
+}
+
 // Default layouts for each breakpoint - all use 2 columns minimum for mobile
-const defaultLayouts: Layouts = {
+const defaultLayouts: Layouts = applyLayoutConstraints({
     lg: ([
         { i: 'totalBalance', x: 0, y: 0, w: 1, h: 2, minW: 1, minH: 1 },
         { i: 'monthlyIncome', x: 1, y: 0, w: 1, h: 2, minW: 1, minH: 1 },
         { i: 'monthlyExpenses', x: 2, y: 0, w: 1, h: 2, minW: 1, minH: 1 },
         { i: 'debts', x: 3, y: 0, w: 1, h: 2, minW: 1, minH: 1 },
-        { i: 'categoryChart', x: 4, y: 0, w: 2, h: 3, minW: 1, minH: 1 },
-        { i: 'spendingChart', x: 0, y: 2, w: 3, h: 3, minW: 1, minH: 1 },
+        { i: 'categoryChart', x: 4, y: 0, w: 2, h: 3, minW: 1, minH: 3 },
+        { i: 'spendingChart', x: 0, y: 2, w: 3, h: 3, minW: 2, minH: 3 },
         { i: 'mortgages', x: 3, y: 2, w: 1, h: 3, minW: 1, minH: 1 },
         { i: 'recentTransactions', x: 4, y: 3, w: 2, h: 3, minW: 1, minH: 1 },
         { i: 'credits', x: 0, y: 5, w: 2, h: 3, minW: 1, minH: 1 },
@@ -112,9 +135,9 @@ const defaultLayouts: Layouts = {
         { i: 'subscriptions', x: 4, y: 5, w: 2, h: 3, minW: 1, minH: 1 },
         // New widgets
         { i: 'currencyExchange', x: 0, y: 8, w: 2, h: 3, minW: 1, minH: 1 },
-        { i: 'investmentPortfolio', x: 2, y: 8, w: 2, h: 3, minW: 1, minH: 1 },
+        { i: 'investmentPortfolio', x: 2, y: 8, w: 2, h: 3, minW: 1, minH: 3 },
         { i: 'investmentPerformance', x: 4, y: 8, w: 2, h: 3, minW: 1, minH: 1 },
-        { i: 'assetAllocation', x: 0, y: 11, w: 2, h: 3, minW: 1, minH: 1 },
+        { i: 'assetAllocation', x: 0, y: 11, w: 2, h: 3, minW: 1, minH: 2 },
         { i: 'splitBills', x: 2, y: 11, w: 2, h: 3, minW: 1, minH: 1 },
     ] as InternalLayout[]),
     md: ([
@@ -177,7 +200,7 @@ const defaultLayouts: Layouts = {
     ] as InternalLayout[])
 
 
-};
+});
 
 // Helper function to migrate old format to new format
 function migrateLayoutData(savedData: any): { layouts: Layouts; hiddenWidgets: string[] } {
@@ -191,20 +214,26 @@ function migrateLayoutData(savedData: any): { layouts: Layouts; hiddenWidgets: s
         // Ensure minH/minW are updated to 1 for existing layouts and remove duplicates
         const updatedLayouts: Layouts = {};
         Object.keys(savedData.layouts).forEach((key) => {
+            const layoutArray = savedData.layouts[key];
+            if (!layoutArray || !Array.isArray(layoutArray)) {
+                return; // Skip if not an array
+            }
             const seenKeys = new Set<string>();
-            updatedLayouts[key] = savedData.layouts[key]
-                .map((item: Layout) => ({
+            updatedLayouts[key] = layoutArray
+                .map((item: any) => ({
                     ...item,
-                    minW: 1,
-                    minH: 1,
+                    minW: Math.max(item.minW ?? MIN_WIDGET_W, MIN_WIDGET_W),
+                    minH: Math.max(item.minH ?? MIN_WIDGET_H, MIN_WIDGET_H),
+                    maxW: Math.min(item.maxW ?? MAX_WIDGET_W, MAX_WIDGET_W),
+                    maxH: Math.min(item.maxH ?? MAX_WIDGET_H, MAX_WIDGET_H),
                 }))
-                .filter((item: InternalLayout) => {
+                .filter((item) => {
                     if (seenKeys.has(item.i)) {
                         return false;
                     }
                     seenKeys.add(item.i);
                     return true;
-                });
+                }) as InternalLayout[];
         });
 
         // Use the saved hiddenWidgets as-is - don't force any widgets to be hidden
@@ -220,8 +249,10 @@ function migrateLayoutData(savedData: any): { layouts: Layouts; hiddenWidgets: s
     if (savedData.layout && Array.isArray(savedData.layout)) {
         const singleLayout = savedData.layout.map((item: Layout) => ({
             ...item,
-            minW: 1,
-            minH: 1,
+            minW: MIN_WIDGET_W,
+            minH: MIN_WIDGET_H,
+            maxW: MAX_WIDGET_W,
+            maxH: MAX_WIDGET_H,
         })) as InternalLayout[];
         // Generate responsive layouts from the single layout
         return {
@@ -229,7 +260,7 @@ function migrateLayoutData(savedData: any): { layouts: Layouts; hiddenWidgets: s
                 lg: singleLayout,
                 md: generateResponsiveLayout(singleLayout, 4),
                 sm: generateResponsiveLayout(singleLayout, 2),
-                xs: generateResponsiveLayout(singleLayout, 1),
+                xs: generateResponsiveLayout(singleLayout, 2),
             },
             hiddenWidgets: savedData.hiddenWidgets || [],
         };
@@ -239,15 +270,17 @@ function migrateLayoutData(savedData: any): { layouts: Layouts; hiddenWidgets: s
     if (Array.isArray(savedData)) {
         const singleLayout = savedData.map((item: Layout) => ({
             ...item,
-            minW: 1,
-            minH: 1,
+            minW: MIN_WIDGET_W,
+            minH: MIN_WIDGET_H,
+            maxW: MAX_WIDGET_W,
+            maxH: MAX_WIDGET_H,
         })) as InternalLayout[];
         return {
             layouts: {
                 lg: singleLayout,
                 md: generateResponsiveLayout(singleLayout, 4),
                 sm: generateResponsiveLayout(singleLayout, 2),
-                xs: generateResponsiveLayout(singleLayout, 1),
+                xs: generateResponsiveLayout(singleLayout, 2),
             },
             hiddenWidgets: [],
         };
@@ -263,7 +296,11 @@ function generateResponsiveLayout(sourceLayout: InternalLayout[], cols: number):
         ...item,
         x: cols === 1 ? 0 : (index % cols),
         y: Math.floor(index / cols) * (item.h || 2),
-        w: Math.min(item.w || 1, cols),
+        w: Math.min(item.w || MIN_WIDGET_W, cols, MAX_WIDGET_W),
+        minW: Math.max(item.minW ?? MIN_WIDGET_W, MIN_WIDGET_W),
+        minH: Math.max(item.minH ?? MIN_WIDGET_H, MIN_WIDGET_H),
+        maxW: Math.min(item.maxW ?? MAX_WIDGET_W, MAX_WIDGET_W),
+        maxH: Math.min(item.maxH ?? MAX_WIDGET_H, MAX_WIDGET_H),
     })) as InternalLayout[];
 }
 
@@ -273,7 +310,7 @@ function normalizeLayoutsForSmallHeights(input: Layouts): Layouts {
     (Object.keys(input) as Array<keyof Layouts>).forEach((key) => {
         const bp = key as Breakpoint;
         const layout = input[bp];
-        if (!layout) return;
+        if (!layout || !Array.isArray(layout)) return;
 
         if (bp === 'sm') {
             output[bp] = layout.map((item) => {
@@ -283,10 +320,19 @@ function normalizeLayoutsForSmallHeights(input: Layouts): Layouts {
                     ...item,
                     h: nextH,
                     minH: nextMinH,
+                    minW: Math.max(item.minW ?? MIN_WIDGET_W, MIN_WIDGET_W),
+                    maxW: Math.min(item.maxW ?? MAX_WIDGET_W, MAX_WIDGET_W),
+                    maxH: Math.min(item.maxH ?? MAX_WIDGET_H, MAX_WIDGET_H),
                 };
-            });
+            }) as InternalLayout[];
         } else {
-            output[bp] = layout;
+            output[bp] = layout.map((item) => ({
+                ...item,
+                minW: Math.max(item.minW ?? MIN_WIDGET_W, MIN_WIDGET_W),
+                minH: Math.max(item.minH ?? MIN_WIDGET_H, MIN_WIDGET_H),
+                maxW: Math.min(item.maxW ?? MAX_WIDGET_W, MAX_WIDGET_W),
+                maxH: Math.min(item.maxH ?? MAX_WIDGET_H, MAX_WIDGET_H),
+            })) as InternalLayout[];
         }
     });
 
@@ -380,7 +426,11 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                 // Cast allLayouts back to InternalLayout arrays
                 const typedLayouts: Layouts = {};
                 Object.keys(allLayouts).forEach(bp => {
-                    typedLayouts[bp] = (allLayouts[bp] as Layout[]).map(l => {
+                    const bpLayout = allLayouts[bp];
+                    if (!bpLayout || !Array.isArray(bpLayout)) {
+                        return; // Skip if not an array
+                    }
+                    typedLayouts[bp] = bpLayout.map(l => {
                         const item = l as any;
                         return {
                             ...l,
@@ -388,7 +438,11 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                             x: item.x,
                             y: item.y,
                             w: item.w,
-                            h: item.h
+                            h: item.h,
+                            minW: item.minW,
+                            minH: item.minH,
+                            maxW: item.maxW,
+                            maxH: item.maxH,
                         } as InternalLayout;
                     });
                 });
@@ -648,7 +702,7 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
 
                         return (
                             <div key={widgetId} className={isEditing ? "border-2 border-dashed border-primary/50 rounded-lg relative bg-background/50" : "relative"}>
-                                <div className="no-drag h-full w-full rounded-lg">
+                                <div className="no-drag h-full w-full rounded-lg overflow-hidden min-w-0">
                                     {childWithProps}
                                     {isEditing && (
                                         <div
@@ -661,23 +715,23 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                                 </div>
                                 {isEditing && (
                                     <>
-                                        <div className="drag-handle absolute top-0 left-0 right-0 h-8 bg-primary/5 cursor-move rounded-t-lg z-[41] flex items-center justify-center">
-                                            <div className="w-12 h-1.5 bg-primary/30 rounded-full" />
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-6 w-6 absolute right-0.5 top-0 text-muted-foreground hover:text-destructive transition-colors z-[42]"
-                                                onMouseDown={(e) => e.stopPropagation()}
-                                                onPointerDown={(e) => e.stopPropagation()}
-                                                onTouchStart={(e) => e.stopPropagation()}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleHideWidget(widgetId);
-                                                }}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                        <div className="drag-handle absolute top-1 left-10 right-10 h-3 cursor-move z-[41] flex items-center justify-center">
+                                            <div className="w-14 h-1.5 bg-primary/35 rounded-full" />
                                         </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 absolute -top-2 -right-2 text-muted-foreground hover:text-destructive transition-colors z-[42] bg-background/95 border shadow-sm rounded-md"
+                                            onMouseDown={(e) => e.stopPropagation()}
+                                            onPointerDown={(e) => e.stopPropagation()}
+                                            onTouchStart={(e) => e.stopPropagation()}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleHideWidget(widgetId);
+                                            }}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
                                     </>
                                 )}
                             </div>

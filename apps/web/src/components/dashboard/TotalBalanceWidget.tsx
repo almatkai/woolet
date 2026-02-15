@@ -1,6 +1,5 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Wallet } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -28,8 +27,9 @@ export function TotalBalanceWidget({ gridParams }: { gridParams?: GridParams }) 
     const isSmallBp = bp === 'sm' || bp === 'xs';
     const compactHeightThreshold = isSmallBp ? 2 : 1;
     const tallHeightThreshold = isSmallBp ? 2 : 1;
+    const isNarrowCard = (gridParams?.w ?? 0) <= 1 && (gridParams?.h ?? 0) <= 2;
 
-    const isCompact = (gridParams?.h ?? 0) <= compactHeightThreshold;
+    const isCompact = (gridParams?.h ?? 0) <= compactHeightThreshold || isNarrowCard;
     const isTall = (gridParams?.h ?? 0) > tallHeightThreshold;
 
     // Process hierarchy into account balances sorted by total balance desc
@@ -74,6 +74,7 @@ export function TotalBalanceWidget({ gridParams }: { gridParams?: GridParams }) 
 
     const totalAccounts = accounts.length;
     const visibleAccounts = isTall ? accounts.slice(0, 5) : [];
+    const compactAccounts = accounts.slice(0, 2);
     
     // Get primary display value
     const activeBalances = Object.entries(totalsByCurrency).filter(([_, amount]) => amount !== 0);
@@ -83,8 +84,9 @@ export function TotalBalanceWidget({ gridParams }: { gridParams?: GridParams }) 
     if (isLoading) {
         return (
             <Card className={cn('dashboard-widget h-full', isCompact && 'dashboard-widget--compact')}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
                     <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-20" />
                 </CardHeader>
                 <CardContent className="p-3 pt-0">
                     <Skeleton className="h-8 w-32" />
@@ -98,16 +100,38 @@ export function TotalBalanceWidget({ gridParams }: { gridParams?: GridParams }) 
         return (
             <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
                 <Link to="/accounts" className="block">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
-                        <CardTitle className="dashboard-widget__title truncate text-sm">Total Balance</CardTitle>
-                        <Wallet className="dashboard-widget__icon" />
+                    <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
+                        <CardTitle className="dashboard-widget__title truncate">Balance</CardTitle>
+                        <div className="dashboard-widget__header-value">
+                            <CurrencyDisplay amount={primaryAmount} currency={primaryCurrency} abbreviate />
+                        </div>
                     </CardHeader>
                 </Link>
-                <CardContent className="p-2 pt-0">
-                    <div className="dashboard-widget__value">
-                        <CurrencyDisplay amount={primaryAmount} currency={primaryCurrency} abbreviate />
+                <CardContent className="p-2 pt-1 pb-2 flex-1 flex flex-col">
+                    <div className="flex-1 space-y-1 overflow-hidden">
+                        {compactAccounts.length > 0 ? compactAccounts.map((account) => (
+                            <div
+                                key={account.accountId}
+                                className="dashboard-widget__item flex items-center justify-between gap-2 rounded bg-muted/30 px-1.5 py-1"
+                            >
+                                <span className="truncate flex-1">{account.accountName}</span>
+                                <span className="whitespace-nowrap">
+                                    {account.balances.length === 1 ? (
+                                        <CurrencyDisplay
+                                            amount={account.balances[0].balance}
+                                            currency={account.balances[0].currencyCode}
+                                            abbreviate
+                                        />
+                                    ) : (
+                                        <CurrencyDisplay amount={account.totalBalance} abbreviate />
+                                    )}
+                                </span>
+                            </div>
+                        )) : (
+                            <p className="dashboard-widget__meta truncate">No accounts</p>
+                        )}
                     </div>
-                    <p className="dashboard-widget__sub mt-0.5 truncate">
+                    <p className="dashboard-widget__sub w-full truncate mt-auto">
                         {totalAccounts} {totalAccounts === 1 ? 'account' : 'accounts'}
                     </p>
                 </CardContent>
@@ -119,9 +143,11 @@ export function TotalBalanceWidget({ gridParams }: { gridParams?: GridParams }) 
     return (
         <Card className="dashboard-widget h-full flex flex-col">
             <Link to="/accounts" className="block">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1 hover:bg-muted/50 transition-colors">
-                    <CardTitle className="dashboard-widget__title truncate text-sm">Total Balance</CardTitle>
-                    <Wallet className="dashboard-widget__icon" />
+                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
+                    <CardTitle className="dashboard-widget__title truncate">Balance</CardTitle>
+                    <div className="dashboard-widget__item font-semibold text-xs">
+                        <CurrencyDisplay amount={primaryAmount} currency={primaryCurrency} abbreviate />
+                    </div>
                 </CardHeader>
             </Link>
             <CardContent className="flex-1 overflow-hidden p-3 pt-0 flex flex-col">
@@ -139,7 +165,7 @@ export function TotalBalanceWidget({ gridParams }: { gridParams?: GridParams }) 
                                 >
                                     <div className="flex flex-col min-w-0 flex-1">
                                         <span className="text-xs font-medium truncate">{account.accountName}</span>
-                                        <span className="text-[10px] text-muted-foreground truncate">{account.bankName}</span>
+                                        <span className="text-xs text-muted-foreground truncate">{account.bankName}</span>
                                     </div>
                                     <div className="text-xs font-medium whitespace-nowrap ml-2">
                                         {account.balances.length === 1 ? (
