@@ -80,7 +80,9 @@ export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: nu
                             {/* This Month Status */}
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <p className="dashboard-widget__meta">This Month</p>
+                                    <div className="dashboard-widget__value">
+                                        <CurrencyDisplay amount={totalMonthly} currency={activeMortgages[0]?.currency || 'KZT'} />
+                                    </div>
                                     <Badge variant={allPaidThisMonth ? "default" : "destructive"} className="dashboard-widget__badge flex items-center gap-1">
                                         {allPaidThisMonth ? (
                                             <><Check className="h-3 w-3" /> Paid</>
@@ -88,9 +90,6 @@ export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: nu
                                             <><X className="h-3 w-3" /> Unpaid</>
                                         )}
                                     </Badge>
-                                </div>
-                                <div className="dashboard-widget__value">
-                                    <CurrencyDisplay amount={totalMonthly} currency={activeMortgages[0]?.currency || 'KZT'} />
                                 </div>
                             </div>
                             
@@ -107,16 +106,16 @@ export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: nu
                                                 className="dashboard-widget__item flex items-center justify-between p-2 rounded-md bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors gap-2"
                                                 onClick={() => setPayingMortgage(mortgage)}
                                             >
-                                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                <div className="flex items-center gap-2 min-w-0">
                                                     {isPaidThisMonth ? (
                                                         <Check className="h-3 w-3 text-green-600 flex-shrink-0" />
                                                     ) : (
                                                         <X className="h-3 w-3 text-red-600 flex-shrink-0" />
                                                     )}
-                                                    <span className="truncate">{mortgage.propertyName}</span>
+                                                    <span className="truncate text-sm font-medium">{mortgage.propertyName}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 flex-shrink-0">
-                                                    <span className="font-medium whitespace-nowrap text-xs">
+                                                    <span className="whitespace-nowrap">
                                                         <CurrencyDisplay amount={mortgage.monthlyPayment} currency={mortgage.currency} />
                                                     </span>
                                                     <Wallet className="h-3 w-3 text-muted-foreground" />

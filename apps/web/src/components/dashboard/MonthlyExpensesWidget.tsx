@@ -103,7 +103,7 @@ export function MonthlyExpensesWidget({ gridParams }: { gridParams?: GridParams 
                                 key={tx.id}
                                 className="dashboard-widget__item flex items-center justify-between gap-2 rounded bg-muted/30 px-1.5 py-1"
                             >
-                                <span className="truncate flex-1">
+                                <span className="truncate flex-1 text-sm font-medium">
                                     {tx.description || tx.category?.name || 'Expense'}
                                 </span>
                                 <span className="whitespace-nowrap text-red-600">
@@ -187,7 +187,7 @@ export function MonthlyExpensesWidget({ gridParams }: { gridParams?: GridParams 
                                     <div className="flex items-center gap-2 min-w-0 flex-1">
                                         <span className="text-sm">{tx.category?.icon || '💸'}</span>
                                         <div className="flex flex-col min-w-0">
-                                            <span className="text-xs font-medium truncate">
+                                            <span className="text-sm font-medium truncate leading-tight">
                                                 {tx.description || tx.category?.name || 'Expense'}
                                             </span>
                                             <span className="text-xs text-muted-foreground">

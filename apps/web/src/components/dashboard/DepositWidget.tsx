@@ -143,8 +143,8 @@ export function DepositWidget({ gridParams }: { gridParams?: { w: number; h: num
                             <div className="space-y-1">
                                 {displayDeposits.map((deposit: any) => (
                                     <div key={deposit.id} className="dashboard-widget__item flex items-center justify-between text-xs gap-2">
-                                        <span className="truncate flex-1 font-medium">{deposit.depositName}</span>
-                                        <span className="font-medium whitespace-nowrap text-xs flex-shrink-0">
+                                        <span className="truncate flex-1 font-medium text-sm">{deposit.depositName}</span>
+                                        <span className="whitespace-nowrap flex-shrink-0 text-xs">
                                             <CurrencyDisplay amount={deposit.currentBalance} currency={deposit.currency} />
                                         </span>
                                     </div>
@@ -183,10 +183,10 @@ export function DepositWidget({ gridParams }: { gridParams?: { w: number; h: num
                                 {activeDeposits.map((deposit: any) => (
                                     <div key={deposit.id} className="dashboard-widget__item flex items-center justify-between gap-2">
                                         <div className="flex flex-col min-w-0 flex-1">
-                                            <span className="truncate font-medium">{deposit.depositName}</span>
-                                            <span className="dashboard-widget__meta">{deposit.interestRate}% • {deposit.compoundingFrequency}</span>
+                                            <span className="truncate font-medium text-sm leading-tight">{deposit.depositName}</span>
+                                            <span className="dashboard-widget__meta text-[10px] text-muted-foreground mt-0.5">{deposit.interestRate}% • {deposit.compoundingFrequency}</span>
                                         </div>
-                                        <span className="font-medium whitespace-nowrap flex-shrink-0">
+                                        <span className="whitespace-nowrap flex-shrink-0">
                                             <CurrencyDisplay amount={deposit.currentBalance} currency={deposit.currency} />
                                         </span>
                                     </div>

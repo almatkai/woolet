@@ -198,8 +198,8 @@ export function SubscriptionsWidget({ gridParams }: { gridParams?: { w: number; 
                                             {subscription.icon}
                                         </span>
                                         <div className="flex flex-col min-w-0">
-                                            <span className="text-xs font-medium truncate">{subscription.name}</span>
-                                            <span className="text-xs text-muted-foreground truncate">
+                                            <span className="text-sm font-medium truncate leading-tight">{subscription.name}</span>
+                                            <span className="text-[10px] text-muted-foreground truncate">
                                                 {subscription.daysUntilBilling === 0 
                                                     ? 'Today' 
                                                     : subscription.daysUntilBilling === 1

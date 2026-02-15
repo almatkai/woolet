@@ -114,7 +114,7 @@ export function TotalBalanceWidget({ gridParams }: { gridParams?: GridParams }) 
                                 key={account.accountId}
                                 className="dashboard-widget__item flex items-center justify-between gap-2 rounded bg-muted/30 px-1.5 py-1"
                             >
-                                <span className="truncate flex-1">{account.accountName}</span>
+                                <span className="truncate flex-1 text-sm font-medium">{account.accountName}</span>
                                 <span className="whitespace-nowrap">
                                     {account.balances.length === 1 ? (
                                         <CurrencyDisplay
@@ -145,7 +145,7 @@ export function TotalBalanceWidget({ gridParams }: { gridParams?: GridParams }) 
             <Link to="/accounts" className="block">
                 <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
                     <CardTitle className="dashboard-widget__title truncate">Balance</CardTitle>
-                    <div className="dashboard-widget__item font-semibold text-xs">
+                    <div className="dashboard-widget__item font-medium text-xs">
                         <CurrencyDisplay amount={primaryAmount} currency={primaryCurrency} abbreviate />
                     </div>
                 </CardHeader>
@@ -164,7 +164,7 @@ export function TotalBalanceWidget({ gridParams }: { gridParams?: GridParams }) 
                                     className="dashboard-widget__item flex items-center justify-between p-1.5 rounded bg-muted/30"
                                 >
                                     <div className="flex flex-col min-w-0 flex-1">
-                                        <span className="text-xs font-medium truncate">{account.accountName}</span>
+                                        <span className="text-sm font-medium truncate leading-tight">{account.accountName}</span>
                                         <span className="text-xs text-muted-foreground truncate">{account.bankName}</span>
                                     </div>
                                     <div className="text-xs font-medium whitespace-nowrap ml-2">

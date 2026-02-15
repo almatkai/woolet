@@ -68,8 +68,8 @@ export function DebtsWidget({ gridParams }: { gridParams?: GridParams }) {
                                     key={debt.id}
                                     className="dashboard-widget__item flex items-center justify-between gap-2 rounded bg-muted/30 px-1.5 py-1"
                                 >
-                                    <span className="truncate flex-1">{debt.personName}</span>
-                                    <span className={cn('whitespace-nowrap', isIOwe ? 'text-red-600' : 'text-green-600')}>
+                                    <span className="truncate flex-1 text-sm font-medium">{debt.personName}</span>
+                                    <span className={cn('whitespace-nowrap flex-shrink-0', isIOwe ? 'text-red-600' : 'text-green-600')}>
                                         <CurrencyDisplay
                                             amount={isIOwe ? -debtAmount : debtAmount}
                                             currency={debt.currencyBalance?.currencyCode || debt.currencyCode}
@@ -123,7 +123,7 @@ export function DebtsWidget({ gridParams }: { gridParams?: GridParams }) {
                                 <div className="space-y-0.5">
                                     {iOweDebts.slice(0, maxItems).map((debt: any) => (
                                         <div key={debt.id} className="dashboard-widget__item flex items-center justify-between gap-2">
-                                            <span className="truncate flex-1 min-w-0">{debt.personName}</span>
+                                            <span className="truncate flex-1 min-w-0 text-sm font-medium">{debt.personName}</span>
                                             <span className="font-medium text-red-600 whitespace-nowrap flex-shrink-0">
                                                 <CurrencyDisplay 
                                                     amount={debt.amount} 
@@ -141,7 +141,7 @@ export function DebtsWidget({ gridParams }: { gridParams?: GridParams }) {
                                 <div className="space-y-0.5">
                                     {theyOweDebts.slice(0, maxItems).map((debt: any) => (
                                         <div key={debt.id} className="dashboard-widget__item flex items-center justify-between gap-2">
-                                            <span className="truncate flex-1 min-w-0">{debt.personName}</span>
+                                            <span className="truncate flex-1 min-w-0 text-sm font-medium">{debt.personName}</span>
                                             <span className="font-medium text-green-600 whitespace-nowrap flex-shrink-0">
                                                 <CurrencyDisplay 
                                                     amount={debt.amount} 

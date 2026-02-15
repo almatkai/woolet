@@ -129,19 +129,19 @@ export function InvestmentPortfolioWidget({ gridParams }: InvestmentPortfolioWid
                 <div className="grid grid-cols-3 gap-2 pb-2 border-b">
                     <div className="space-y-0.5">
                         <p className="dashboard-widget__meta">Value</p>
-                        <div className="font-semibold text-sm">
+                        <div className="font-medium text-sm">
                             <CurrencyDisplay amount={totalValue} abbreviate />
                         </div>
                     </div>
                     <div className="space-y-0.5">
                         <p className="dashboard-widget__meta">Cost</p>
-                        <div className="font-semibold text-sm">
+                        <div className="font-medium text-sm">
                             <CurrencyDisplay amount={totalCost} abbreviate />
                         </div>
                     </div>
                     <div className="space-y-0.5">
                         <p className="dashboard-widget__meta">P/L</p>
-                        <div className={cn('font-semibold text-sm', 
+                        <div className={cn('font-medium text-sm', 
                             unrealizedPL >= 0 ? 'text-green-600' : 'text-red-600'
                         )}>
                             <CurrencyDisplay amount={unrealizedPL} showSign abbreviate />
@@ -167,13 +167,13 @@ export function InvestmentPortfolioWidget({ gridParams }: InvestmentPortfolioWid
                                     <div key={holding.stockId} className="dashboard-widget__item rounded-md p-2">
                                         <div className="flex items-start justify-between">
                                             <div className="flex-1 min-w-0">
-                                                <div className="font-medium text-sm truncate">{holding.ticker}</div>
-                                                <div className="text-xs text-muted-foreground">
+                                                <div className="font-medium text-sm truncate leading-tight">{holding.ticker}</div>
+                                                <div className="text-xs text-muted-foreground mt-0.5">
                                                     {holding.quantity} shares @ <CurrencyDisplay amount={holding.averageCostBasis} />
                                                 </div>
                                             </div>
                                             <div className="text-right ml-2">
-                                                <div className="font-semibold text-sm">
+                                                <div className="font-medium text-sm">
                                                     <CurrencyDisplay amount={currentValue} abbreviate />
                                                 </div>
                                                 <div className={cn('text-xs', pl >= 0 ? 'text-green-600' : 'text-red-600')}>

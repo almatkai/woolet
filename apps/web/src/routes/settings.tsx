@@ -141,7 +141,7 @@ export function SettingsPage() {
     return (
         <div className="space-y-8">
             <div className="flex flex-col gap-1 mb-8">
-                <h1 className="text-4xl font-bold tracking-tight text-white">General Settings</h1>
+                <h1 className="text-4xl font-medium tracking-tight text-foreground">General Settings</h1>
                 <p className="text-muted-foreground text-lg">Manage your application preferences and appearance.</p>
             </div>
 

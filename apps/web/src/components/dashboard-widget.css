@@ -41,7 +41,7 @@
 
 .dashboard-widget__title {
     font-size: 16px !important;
-    font-weight: 700 !important;
+    font-weight: 500 !important;
     line-height: 1.25 !important;
 }
 
@@ -51,7 +51,7 @@
 
 .dashboard-widget__header-value {
     font-size: 16px !important;
-    font-weight: 700 !important;
+    font-weight: 500 !important;
     line-height: 1.25 !important;
     @apply truncate text-right;
 }
@@ -84,11 +84,11 @@
 }
 
 .dashboard-widget__item {
-    @apply text-xs font-medium leading-tight;
+    @apply text-sm font-medium leading-tight;
 }
 
 .dashboard-widget--compact .dashboard-widget__item {
-    @apply text-xs;
+    @apply text-sm;
 }
 
 .dashboard-widget__meta {

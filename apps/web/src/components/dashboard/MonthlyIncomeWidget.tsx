@@ -170,7 +170,7 @@ export function MonthlyIncomeWidget({ gridParams }: { gridParams?: GridParams })
                                     <div className="flex items-center gap-2 min-w-0 flex-1">
                                         <span className="text-sm flex-shrink-0">{tx.category?.icon || '💰'}</span>
                                         <div className="flex flex-col min-w-0 flex-1">
-                                            <span className="text-xs font-medium line-clamp-2 break-words">
+                                            <span className="text-sm font-medium truncate leading-tight">
                                                 {tx.description || tx.category?.name || 'Income'}
                                             </span>
                                             <span className="text-xs text-muted-foreground">

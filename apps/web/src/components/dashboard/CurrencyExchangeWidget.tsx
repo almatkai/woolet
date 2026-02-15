@@ -69,7 +69,7 @@ interface CurrencyExchangeWidgetProps {
 
 export function CurrencyExchangeWidget({ gridParams }: CurrencyExchangeWidgetProps) {
     const [selectedPair, setSelectedPair] = useState<{ from: string; to: string } | null>(null);
-    const [isReversed, setIsReversed] = useState(false);
+    const [isReversed, setIsReversed] = useState(true);
 
     // Get user's default currency
     const { data: userSettings } = trpc.settings.getUserSettings.useQuery();
@@ -127,26 +127,24 @@ export function CurrencyExchangeWidget({ gridParams }: CurrencyExchangeWidgetPro
 
     // Compact view - just show count and primary rate
     if (isCompact) {
-        const primaryCurrency = isReversed ? baseCurrency : (displayCurrencies[0] || 'EUR');
-        const rate = isReversed 
-            ? (1 / (exchangeRates?.[displayCurrencies[0]] || 1))
-            : (exchangeRates?.[displayCurrencies[0]] || 0);
-        const fromCurrency = isReversed ? displayCurrencies[0] : baseCurrency;
-        const toCurrency = isReversed ? baseCurrency : displayCurrencies[0];
+        const primaryCurrency = displayCurrencies[0] || 'EUR';
+        const rate = exchangeRates?.[primaryCurrency] || 0;
+        const displayRate = isReversed ? (1 / rate) : rate;
         
         return (
             <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
                 <Link to="/accounts" className="block">
                     <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
-                        <CardTitle className="dashboard-widget__title truncate">Exchange Rates</CardTitle>
-                        <div className="dashboard-widget__header-value">
-                            {rate.toFixed(rate >= 1 ? 2 : 4)}
+                        <CardTitle className="dashboard-widget__title truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">Exchange Rates</CardTitle>
+                        <div className="dashboard-widget__header-value font-medium text-sm">
+                            {displayRate.toFixed(displayRate >= 1 ? 2 : 4)}
                         </div>
                     </CardHeader>
                 </Link>
-                <CardContent className="p-2 pt-1 pb-2 flex-1 flex items-end">
-                    <div className="dashboard-widget__sub w-full truncate">
-                        {fromCurrency} {'->'} {toCurrency} • {Object.keys(exchangeRates || {}).length} currencies
+                <CardContent className="p-2 pt-0 pb-2 flex-1 flex items-end">
+                    <div className="dashboard-widget__sub w-full truncate text-[10px] text-muted-foreground flex items-center gap-1">
+                        <span>{CURRENCY_FLAGS[primaryCurrency]}</span>
+                        <span>1 {isReversed ? primaryCurrency : baseCurrency} = {isReversed ? baseCurrency : primaryCurrency}</span>
                     </div>
                 </CardContent>
             </Card>
@@ -161,16 +159,16 @@ export function CurrencyExchangeWidget({ gridParams }: CurrencyExchangeWidgetPro
                     <Link to="/accounts" className="flex-1 min-w-0">
                         <div className="hover:underline">
                             <CardTitle className="dashboard-widget__title truncate">Exchange Rates</CardTitle>
-                            <CardDescription className="dashboard-widget__desc truncate">
-                                {isReversed ? `To ${baseCurrency}` : `From ${baseCurrency}`}
+                            <CardDescription className="dashboard-widget__desc truncate text-[10px] uppercase font-medium">
+                                {isReversed ? `Value in ${baseCurrency}` : `From ${baseCurrency}`}
                             </CardDescription>
                         </div>
                     </Link>
                     <button 
                         onClick={(e) => { e.stopPropagation(); setIsReversed(!isReversed); }}
-                        className="dashboard-widget__icon cursor-pointer hover:text-primary transition-colors"
+                        className="dashboard-widget__icon cursor-pointer hover:text-primary transition-colors p-1 rounded-full hover:bg-muted"
                     >
-                        <ArrowRightLeft className="h-4 w-4" />
+                        <ArrowRightLeft className="h-3.5 w-3.5" />
                     </button>
                 </CardHeader>
                 <CardContent className="flex-1 overflow-hidden p-3 pt-0">
@@ -178,19 +176,17 @@ export function CurrencyExchangeWidget({ gridParams }: CurrencyExchangeWidgetPro
                         {displayCurrencies.map((currency) => {
                             const rate = exchangeRates?.[currency] || 0;
                             const displayRate = isReversed ? (1 / rate) : rate;
-                            const fromCurrency = isReversed ? currency : baseCurrency;
-                            const toCurrency = isReversed ? baseCurrency : currency;
                             
                             return (
                                 <div
                                     key={currency}
-                                    className="dashboard-widget__item rounded-md bg-muted/50 p-2"
+                                    className="dashboard-widget__item rounded-lg bg-muted/40 p-2 border border-transparent hover:border-muted-foreground/10 transition-colors"
                                 >
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-sm">{CURRENCY_FLAGS[currency]}</span>
-                                        <span className="font-medium text-xs">{fromCurrency}→{toCurrency}</span>
+                                    <div className="flex items-center gap-1.5 mb-0.5">
+                                        <span className="text-base leading-none">{CURRENCY_FLAGS[currency]}</span>
+                                        <span className="font-medium text-[10px] text-muted-foreground">{currency}</span>
                                     </div>
-                                    <div className="text-sm font-semibold mt-0.5">
+                                    <div className="text-sm font-medium">
                                         {displayRate.toFixed(displayRate >= 1 ? 2 : 4)}
                                     </div>
                                 </div>
@@ -210,18 +206,18 @@ export function CurrencyExchangeWidget({ gridParams }: CurrencyExchangeWidgetPro
 
     return (
         <Card className="dashboard-widget h-full flex flex-col">
-            <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
+            <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-3 pb-2">
                 <Link to="/accounts" className="flex-1 min-w-0">
                     <div className="hover:underline">
-                        <CardTitle className="dashboard-widget__title truncate">Exchange Rates</CardTitle>
-                        <CardDescription className="dashboard-widget__desc truncate">
-                            {isReversed ? `To ${baseCurrency}` : `From ${baseCurrency}`}
+                        <CardTitle className="dashboard-widget__title truncate text-sm font-medium">Exchange Rates</CardTitle>
+                        <CardDescription className="dashboard-widget__desc truncate text-[10px] uppercase font-medium mt-0.5">
+                            {isReversed ? `Value in ${baseCurrency}` : `From ${baseCurrency}`}
                         </CardDescription>
                     </div>
                 </Link>
                 <button 
                     onClick={(e) => { e.stopPropagation(); setIsReversed(!isReversed); }}
-                    className="dashboard-widget__icon cursor-pointer hover:text-primary transition-colors"
+                    className="dashboard-widget__icon cursor-pointer hover:text-primary transition-colors p-1.5 rounded-full hover:bg-muted"
                 >
                     <ArrowRightLeft className="h-4 w-4" />
                 </button>
@@ -262,37 +258,40 @@ export function CurrencyExchangeWidget({ gridParams }: CurrencyExchangeWidgetPro
 
                 {/* Currency List */}
                 <ScrollArea className="flex-1">
-                    <div className="space-y-1.5">
-                        <div className="text-xs font-medium text-muted-foreground px-1">
-                            {isReversed ? `1 USD = X ${baseCurrency}` : `1 ${baseCurrency} = X`}
+                    <div className="space-y-1">
+                        <div className="text-[10px] font-medium text-muted-foreground px-2 py-1 uppercase tracking-wider">
+                            {isReversed ? `1 Unit = X ${baseCurrency}` : `1 ${baseCurrency} = X Units`}
                         </div>
                         {displayCurrencies.map((currency) => {
                             const rate = exchangeRates?.[currency] || 0;
                             const displayRate = isReversed ? (1 / rate) : rate;
-                            const fromCurrency = isReversed ? currency : baseCurrency;
-                            const toCurrency = isReversed ? baseCurrency : currency;
                             const isSelected = selectedPair?.to === currency;
                             return (
                                 <div
                                     key={currency}
                                     className={cn(
-                                        'dashboard-widget__item cursor-pointer hover:bg-muted/50 transition-colors rounded-md p-2',
+                                        'dashboard-widget__item cursor-pointer hover:bg-muted/50 transition-colors rounded-lg p-2',
                                         isSelected && 'bg-muted'
                                     )}
                                     onClick={() => setSelectedPair({ from: baseCurrency, to: currency })}
                                 >
                                     <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-lg">{CURRENCY_FLAGS[currency]}</span>
-                                            <div>
-                                                <div className="font-medium text-sm">{isReversed ? `${currency}→${baseCurrency}` : currency}</div>
-                                                <div className="text-xs text-muted-foreground">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-xl leading-none">{CURRENCY_FLAGS[currency]}</span>
+                                            <div className="flex items-baseline gap-1.5">
+                                                <span className="font-medium text-sm">{currency}</span>
+                                                <span className="text-xs text-muted-foreground font-medium">
                                                     {CURRENCY_SYMBOLS[currency]}
-                                                </div>
+                                                </span>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <div className="font-semibold">{displayRate.toFixed(displayRate >= 1 ? 2 : 4)}</div>
+                                            <div className="font-medium text-sm">
+                                                {displayRate.toLocaleString(undefined, {
+                                                    minimumFractionDigits: displayRate >= 1 ? 2 : 4,
+                                                    maximumFractionDigits: displayRate >= 1 ? 2 : 4
+                                                })}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

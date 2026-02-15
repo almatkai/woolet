@@ -1,5 +1,6 @@
 
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 import {
     Tooltip,
     TooltipContent,
@@ -46,21 +47,25 @@ export function CurrencyDisplay({ amount, currency, className, abbreviate = true
     const abbreviated = abbreviate ? formatAmountAbbreviated(amount) : fullAmount;
 
     const sign = showSign && num > 0 ? '+' : '';
-    const displayValue = abbreviate && currency ? `${sign}${currency} ${abbreviated}` : `${sign}${abbreviated}`;
 
     return (
         <TooltipProvider>
             <Tooltip open={open} onOpenChange={setOpen}>
                 <TooltipTrigger asChild>
                     <span
-                        className={`cursor-help select-none inline-block ${className}`}
+                        className={cn("cursor-help select-none inline-flex items-baseline gap-1", className)}
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             setOpen(!open);
                         }}
                     >
-                        {displayValue}
+                        {currency && (
+                            <span className="text-sm font-medium leading-none">{currency}</span>
+                        )}
+                        <span className="text-xs font-medium leading-none">
+                            {sign}{abbreviated}
+                        </span>
                     </span>
                 </TooltipTrigger>
                 <TooltipContent>

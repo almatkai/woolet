@@ -16,8 +16,33 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useTooltipPro } from '@/components/ui/tooltip-pro';
+import { useTheme } from '@/components/theme-provider';
 
 const COLORS = ['#a78bfa', '#f87171', '#facc15', '#4ade80', '#60a5fa', '#f472b6', '#22d3ee', '#fb923c'];
+
+/** Compute relative luminance from a hex color (0 = black, 1 = white) */
+function getLuminance(hex: string): number {
+    const h = hex.replace('#', '');
+    const r = parseInt(h.substring(0, 2), 16) / 255;
+    const g = parseInt(h.substring(2, 4), 16) / 255;
+    const b = parseInt(h.substring(4, 6), 16) / 255;
+    const toLinear = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+    return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+}
+
+/** Return a contrasting stroke color when the fill would blend with the background */
+function getContrastStroke(fillColor: string, isDark: boolean): string {
+    const lum = getLuminance(fillColor);
+    if (isDark && lum < 0.08) {
+        // Near-black color on dark background → light border
+        return 'rgba(255,255,255,0.35)';
+    }
+    if (!isDark && lum > 0.9) {
+        // Near-white color on light background → dark border
+        return 'rgba(0,0,0,0.25)';
+    }
+    return fillColor;
+}
 
 function useElementSize<T extends HTMLElement>() {
     const [element, setElement] = useState<T | null>(null);
@@ -57,6 +82,9 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
     const gridH = gridParams?.h ?? 0;
     const isUltraCompact = gridW === 1 && gridH <= 1;
     const showSelector = gridW === 1 && gridH > 1;
+
+    const { theme } = useTheme();
+    const isDark = theme === 'dark' || theme === 'super-dark';
 
     const { data: balanceData } = trpc.account.getTotalBalance.useQuery();
 
@@ -228,7 +256,16 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
                                                 />
                                                 <div
                                                     className="h-2 w-2 rounded-full flex-shrink-0"
-                                                    style={{ backgroundColor: entry.color || COLORS[index % COLORS.length] }}
+                                                    style={{
+                                                        backgroundColor: entry.color || COLORS[index % COLORS.length],
+                                                        border: (() => {
+                                                            const c = entry.color || COLORS[index % COLORS.length];
+                                                            const lum = getLuminance(c);
+                                                            if (isDark && lum < 0.08) return '1px solid rgba(255,255,255,0.4)';
+                                                            if (!isDark && lum > 0.9) return '1px solid rgba(0,0,0,0.3)';
+                                                            return 'none';
+                                                        })()
+                                                    }}
                                                 />
                                                 <span className="flex-1">{entry.name}</span>
                                                 <span className="text-muted-foreground text-xs">{formatAmountAbbreviated(entry.value)}</span>
@@ -266,14 +303,17 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
                                             onMouseEnter={(_, index) => tooltip.handleItemHover(filteredData[index])}
                                             onMouseLeave={() => tooltip.handleItemHover(null)}
                                         >
-                                            {filteredData.map((entry: any, index: number) => (
-                                                <Cell
-                                                    key={`cell-${index}`}
-                                                    fill={entry.color || COLORS[index % COLORS.length]}
-                                                    stroke={entry.color || COLORS[index % COLORS.length]}
-                                                    fillOpacity={1}
-                                                />
-                                            ))}
+                                            {filteredData.map((entry: any, index: number) => {
+                                                const color = entry.color || COLORS[index % COLORS.length];
+                                                return (
+                                                    <Cell
+                                                        key={`cell-${index}`}
+                                                        fill={color}
+                                                        stroke={getContrastStroke(color, isDark)}
+                                                        fillOpacity={1}
+                                                    />
+                                                );
+                                            })}
                                         </Pie>
                                     </PieChart>
                                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -336,14 +376,17 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
                                             onMouseEnter={(_, index) => tooltip.handleItemHover(filteredData[index])}
                                             onMouseLeave={() => tooltip.handleItemHover(null)}
                                         >
-                                            {filteredData.map((entry: any, index: number) => (
-                                                <Cell
-                                                    key={`cell-${index}`}
-                                                    fill={entry.color || COLORS[index % COLORS.length]}
-                                                    stroke={entry.color || COLORS[index % COLORS.length]}
-                                                    fillOpacity={1}
-                                                />
-                                            ))}
+                                            {filteredData.map((entry: any, index: number) => {
+                                                const color = entry.color || COLORS[index % COLORS.length];
+                                                return (
+                                                    <Cell
+                                                        key={`cell-${index}`}
+                                                        fill={color}
+                                                        stroke={getContrastStroke(color, isDark)}
+                                                        fillOpacity={1}
+                                                    />
+                                                );
+                                            })}
                                         </Pie>
                                     </PieChart>
                                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -397,7 +440,14 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
                                                 className="h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full flex-shrink-0"
                                                 style={{
                                                     backgroundColor: entry.color || COLORS[index % COLORS.length],
-                                                    opacity: isEnabled ? 1 : 0.3
+                                                    opacity: isEnabled ? 1 : 0.3,
+                                                    border: (() => {
+                                                        const c = entry.color || COLORS[index % COLORS.length];
+                                                        const lum = getLuminance(c);
+                                                        if (isDark && lum < 0.08) return '1px solid rgba(255,255,255,0.4)';
+                                                        if (!isDark && lum > 0.9) return '1px solid rgba(0,0,0,0.3)';
+                                                        return 'none';
+                                                    })()
                                                 }}
                                             />
                                             <span className={`text-xs sm:text-sm flex-1 truncate min-w-0 ${isEnabled ? '' : 'text-muted-foreground'}`}>

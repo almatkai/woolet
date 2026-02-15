@@ -79,7 +79,6 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                     <div className="flex items-center justify-between h-full">
                         <div className="flex items-center gap-3">
                             <div>
-                                <p className="dashboard-widget__meta">This Month</p>
                                 <div className="dashboard-widget__value text-lg">
                                     <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} />
                                 </div>
@@ -100,7 +99,9 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                     <div className="grid grid-cols-2 gap-4 h-full">
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                                <p className="dashboard-widget__meta">This Month</p>
+                                <div className="dashboard-widget__value">
+                                    <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} />
+                                </div>
                                 <Badge variant={allPaidThisMonth ? "default" : "destructive"} className="dashboard-widget__badge flex items-center gap-1 text-xs h-5 px-2">
                                     {allPaidThisMonth ? (
                                         <><Check className="h-2.5 w-2.5" /> Paid</>
@@ -108,9 +109,6 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                                         <><X className="h-2.5 w-2.5" /> Unpaid</>
                                     )}
                                 </Badge>
-                            </div>
-                            <div className="dashboard-widget__value">
-                                <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} />
                             </div>
                         </div>
                         <div className="space-y-1.5">
@@ -120,16 +118,16 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                                     const targetMonthStr = getTargetMonthStr(credit.billingDay, { logic, period });
                                     const isPaidThisMonth = isPaidForTargetMonth(credit.payments, targetMonthStr, true);
                                     return (
-                                        <div key={credit.id} className="dashboard-widget__item flex items-center justify-between p-1.5 rounded-md bg-muted/30 text-xs gap-2">
+                                        <div key={credit.id} className="dashboard-widget__item flex items-center justify-between p-1.5 rounded-md bg-muted/30 gap-2">
                                             <div className="flex items-center gap-1.5 min-w-0 flex-1">
                                                 {isPaidThisMonth ? (
                                                     <Check className="h-2.5 w-2.5 text-green-600 flex-shrink-0" />
                                                 ) : (
                                                     <X className="h-2.5 w-2.5 text-red-600 flex-shrink-0" />
                                                 )}
-                                                <span className="truncate">{credit.name}</span>
+                                                <span className="truncate text-sm font-medium">{credit.name}</span>
                                             </div>
-                                            <span className="font-medium whitespace-nowrap flex-shrink-0 text-xs">
+                                            <span className="whitespace-nowrap flex-shrink-0">
                                                 <CurrencyDisplay amount={credit.monthlyPayment} currency={credit.currency} />
                                             </span>
                                         </div>
@@ -142,7 +140,9 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                     <div className="space-y-3">
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                                <p className="dashboard-widget__meta">This Month</p>
+                                <div className="dashboard-widget__value">
+                                    <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} />
+                                </div>
                                 <Badge variant={allPaidThisMonth ? "default" : "destructive"} className="dashboard-widget__badge flex items-center gap-1">
                                     {allPaidThisMonth ? (
                                         <><Check className="h-3 w-3" /> Paid</>
@@ -151,9 +151,7 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                                     )}
                                 </Badge>
                             </div>
-                            <div className="dashboard-widget__value">
-                                <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} />
-                            </div>
+                            
                         </div>
                         <div className="space-y-2">
                             <p className="dashboard-widget__meta">Active Credits ({activeCredits.length})</p>
@@ -169,9 +167,9 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                                                 ) : (
                                                     <X className="h-3 w-3 text-red-600 flex-shrink-0" />
                                                 )}
-                                                <span className="truncate">{credit.name}</span>
+                                                <span className="truncate text-sm font-medium">{credit.name}</span>
                                             </div>
-                                            <span className="font-medium whitespace-nowrap ml-2">
+                                            <span className="whitespace-nowrap ml-2">
                                                 <CurrencyDisplay amount={credit.monthlyPayment} currency={credit.currency} />
                                             </span>
                                         </div>

@@ -8,6 +8,28 @@ interface TooltipData {
     [key: string]: any;
 }
 
+/** Compute relative luminance from a hex color (0 = black, 1 = white) */
+function getLuminance(hex: string): number {
+    const h = hex.replace('#', '');
+    const normalized = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+    if (normalized.length !== 6) return 0.5;
+    const r = parseInt(normalized.substring(0, 2), 16) / 255;
+    const g = parseInt(normalized.substring(2, 4), 16) / 255;
+    const b = parseInt(normalized.substring(4, 6), 16) / 255;
+    const toLinear = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+    return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+}
+
+/** Ensure accent color is readable: brighten near-black colors in dark mode, darken near-white in light mode */
+function getReadableAccent(color: string): string {
+    if (!color || !color.startsWith('#')) return color;
+    const isDark = document.documentElement.classList.contains('dark') || document.documentElement.classList.contains('super-dark');
+    const lum = getLuminance(color);
+    if (isDark && lum < 0.08) return '#e2e8f0'; // near-black → swap to light gray
+    if (!isDark && lum > 0.9) return '#334155'; // near-white → swap to dark gray
+    return color;
+}
+
 const withAlpha = (color: string, alpha: number) => {
     if (!color) return `rgba(99, 102, 241, ${alpha})`;
     if (!color.startsWith('#')) return color;
@@ -131,21 +153,22 @@ export function useTooltipPro(data: TooltipData[] = [], formatValue?: (value: nu
                 {/* Custom cursor-following tooltip */}
                 {!isTouchDevice && hoveredItem && (() => {
                     const accent = hoveredItem.color || '#6366f1';
+                    const readableAccent = getReadableAccent(accent);
                     return (
                         <div
                             className="fixed rounded-xl border bg-background/70 backdrop-blur-xl px-2.5 py-1.5 z-[9999] pointer-events-none shadow-2xl ring-1 ring-white/10 min-w-[110px]"
                             style={{
                                 left: mousePos.x,
                                 top: mousePos.y,
-                                borderColor: withAlpha(accent, 0.7),
-                                boxShadow: `0 0 0 1px ${withAlpha(accent, 0.25)}`,
+                                borderColor: withAlpha(readableAccent, 0.7),
+                                boxShadow: `0 0 0 1px ${withAlpha(readableAccent, 0.25)}`,
                             }}
                         >
                             <div className="text-[9px] uppercase tracking-widest text-muted-foreground font-medium mb-0.5 line-clamp-1 flex items-center gap-1">
                                 <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: accent }} />
                                 {hoveredItem.name}
                             </div>
-                            <div className="text-sm font-bold" style={{ color: accent }}>
+                            <div className="text-sm font-bold" style={{ color: readableAccent }}>
                                 {valueFormatter(hoveredItem.value)}
                             </div>
                             {showPercentage && total > 0 && (
@@ -160,17 +183,18 @@ export function useTooltipPro(data: TooltipData[] = [], formatValue?: (value: nu
                 {/* Mobile tooltip */}
                 {isTouchDevice && showMobileTooltip && selectedItem && (() => {
                     const accent = selectedItem.color || '#6366f1';
+                    const readableAccent = getReadableAccent(accent);
                     return (
                         <div
                             className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-2xl border bg-background/70 backdrop-blur-xl px-4 py-2 z-[9999] shadow-2xl ring-1 ring-white/10 whitespace-nowrap"
-                            style={{ borderColor: withAlpha(accent, 0.7) }}
+                            style={{ borderColor: withAlpha(readableAccent, 0.7) }}
                             onClick={(e) => e.stopPropagation()}
                         >
                             <div className="font-bold text-sm flex items-center gap-1.5">
                                 <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: accent }} />
                                 {selectedItem.name}
                             </div>
-                            <div className="text-sm font-medium" style={{ color: accent }}>
+                            <div className="text-sm font-medium" style={{ color: readableAccent }}>
                                 {valueFormatter(selectedItem.value)}
                             </div>
                             {showPercentage && total > 0 && (

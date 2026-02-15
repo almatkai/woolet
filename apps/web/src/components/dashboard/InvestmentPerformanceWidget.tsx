@@ -136,7 +136,7 @@ export function InvestmentPerformanceWidget({ gridParams }: InvestmentPerformanc
                 <div className="grid grid-cols-3 gap-2">
                     <div className="space-y-0.5">
                         <p className="dashboard-widget__meta">ROI</p>
-                        <div className={cn('font-semibold text-sm', 
+                        <div className={cn('font-medium text-sm', 
                             totalROI >= 0 ? 'text-green-600' : 'text-red-600'
                         )}>
                             {totalROI >= 0 ? '+' : ''}{totalROI.toFixed(2)}%
@@ -144,7 +144,7 @@ export function InvestmentPerformanceWidget({ gridParams }: InvestmentPerformanc
                     </div>
                     <div className="space-y-0.5">
                         <p className="dashboard-widget__meta">Unrealized</p>
-                        <div className={cn('font-semibold text-sm', 
+                        <div className={cn('font-medium text-sm', 
                             totalPL >= 0 ? 'text-green-600' : 'text-red-600'
                         )}>
                             <CurrencyDisplay amount={totalPL} showSign abbreviate />
@@ -152,7 +152,7 @@ export function InvestmentPerformanceWidget({ gridParams }: InvestmentPerformanc
                     </div>
                     <div className="space-y-0.5">
                         <p className="dashboard-widget__meta">Realized</p>
-                        <div className={cn('font-semibold text-sm', 
+                        <div className={cn('font-medium text-sm', 
                             realizedPL >= 0 ? 'text-green-600' : 'text-red-600'
                         )}>
                             <CurrencyDisplay amount={realizedPL} showSign abbreviate />

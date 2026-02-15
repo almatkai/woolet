@@ -367,8 +367,8 @@ export function VoronoiTreemap({
                             <path
                                 d={path}
                                 fill={t.color}
-                                fillOpacity={isHot ? 0.82 : 0.52}
-                                stroke="rgba(255,255,255,0.18)"
+                                fillOpacity={isHot ? 1 : 0.85}
+                                stroke="rgba(255,255,255,0.22)"
                                 strokeWidth={2.8}
                                 strokeLinejoin="round"
                                 style={{

@@ -187,13 +187,16 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
                                         {tx.category?.icon || '📄'}
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="dashboard-widget__item font-medium truncate max-w-[95px] sm:max-w-[140px]">{tx.description || tx.category?.name || 'Unknown'}</p>
-                                        <p className="dashboard-widget__meta">
+                                        <p className="dashboard-widget__item font-medium text-sm truncate max-w-[120px] sm:max-w-[170px] leading-tight">{tx.description || tx.category?.name || 'Unknown'}</p>
+                                        <p className="dashboard-widget__meta text-xs text-muted-foreground mt-0.5">
                                             {new Date(tx.date).toLocaleDateString()}
                                         </p>
                                     </div>
                                 </div>
-                                <span className={`dashboard-widget__item font-semibold whitespace-nowrap ${tx.type === 'income' ? 'text-green-600' : tx.type === 'expense' ? 'text-red-600' : 'text-foreground'}`}>
+                                <span className={cn(
+                                    "whitespace-nowrap flex-shrink-0",
+                                    tx.type === 'income' ? 'text-green-600' : tx.type === 'expense' ? 'text-red-600' : 'text-foreground'
+                                )}>
                                     <CurrencyDisplay
                                         amount={txAmount}
                                         currency={tx.currencyBalance?.currencyCode || 'USD'}

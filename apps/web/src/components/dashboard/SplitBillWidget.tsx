@@ -94,7 +94,7 @@ export function SplitBillWidget({ gridParams }: SplitBillWidgetProps) {
                         {/* Total */}
                         <div className="bg-muted rounded-lg p-3 mb-3">
                             <div className="text-xs text-muted-foreground">Total owed to you</div>
-                            <div className="text-lg font-semibold">
+                            <div className="text-lg font-medium">
                                 <CurrencyDisplay amount={summary.total} />
                             </div>
                         </div>
@@ -114,15 +114,15 @@ export function SplitBillWidget({ gridParams }: SplitBillWidgetProps) {
                                             {item.participant.name.charAt(0).toUpperCase()}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="font-medium text-sm truncate">{item.participant.name}</div>
+                                            <div className="font-medium text-sm truncate leading-tight">{item.participant.name}</div>
                                             {item.participant.contactValue && (
-                                                <div className="text-xs text-muted-foreground truncate">
+                                                <div className="text-xs text-muted-foreground truncate mt-0.5">
                                                     {item.participant.contactValue}
                                                 </div>
                                             )}
                                         </div>
                                         <div className="text-right shrink-0">
-                                            <div className="font-semibold text-sm">
+                                            <div className="font-medium text-sm">
                                                 <CurrencyDisplay amount={item.remaining} />
                                             </div>
                                             {item.totalPaid > 0 && (

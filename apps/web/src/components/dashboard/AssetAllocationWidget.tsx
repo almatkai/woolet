@@ -155,7 +155,7 @@ export function AssetAllocationWidget({ gridParams }: AssetAllocationWidgetProps
                                 <Link to="/investing" className="block">
                                     <div className="flex items-center justify-between hover:bg-muted/50 transition-colors rounded-md px-1 py-0.5">
                                         <div>
-                                            <div className="font-bold text-base leading-tight">Portfolio</div>
+                                            <div className="font-medium text-base leading-tight">Portfolio</div>
                                             <div className="text-xs text-muted-foreground">Stock distribution</div>
                                         </div>
                                         <PieChartIcon className="dashboard-widget__icon" />
@@ -173,7 +173,7 @@ export function AssetAllocationWidget({ gridParams }: AssetAllocationWidgetProps
                                                     <span className="font-medium text-[12px] leading-4 truncate">{item.name}</span>
                                                 </div>
                                                 <div className="text-right ml-2">
-                                                    <div className="font-semibold text-xs">{item.percentage.toFixed(1)}%</div>
+                                                    <div className="font-medium text-xs">{item.percentage.toFixed(1)}%</div>
                                                     <div className="text-[10px] text-muted-foreground">
                                                         <CurrencyDisplay amount={item.value} abbreviate />
                                                     </div>
@@ -243,11 +243,11 @@ export function AssetAllocationWidget({ gridParams }: AssetAllocationWidgetProps
                                                         className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                                                         style={{ backgroundColor: item.color }}
                                                     />
-                                                    <span className="font-medium text-[12px] leading-4 truncate">{item.name}</span>
+                                                    <span className="font-medium text-sm leading-tight truncate">{item.name}</span>
                                                 </div>
-                                                <div className="text-right ml-2">
-                                                    <div className="font-semibold text-sm">{item.percentage.toFixed(1)}%</div>
-                                                    <div className="text-xs text-muted-foreground">
+                                                <div className="text-right ml-2 flex-shrink-0">
+                                                    <div className="font-medium text-sm leading-tight">{item.percentage.toFixed(1)}%</div>
+                                                    <div className="text-xs text-muted-foreground mt-0.5">
                                                         <CurrencyDisplay amount={item.value} abbreviate />
                                                     </div>
                                                 </div>
@@ -269,7 +269,7 @@ export function AssetAllocationWidget({ gridParams }: AssetAllocationWidgetProps
                                                             <span className="font-medium text-sm truncate">{item.name}</span>
                                                         </div>
                                                         <div className="text-right ml-2">
-                                                            <div className="font-semibold text-sm">{item.percentage.toFixed(1)}%</div>
+                                                            <div className="font-medium text-sm">{item.percentage.toFixed(1)}%</div>
                                                             <div className="text-xs text-muted-foreground">
                                                                 <CurrencyDisplay amount={item.value} abbreviate />
                                                             </div>
