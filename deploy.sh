@@ -88,6 +88,7 @@ else
     [ "${API_CHANGED:-false}" = "true" ] && APP_SERVICES="$APP_SERVICES woolet-api"
     [ "${WEB_CHANGED:-false}" = "true" ] && APP_SERVICES="$APP_SERVICES woolet-web"
     [ "${LANDING_CHANGED:-false}" = "true" ] && APP_SERVICES="$APP_SERVICES woolet-landing"
+fi
 
 APP_SERVICES=$(echo "$APP_SERVICES" | xargs || true)
 
