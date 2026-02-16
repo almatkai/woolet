@@ -95,6 +95,47 @@ const withSize = (Component: any) => {
 
 const ResponsiveGridLayout = withSize(Responsive);
 
+/**
+ * Overlay placed over widget content in edit mode.
+ * Uses a native `touchstart` listener (not React synthetic) with `stopImmediatePropagation`
+ * to prevent react-grid-layout's internally-attached native touch handler from
+ * initiating a drag when touching outside the `.drag-handle`.
+ */
+const EditOverlay = () => {
+    const overlayRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const el = overlayRef.current;
+        if (!el) return;
+
+        const handleTouch = (e: TouchEvent) => {
+            // Stop the native event from reaching RGL's touchstart handler on the parent grid item
+            e.stopImmediatePropagation();
+        };
+
+        const handleMouse = (e: MouseEvent) => {
+            e.stopImmediatePropagation();
+        };
+
+        // Attach in capture phase to intercept before RGL
+        el.addEventListener('touchstart', handleTouch, { capture: false, passive: false });
+        el.addEventListener('mousedown', handleMouse, { capture: false });
+
+        return () => {
+            el.removeEventListener('touchstart', handleTouch);
+            el.removeEventListener('mousedown', handleMouse);
+        };
+    }, []);
+
+    return (
+        <div
+            ref={overlayRef}
+            className="absolute inset-0 z-40 bg-transparent"
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+        />
+    );
+};
+
 interface DashboardGridProps {
     children: React.ReactNode;
     isEditing: boolean;
@@ -705,17 +746,12 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                                 <div className="no-drag h-full w-full rounded-lg overflow-hidden min-w-0">
                                     {childWithProps}
                                     {isEditing && (
-                                        <div
-                                            className="absolute inset-0 z-40 bg-transparent"
-                                            onMouseDown={(e) => e.stopPropagation()}
-                                            onTouchStart={(e) => e.stopPropagation()}
-                                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                                        />
+                                        <EditOverlay />
                                     )}
                                 </div>
                                 {isEditing && (
                                     <>
-                                        <div className="drag-handle absolute top-1 left-10 right-10 h-3 cursor-move z-[41] flex items-center justify-center">
+                                        <div className="drag-handle absolute top-0 left-0 right-0 h-8 cursor-move z-[41] flex items-center justify-center">
                                             <div className="w-14 h-1.5 bg-primary/35 rounded-full" />
                                         </div>
                                         <Button

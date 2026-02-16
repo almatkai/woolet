@@ -80,7 +80,7 @@ app.use('/trpc/*', trpcServer({
     createContext,
 }));
 
-const port = parseInt(process.env.PORT || '3005');
+const port = parseInt(process.env.PORT || '3006');
 
 // Start background jobs
 startCurrencyRatesCron();

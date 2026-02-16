@@ -20,15 +20,26 @@
 /* Touch device drag handle support */
 .drag-handle {
     touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .no-drag {
     touch-action: auto;
 }
 
-/* In edit mode, prevent the grid item itself from capturing touch drags */
+/* In edit mode, grid items should allow scrolling by default (touch-action: auto).
+   Only .drag-handle has touch-action: none, so only touches on the handle initiate drags. */
 .layout.is-editing .react-grid-item {
     touch-action: auto;
+}
+
+/* Ensure mobile drag handle is large enough to grab (44px minimum touch target) */
+@media (max-width: 900px) {
+    .drag-handle {
+        min-height: 44px !important;
+        height: 44px !important;
+    }
 }
 
 /* Resizable handles - only visible in edit mode */
