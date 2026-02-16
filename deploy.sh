@@ -79,6 +79,9 @@ if [ -n "$CURRENCY_API_KEY" ]; then
 fi
 
 # 3. Pull and start services
+echo "🔍 Checking disk space..."
+df -h / | tail -n 1
+
 APP_SERVICES=""
 
 # If shared deps changed, all app images are considered updated.
@@ -93,6 +96,9 @@ fi
 APP_SERVICES=$(echo "$APP_SERVICES" | xargs || true)
 
 if [ -n "$APP_SERVICES" ]; then
+    echo "🧹 Pre-emptive cleanup to ensure enough space for pull..."
+    docker image prune -af --filter "until=24h" || true
+
     echo "🏗️ Pulling updated application images: $APP_SERVICES"
     docker compose -f docker-compose.prod.yml pull $APP_SERVICES
 
