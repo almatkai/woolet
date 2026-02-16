@@ -82,7 +82,7 @@ fi
 APP_SERVICES=""
 
 # If shared deps changed, all app images are considered updated.
-if [ "${SHARED_CHANGED:-false}" = "true" ]; then
+if [ "${SHARED_CHANGED:-false}" = "true" ] || [ "${CONFIG_CHANGED:-false}" = "true" ] || [ "${FORCE_DEPLOY:-false}" = "true" ]; then
     APP_SERVICES="woolet-api woolet-web woolet-landing"
 else
     [ "${API_CHANGED:-false}" = "true" ] && APP_SERVICES="$APP_SERVICES woolet-api"
