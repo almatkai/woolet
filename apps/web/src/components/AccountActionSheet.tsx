@@ -24,7 +24,7 @@ interface CurrencyBalance {
     currencyCode: string;
     balance: string | number;
 }
-
+// Runner trigger
 interface Account {
     id: string;
     name: string;
