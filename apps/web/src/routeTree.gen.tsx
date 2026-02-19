@@ -1,4 +1,4 @@
-import { createRootRoute, createRoute, Outlet, useLocation } from '@tanstack/react-router';
+import { createRootRoute, createRoute, Outlet, useLocation, Navigate } from '@tanstack/react-router';
 import { SignedIn, useAuth } from '@clerk/clerk-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -35,13 +35,22 @@ import { PostHogPageviewTracker, PostHogUserIdentifier } from './components/Post
 
 // Root layout with sidebar
 function RootLayout() {
-    const { isSignedIn } = useAuth();
+    const { isSignedIn, isLoaded } = useAuth();
     const location = useLocation();
     const isSettingsRoute = location.pathname.startsWith('/settings');
     const isAuthRoute = location.pathname.startsWith('/login')
         || location.pathname.startsWith('/register')
         || location.pathname.startsWith('/sso-callback');
     const isAdminRoute = location.pathname.startsWith('/admin');
+    const isPublicRoute = isAuthRoute;
+
+    if (!isPublicRoute && !isLoaded) {
+        return <main className="h-full w-full bg-background" />;
+    }
+
+    if (!isPublicRoute && !isSignedIn) {
+        return <Navigate to="/login" replace />;
+    }
 
     // Admin route should have minimal layout
     if (isAdminRoute) {

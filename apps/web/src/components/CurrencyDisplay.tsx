@@ -20,7 +20,7 @@ export const formatAmountAbbreviated = (amount: string | number): string => {
     const num = Number(amount);
     const absNum = Math.abs(num);
     const sign = num < 0 ? '-' : '';
-    
+
     if (absNum >= 1_000_000) {
         return sign + (absNum / 1_000_000).toLocaleString('en-US', { maximumFractionDigits: 1 }) + 'm';
     }
@@ -44,7 +44,8 @@ export function CurrencyDisplay({ amount, currency, className, abbreviate = true
     const [open, setOpen] = useState(false);
     const num = Number(amount);
     const fullAmount = formatFullAmount(amount, currency);
-    const abbreviated = abbreviate ? formatAmountAbbreviated(amount) : fullAmount;
+    // Always use plain number format for display (currency prefix is rendered separately)
+    const displayAmount = abbreviate ? formatAmountAbbreviated(amount) : formatFullAmount(amount);
 
     const sign = showSign && num > 0 ? '+' : '';
 
@@ -61,10 +62,10 @@ export function CurrencyDisplay({ amount, currency, className, abbreviate = true
                         }}
                     >
                         {currency && (
-                            <span className="text-sm font-medium leading-none">{currency}</span>
+                            <span className="font-medium leading-none">{currency}</span>
                         )}
-                        <span className="text-xs font-medium leading-none">
-                            {sign}{abbreviated}
+                        <span className="font-medium leading-none">
+                            {sign}{displayAmount}
                         </span>
                     </span>
                 </TooltipTrigger>
