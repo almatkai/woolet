@@ -3,7 +3,7 @@
 }
 
 .dashboard-widget:hover {
-    @apply shadow-2xl -translate-y-1 z-10 border-primary/20;
+    @apply shadow-2xl  z-10 border-primary/20;
 }
 
 .light .dashboard-widget {

@@ -6,6 +6,35 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/s
 import { AppSidebar } from '@/components/app-sidebar';
 import { AiChatFloatingItem } from '@/components/AiChatWidget';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// Dashboard-like loading screen shown while Clerk resolves auth state
+function DashboardLoadingScreen() {
+    return (
+        <div className="min-h-screen w-full bg-background p-3 md:p-6">
+            <div className="space-y-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="space-y-2">
+                        <Skeleton className="h-8 w-44" />
+                        <Skeleton className="h-4 w-64" />
+                    </div>
+                    <div className="flex gap-2">
+                        <Skeleton className="h-9 w-24" />
+                        <Skeleton className="h-9 w-28" />
+                    </div>
+                </div>
+
+                <Skeleton className="h-24 w-full rounded-xl" />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                    {Array.from({ length: 12 }).map((_, i) => (
+                        <Skeleton key={i} className="h-44 w-full rounded-xl" />
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
 
 // Routes
 import { Dashboard } from './routes/index';
@@ -44,8 +73,10 @@ function RootLayout() {
     const isAdminRoute = location.pathname.startsWith('/admin');
     const isPublicRoute = isAuthRoute;
 
-    if (!isPublicRoute && !isLoaded) {
-        return <main className="h-full w-full bg-background" />;
+    // Block all route rendering until auth state is resolved to avoid UI flicker
+    // between protected pages and auth pages.
+    if (!isLoaded) {
+        return <DashboardLoadingScreen />;
     }
 
     if (!isPublicRoute && !isSignedIn) {
