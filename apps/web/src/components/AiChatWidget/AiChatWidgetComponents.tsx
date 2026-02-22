@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessageCircle, X, Send, History, PlusCircle, Trash2 } from 'lucide-react';
+import { MessageCircle, X, Send, History, PlusCircle, Trash2, Loader2, CheckCircle2 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
@@ -15,10 +15,64 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MomoIcon } from './MomoIcon';
 import { MomoIconWrapper } from './MomoIconWrapper';
+import { useNavigate } from '@tanstack/react-router';
 
 interface Message {
     role: 'user' | 'model';
     text: string;
+    trace?: AgentTraceStep[];
+    actionPath?: string;
+}
+
+interface AgentTraceStep {
+    key: string;
+    label: string;
+    detail?: string;
+    status?: 'done' | 'running' | 'pending';
+}
+
+function createClientRequestId(): string {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    return `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function AgentTraceView({ steps, loading = false }: { steps: AgentTraceStep[]; loading?: boolean }) {
+    if (!steps.length) return null;
+
+    return (
+        <div className="mb-2 rounded-md border border-slate-300/60 dark:border-slate-700/70 bg-slate-100/60 dark:bg-slate-900/40 px-2.5 py-2">
+            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Agent Execution
+            </div>
+            <div className="space-y-1.5">
+                {steps.map((step) => {
+                    const isDone = step.status === 'done';
+                    const isRunning = step.status === 'running';
+                    return (
+                        <div key={step.key} className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                            <div className="flex items-center gap-1.5">
+                                {isDone ? (
+                                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                ) : isRunning ? (
+                                    <Loader2 className={cn("h-3 w-3 text-slate-400", loading ? "animate-spin" : "")} />
+                                ) : (
+                                    <span className="h-3 w-3 rounded-full bg-slate-300/80 dark:bg-slate-600/80" />
+                                )}
+                                <span>{step.label}...</span>
+                            </div>
+                            {step.detail ? (
+                                <div className="pl-4 text-[11px] text-slate-500 dark:text-slate-400 break-words">
+                                    Result: {step.detail}
+                                </div>
+                            ) : null}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
 }
 
 // Shared hook for anger state management
@@ -49,30 +103,44 @@ function useChatLogic(currentSessionId: string | null, setCurrentSessionId: (id:
         { role: 'model', text: 'Hi! I\'m Woo. Ask me anything about your finances!' }
     ]);
     const [hasSentMessage, setHasSentMessage] = useState(false);
+    const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
 
     const chatMutation = trpc.ai.chat.useMutation({
         onSuccess: (data: any) => {
-            setMessages(prev => [...prev, { role: 'model', text: data.response }]);
+            const clientActionPath =
+                data?.clientAction?.type === 'navigate' && typeof data?.clientAction?.path === 'string'
+                    ? data.clientAction.path
+                    : undefined;
+            setMessages(prev => [...prev, {
+                role: 'model',
+                text: data.response,
+                trace: Array.isArray(data.agentTrace) ? data.agentTrace : [],
+                actionPath: clientActionPath,
+            }]);
             if (data.sessionId && !currentSessionId) {
                 setCurrentSessionId(data.sessionId);
                 utils.ai.listSessions.invalidate();
             }
             utils.ai.getChatUsage.invalidate();
+            setPendingRequestId(null);
         },
         onError: (error: any) => {
             console.error(error);
             const message = error.message || 'Sorry, I encountered an error. Try again!';
             setMessages(prev => [...prev, { role: 'model', text: message }]);
+            setPendingRequestId(null);
         }
     });
 
     const handleSend = (inputValue: string) => {
         if (!inputValue.trim()) return;
 
+        const clientRequestId = createClientRequestId();
         const newMsg: Message = { role: 'user', text: inputValue };
         setMessages(prev => [...prev, newMsg]);
         setHasSentMessage(true);
-        chatMutation.mutate({ message: newMsg.text, sessionId: currentSessionId });
+        setPendingRequestId(clientRequestId);
+        chatMutation.mutate({ message: newMsg.text, sessionId: currentSessionId, clientRequestId });
         posthog.capture('ai_message_sent', { session_id: currentSessionId, message_length: newMsg.text.length });
     };
 
@@ -81,7 +149,7 @@ function useChatLogic(currentSessionId: string | null, setCurrentSessionId: (id:
         setHasSentMessage(false);
     };
 
-    return { messages, setMessages, handleSend, handleNewChat, chatMutation, hasSentMessage, setHasSentMessage };
+    return { messages, setMessages, handleSend, handleNewChat, chatMutation, hasSentMessage, setHasSentMessage, pendingRequestId };
 }
 
 export function AiChatSidebarItem() {
@@ -93,10 +161,20 @@ export function AiChatSidebarItem() {
     const [sidebarPressed, setSidebarPressed] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const navigate = useNavigate();
 
     const { isAngry, setIsAngry } = useAngryState(isOpen, false);
-    const { messages, setMessages, handleSend, handleNewChat, chatMutation } = useChatLogic(currentSessionId, setCurrentSessionId);
+    const { messages, setMessages, handleSend, handleNewChat, chatMutation, pendingRequestId } = useChatLogic(currentSessionId, setCurrentSessionId);
     const utils = trpc.useUtils();
+    const { data: liveTraceData } = trpc.ai.getLiveTrace.useQuery(
+        { requestId: pendingRequestId || '' },
+        {
+            enabled: isOpen && chatMutation.isLoading && Boolean(pendingRequestId),
+            refetchInterval: chatMutation.isLoading ? 400 : false,
+            refetchIntervalInBackground: true,
+        }
+    );
+    const liveTrace = Array.isArray(liveTraceData?.trace) ? liveTraceData.trace : [];
 
     // Queries
     const { data: usage } = trpc.ai.getChatUsage.useQuery(undefined, { enabled: isOpen });
@@ -249,16 +327,38 @@ export function AiChatSidebarItem() {
                                                                             ? "bg-purple-600 text-white"
                                                                             : "bg-muted text-foreground"
                                                                     )}>
+                                                                        {m.role === 'model' && m.trace && m.trace.length > 0 && (
+                                                                            <AgentTraceView steps={m.trace} />
+                                                                        )}
                                                                         {typeof m.text === 'string' && m.text.trim().length > 0 && (
                                                                             <ReactMarkdown children={m.text} />
+                                                                        )}
+                                                                        {m.role === 'model' && m.actionPath && (
+                                                                            <div className="mt-2">
+                                                                                <Button
+                                                                                    size="sm"
+                                                                                    variant="secondary"
+                                                                                    className="h-7 text-xs"
+                                                                                    onClick={() => navigate({ to: m.actionPath as any })}
+                                                                                >
+                                                                                    Open {m.actionPath}
+                                                                                </Button>
+                                                                            </div>
                                                                         )}
                                                                     </div>
                                                                 </div>
                                                             ))}
                                                             {chatMutation.isLoading && (
                                                                 <div className="flex justify-start">
-                                                                    <div className="bg-muted rounded-lg px-3 py-2 text-sm text-muted-foreground animate-pulse">
-                                                                        Thinking...
+                                                                    <div className="max-w-[80%] bg-muted rounded-lg px-3 py-2 text-sm text-muted-foreground">
+                                                                        {liveTrace.length > 0 ? (
+                                                                            <AgentTraceView steps={liveTrace} loading />
+                                                                        ) : (
+                                                                            <div className="flex items-center gap-2">
+                                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                                <span>Starting...</span>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             )}
@@ -376,10 +476,20 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
     const [mobileViewportHeight, setMobileViewportHeight] = useState<number | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const navigate = useNavigate();
 
     const utils = trpc.useUtils();
     const { isAngry, setIsAngry } = useAngryState(isOpen, hasSentMessage);
-    const { messages, setMessages, handleSend, handleNewChat, chatMutation, setHasSentMessage: setMsgSent } = useChatLogic(currentSessionId, setCurrentSessionId);
+    const { messages, setMessages, handleSend, handleNewChat, chatMutation, setHasSentMessage: setMsgSent, pendingRequestId } = useChatLogic(currentSessionId, setCurrentSessionId);
+    const { data: liveTraceData } = trpc.ai.getLiveTrace.useQuery(
+        { requestId: pendingRequestId || '' },
+        {
+            enabled: isOpen && chatMutation.isLoading && Boolean(pendingRequestId),
+            refetchInterval: chatMutation.isLoading ? 400 : false,
+            refetchIntervalInBackground: true,
+        }
+    );
+    const liveTrace = Array.isArray(liveTraceData?.trace) ? liveTraceData.trace : [];
 
 
 
@@ -569,13 +679,37 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
                                                             {messages.map((m, i) => (
                                                                 <div key={i} className={cn("flex w-full", m.role === 'user' ? "justify-end" : "justify-start")}>
                                                                     <div className={cn("max-w-[80%] rounded-lg px-3 py-2 text-sm", m.role === 'user' ? "bg-purple-600 text-white" : "bg-muted text-foreground")}>
+                                                                        {m.role === 'model' && m.trace && m.trace.length > 0 && (
+                                                                            <AgentTraceView steps={m.trace} />
+                                                                        )}
                                                                         {typeof m.text === 'string' && m.text.trim().length > 0 && <ReactMarkdown children={m.text} />}
+                                                                        {m.role === 'model' && m.actionPath && (
+                                                                            <div className="mt-2">
+                                                                                <Button
+                                                                                    size="sm"
+                                                                                    variant="secondary"
+                                                                                    className="h-7 text-xs"
+                                                                                    onClick={() => navigate({ to: m.actionPath as any })}
+                                                                                >
+                                                                                    Open {m.actionPath}
+                                                                                </Button>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             ))}
                                                             {chatMutation.isLoading && (
                                                                 <div className="flex justify-start">
-                                                                    <div className="bg-muted rounded-lg px-3 py-2 text-sm text-muted-foreground animate-pulse">Thinking...</div>
+                                                                    <div className="max-w-[80%] bg-muted rounded-lg px-3 py-2 text-sm text-muted-foreground">
+                                                                        {liveTrace.length > 0 ? (
+                                                                            <AgentTraceView steps={liveTrace} loading />
+                                                                        ) : (
+                                                                            <div className="flex items-center gap-2">
+                                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                                <span>Starting...</span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             )}
                                                         </>
@@ -645,5 +779,3 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
         </>
     );
 }
-
-

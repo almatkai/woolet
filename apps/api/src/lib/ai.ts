@@ -2,8 +2,10 @@ import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Groq from 'groq-sdk';
 import { AiConfigService } from '../services/ai/ai-config-service';
+import { logger } from './logger';
 
 type AiProvider = 'openrouter' | 'openai' | 'gemini' | 'groq';
+const aiLogger = logger.child({ module: 'ai-lib' });
 
 const OPENROUTER_API_KEY = process.env.OPEN_ROUTER_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -116,6 +118,7 @@ export async function createChatCompletionWithFallback(
         config?: any;
     }
 ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+    const startedAt = Date.now();
     // Load config if not provided
     const aiConfig = opts?.config || await AiConfigService.getConfig();
     
@@ -123,11 +126,18 @@ export async function createChatCompletionWithFallback(
         (p): p is 'openrouter' | 'openai' | 'groq' => p === 'openrouter' || p === 'openai' || p === 'groq'
     );
 
-    console.log(`[AI] Initializing chat completion (Purpose: ${opts?.purpose || 'none'}). Providers to attempt: ${providers.join(', ')}`);
+    aiLogger.info({
+        event: 'chat.completion.start',
+        purpose: opts?.purpose || 'none',
+        providers,
+        messageCount: params.messages?.length ?? 0,
+        toolCount: Array.isArray(params.tools) ? params.tools.length : 0,
+    });
 
     const errors: Array<{ provider: string; error: unknown }> = [];
 
     for (const provider of providers) {
+        const providerStartedAt = Date.now();
         try {
             const client = provider === 'openrouter' ? openrouter : (provider === 'openai' ? openai : (groq as any));
             const model =
@@ -137,14 +147,36 @@ export async function createChatCompletionWithFallback(
                     ? (opts?.models?.openai || aiConfig.modelSettings?.openai?.model || DEFAULT_OPENAI_CHAT_MODEL)
                     : (opts?.models?.groq || aiConfig.modelSettings?.groq?.model || DEFAULT_GROQ_CHAT_MODEL);
 
-            console.log(`[AI] Generating completion using ${provider.toUpperCase()} with model: ${model}${opts?.purpose ? ` (Purpose: ${opts.purpose})` : ''}`);
+            aiLogger.info({
+                event: 'chat.completion.provider_attempt',
+                provider,
+                model,
+                purpose: opts?.purpose || 'none',
+            });
 
-            return await client.chat.completions.create({
+            const completion = await client.chat.completions.create({
                 ...params,
                 model,
             });
+            aiLogger.info({
+                event: 'chat.completion.provider_success',
+                provider,
+                model,
+                purpose: opts?.purpose || 'none',
+                durationMs: Date.now() - providerStartedAt,
+                totalDurationMs: Date.now() - startedAt,
+                finishReason: completion.choices?.[0]?.finish_reason ?? null,
+                hasToolCalls: Boolean(completion.choices?.[0]?.message?.tool_calls?.length),
+            });
+            return completion;
         } catch (error) {
-            console.error(`[AI] ${provider.toUpperCase()} failed: ${summarizeError(error)}`);
+            aiLogger.error({
+                event: 'chat.completion.provider_failed',
+                provider,
+                purpose: opts?.purpose || 'none',
+                durationMs: Date.now() - providerStartedAt,
+                error: summarizeError(error),
+            });
             errors.push({ provider, error });
             if (!shouldFallback(error) || aiConfig.fallbackEnabled === false) break;
         }
@@ -181,22 +213,34 @@ export async function generateTextWithFallback(
     }
 ): Promise<{ text: string; provider: AiProvider; model: string }>
 {
+    const startedAt = Date.now();
     // Load config if not provided
     const aiConfig = opts?.config || await AiConfigService.getConfig();
     
     const providers = enabledProviders(opts?.providerOrder || aiConfig.providerOrder, aiConfig);
 
-    console.log(`[AI] Initializing text generation (Purpose: ${input?.purpose || 'none'}). Providers to attempt: ${providers.join(', ')}`);
+    aiLogger.info({
+        event: 'text.generation.start',
+        purpose: input?.purpose || 'none',
+        providers,
+        promptLength: input.prompt.length,
+        hasSystemPrompt: Boolean(input.system),
+    });
     
     const errors: Array<{ provider: AiProvider; error: unknown }> = [];
 
     for (const provider of providers) {
         try {
+            const providerStartedAt = Date.now();
             if (provider === 'gemini') {
                 if (!gemini) throw new Error('Gemini client not configured');
                 const model = opts?.models?.gemini || aiConfig.modelSettings?.gemini?.model || DEFAULT_GEMINI_MODEL;
-                
-                console.log(`[AI] Generating text using GEMINI with model: ${model}${input.purpose ? ` (Purpose: ${input.purpose})` : ''}`);
+                aiLogger.info({
+                    event: 'text.generation.provider_attempt',
+                    provider,
+                    model,
+                    purpose: input?.purpose || 'none',
+                });
                 
                 const modelClient = gemini.getGenerativeModel({ model });
                 const prompt = input.system
@@ -205,6 +249,15 @@ export async function generateTextWithFallback(
 
                 const result = await modelClient.generateContent(prompt);
                 const text = result.response.text();
+                aiLogger.info({
+                    event: 'text.generation.provider_success',
+                    provider,
+                    model,
+                    purpose: input?.purpose || 'none',
+                    durationMs: Date.now() - providerStartedAt,
+                    totalDurationMs: Date.now() - startedAt,
+                    outputLength: text.length,
+                });
                 return { text, provider, model };
             }
 
@@ -234,9 +287,23 @@ export async function generateTextWithFallback(
                 (provider === 'openrouter' ? aiConfig.modelSettings?.openrouter?.model || DEFAULT_OPENROUTER_CHAT_MODEL : 
                  provider === 'openai' ? aiConfig.modelSettings?.openai?.model || DEFAULT_OPENAI_CHAT_MODEL : 
                  aiConfig.modelSettings?.groq?.model || DEFAULT_GROQ_CHAT_MODEL);
+            aiLogger.info({
+                event: 'text.generation.provider_success',
+                provider,
+                model: modelUsed,
+                purpose: input?.purpose || 'none',
+                durationMs: Date.now() - providerStartedAt,
+                totalDurationMs: Date.now() - startedAt,
+                outputLength: text.length,
+            });
             return { text, provider, model: modelUsed };
         } catch (error) {
-            console.error(`[AI] ${provider.toUpperCase()} (Text) failed: ${summarizeError(error)}`);
+            aiLogger.error({
+                event: 'text.generation.provider_failed',
+                provider,
+                purpose: input?.purpose || 'none',
+                error: summarizeError(error),
+            });
             errors.push({ provider, error });
             if (!shouldFallback(error) || aiConfig.fallbackEnabled === false) break;
         }
@@ -271,7 +338,10 @@ export async function getAiStatus() {
             fallbackEnabled: config.fallbackEnabled,
         };
     } catch (error) {
-        console.error('Failed to fetch AI config:', error);
+        aiLogger.error({
+            event: 'ai.status.failed_to_fetch_config',
+            error: summarizeError(error),
+        });
         return {
             enabled: {
                 openrouter: Boolean(OPENROUTER_API_KEY),
@@ -298,7 +368,12 @@ export async function checkPromptGuard(content: string): Promise<{ isSafe: boole
     }
 
     try {
-        console.log(`[AI] Running Prompt Guard check using GROQ with model: meta-llama/llama-prompt-guard-2-86m`);
+        aiLogger.info({
+            event: 'prompt_guard.start',
+            provider: 'groq',
+            model: 'meta-llama/llama-prompt-guard-2-86m',
+            contentLength: content.length,
+        });
         const completion = await groq.chat.completions.create({
             model: "meta-llama/llama-prompt-guard-2-86m",
             messages: [
@@ -317,12 +392,21 @@ export async function checkPromptGuard(content: string): Promise<{ isSafe: boole
         const textResult = completion.choices[0].message.content || "0";
         const score = parseFloat(textResult);
 
-        return {
+        const result = {
             isSafe: score <= 0.93,
             score
         };
+        aiLogger.info({
+            event: 'prompt_guard.result',
+            score,
+            isSafe: result.isSafe,
+        });
+        return result;
     } catch (error) {
-        console.error('Prompt guard check failed:', error);
+        aiLogger.error({
+            event: 'prompt_guard.failed',
+            error: summarizeError(error),
+        });
         return { isSafe: true, score: 0 };
     }
 }

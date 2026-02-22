@@ -85,7 +85,11 @@ const port = parseInt(process.env.PORT || '3006');
 // Start background jobs
 startCurrencyRatesCron();
 
-console.log(`🚀 API server running on http://localhost:${port}`);
+logger.info({
+    event: 'server.start',
+    url: `http://localhost:${port}`,
+    port,
+});
 
 export default {
     port,
