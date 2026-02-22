@@ -18,6 +18,7 @@ import {
     notifications
 } from '../db/schema';
 import { checkEntityLimit } from '../lib/limits';
+import { sendPushNotification } from '../services/push-notification-service';
 
 export const subscriptionRouter = router({
     // List all subscriptions with optional type filter
@@ -716,7 +717,7 @@ export const subscriptionRouter = router({
             };
         }),
 
-    // Check for due subscriptions and create notifications
+    // Check for due subscriptions and create notifications + send push
     checkAndNotifyDueSubscriptions: protectedProcedure
         .input(z.object({
             daysAhead: z.number().int().min(1).max(7).default(3),
@@ -759,16 +760,20 @@ export const subscriptionRouter = router({
 
                 if (!isPaidThisMonth && daysUntilDue >= 0 && daysUntilDue <= daysAhead) {
                     try {
+                        const isOverdue = daysUntilDue <= 0;
+                        const title = isOverdue
+                            ? `Subscription Overdue: ${sub.name}`
+                            : daysUntilDue === 1
+                                ? `Subscription Due Tomorrow: ${sub.name}`
+                                : `Subscription Due: ${sub.name}`;
+                        const message = `${sub.name} payment of ${sub.currency} ${Number(sub.amount).toLocaleString()} is ${isOverdue ? 'overdue' : `due in ${daysUntilDue} day${daysUntilDue > 1 ? 's' : ''}`}.`;
+
                         await ctx.db.insert(notifications).values({
                             userId: ctx.userId!,
-                            type: daysUntilDue <= 0 ? 'subscription_overdue' as const : 'subscription_due' as const,
-                            title: daysUntilDue <= 0 
-                                ? `Subscription Overdue: ${sub.name}`
-                                : daysUntilDue === 1
-                                    ? `Subscription Due Tomorrow: ${sub.name}`
-                                    : `Subscription Due: ${sub.name}`,
-                            message: `${sub.name} payment of ${sub.currency} ${Number(sub.amount).toLocaleString()} is ${daysUntilDue <= 0 ? 'overdue' : `due in ${daysUntilDue} day${daysUntilDue > 1 ? 's' : ''}`}.`,
-                            priority: daysUntilDue <= 0 ? 'urgent' as const : daysUntilDue <= 1 ? 'high' as const : 'medium' as const,
+                            type: isOverdue ? 'subscription_overdue' as const : 'subscription_due' as const,
+                            title,
+                            message,
+                            priority: isOverdue ? 'urgent' as const : daysUntilDue <= 1 ? 'high' as const : 'medium' as const,
                             links: {
                                 web: `/subscriptions/${sub.id}`,
                                 mobile: `woolet://subscriptions/${sub.id}`,
@@ -784,6 +789,16 @@ export const subscriptionRouter = router({
                                 daysUntilDue,
                             },
                         });
+
+                        // Also send push notification
+                        await sendPushNotification(ctx.userId!, {
+                            title,
+                            body: message,
+                            url: `/subscriptions/${sub.id}`,
+                            tag: `subscription-${sub.id}-${currentMonthDue.getMonth()}-${currentMonthDue.getFullYear()}`,
+                            requireInteraction: isOverdue,
+                        });
+
                         createdNotifications.push(sub.id);
                     } catch (error) {
                         console.error(`Failed to create notification for subscription ${sub.id}:`, error);

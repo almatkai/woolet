@@ -10,6 +10,7 @@ import { appRouter } from './routers';
 import { createContext } from './lib/trpc';
 import { rateLimitMiddleware } from './middleware/rate-limit';
 import { startCurrencyRatesCron } from './jobs/currency-rates';
+import { startSubscriptionNotificationsCron } from './jobs/subscription-notifications';
 import { logger } from './lib/logger';
 import { initErrorTracking, GlitchTip } from './lib/error-tracking';
 import { runMigrations } from './db/migrate';
@@ -84,6 +85,7 @@ const port = parseInt(process.env.PORT || '3006');
 
 // Start background jobs
 startCurrencyRatesCron();
+startSubscriptionNotificationsCron();
 
 logger.info({
     event: 'server.start',

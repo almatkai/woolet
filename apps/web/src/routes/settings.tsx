@@ -57,7 +57,12 @@ export function SettingsPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [pushSettingsOpen, setPushSettingsOpen] = useState(false);
 
-    const { isSupported, isSubscribed, subscribe, unsubscribe } = usePushNotifications();
+    const { isSupported, isSubscribed, isLoading, isUpdating, vapidPublicKey, vapidKeyError, error: pushError, subscribe, unsubscribe } = usePushNotifications();
+    const hasBrowserPermission =
+        typeof window !== 'undefined' &&
+        typeof Notification !== 'undefined' &&
+        Notification.permission === 'granted';
+    const needsInAppSetup = hasBrowserPermission && !isSubscribed;
 
     const utils = trpc.useUtils();
 
@@ -99,6 +104,40 @@ export function SettingsPage() {
     const mortgageStatusPeriod = settings?.mortgageStatusPeriod ?? 'global';
     const subscriptionStatusLogic = settings?.subscriptionStatusLogic ?? 'global';
     const subscriptionStatusPeriod = settings?.subscriptionStatusPeriod ?? 'global';
+
+    const handlePushToggle = async () => {
+        if (isUpdating) {
+            return;
+        }
+
+        if (!isSupported) {
+            toast.error('Push notifications are not supported in this browser');
+            return;
+        }
+
+        if (isLoading) {
+            toast.message('Push setup is still loading. Please try again in a moment.');
+            return;
+        }
+
+        if (!vapidPublicKey) {
+            toast.error(vapidKeyError || 'Push notifications are not configured on the server');
+            return;
+        }
+
+        try {
+            if (isSubscribed) {
+                await unsubscribe();
+                toast.success('Push notifications disabled');
+            } else {
+                await subscribe();
+                toast.success('Push notifications enabled');
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to update push notifications';
+            toast.error(message);
+        }
+    };
 
     const exportData = async () => {
         setIsExporting(true);
@@ -439,37 +478,43 @@ export function SettingsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">
-                        <div className="flex items-center gap-3">
-                            {isSubscribed ? (
+                            <div className="flex items-center gap-3">
+                            {isSubscribed || hasBrowserPermission ? (
                                 <BellRing className="size-5 text-green-500" />
                             ) : (
                                 <Bell className="size-5 text-muted-foreground" />
                             )}
                             <div>
                                 <p className="font-medium">
-                                    {isSubscribed ? 'Notifications Enabled' : 'Browser Notifications'}
+                                    {isSubscribed
+                                        ? 'Notifications Enabled'
+                                        : hasBrowserPermission
+                                            ? 'Setup Required'
+                                            : 'Browser Notifications'}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
                                     {isSubscribed
                                         ? 'You will receive push notifications'
-                                        : 'Enable to receive notifications outside the app'}
+                                        : needsInAppSetup
+                                            ? 'Browser permission is on, but push setup is not complete.'
+                                            : 'Enable to receive notifications outside the app'}
                                 </p>
                             </div>
                         </div>
                         <Button
                             variant={isSubscribed ? 'outline' : 'default'}
-                            onClick={() => {
-                                if (isSubscribed) {
-                                    unsubscribe().catch(console.error);
-                                } else {
-                                    subscribe().catch(console.error);
-                                }
-                            }}
-                            disabled={!isSupported}
+                            onClick={handlePushToggle}
+                            disabled={isUpdating}
                         >
-                            {isSubscribed ? 'Disable' : 'Enable'}
+                            {isUpdating ? 'Working...' : isSubscribed ? 'Disable' : needsInAppSetup ? 'Finish setup' : 'Enable'}
                         </Button>
                     </div>
+
+                    {(vapidKeyError || pushError?.message) && (
+                        <p className="text-sm text-destructive">
+                            {vapidKeyError || pushError?.message}
+                        </p>
+                    )}
 
                     {!isSupported && (
                         <p className="text-sm text-muted-foreground">
@@ -594,4 +639,3 @@ export function SettingsPage() {
         </div>
     );
 }
-
