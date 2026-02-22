@@ -7,7 +7,6 @@ import { Pencil, Trash2, MoreHorizontal, Star, StarOff, Bookmark, X, Plus, Check
 import { toast } from 'sonner';
 import { cn, formatAccountLabel } from '@/lib/utils';
 import { AddTransactionSheet } from '@/components/AddTransactionSheet';
-import { AiChatFloatingItem } from '@/components/AiChatWidget';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

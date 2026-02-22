@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageCircle, X, Send, History, PlusCircle, Trash2, Loader2, CheckCircle2 } from 'lucide-react';
-import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
+import { SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from '@/components/ui/sidebar';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -465,7 +465,8 @@ export function AiChatSidebarItem() {
     );
 }
 
-export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile' }) {
+export function AiChatFloatingItem() {
+    const { isMobile: isSidebarMobile } = useSidebar();
     const [isOpen, setIsOpen] = useState(false);
     const [view, setView] = useState<'chat' | 'history'>('chat');
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -473,7 +474,12 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
     const [sidebarHovered, setSidebarHovered] = useState(false);
     const [sidebarPressed, setSidebarPressed] = useState(false);
     const [hasSentMessage, setHasSentMessage] = useState(false);
-    const [mobileViewportHeight, setMobileViewportHeight] = useState<number | null>(null);
+    const [compactPanelHeight, setCompactPanelHeight] = useState<number | null>(null);
+    const [compactBottomOffset, setCompactBottomOffset] = useState<number>(8);
+    const [isWideChatViewport, setIsWideChatViewport] = useState<boolean>(() => {
+        if (typeof window === 'undefined') return false;
+        return window.matchMedia('(min-width: 640px)').matches;
+    });
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const navigate = useNavigate();
@@ -490,8 +496,10 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
         }
     );
     const liveTrace = Array.isArray(liveTraceData?.trace) ? liveTraceData.trace : [];
-
-
+    const openChat = () => {
+        setIsAngry(false);
+        setIsOpen(true);
+    };
 
     useEffect(() => {
         if (isOpen && view === 'chat') {
@@ -503,33 +511,44 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
     }, [isOpen, view]);
 
     useEffect(() => {
-        if (!isOpen || variant !== 'mobile') return;
+        const mql = window.matchMedia('(min-width: 640px)');
+        const syncViewport = () => setIsWideChatViewport(mql.matches);
+        syncViewport();
+        mql.addEventListener('change', syncViewport);
+        return () => mql.removeEventListener('change', syncViewport);
+    }, []);
 
-        const updateHeight = () => {
-            const nextHeight = Math.max(window.visualViewport?.height ?? window.innerHeight, 320) * 0.8;
-            setMobileViewportHeight(Math.max(320, Math.floor(nextHeight)));
+    useEffect(() => {
+        if (!isOpen || isWideChatViewport) {
+            setCompactPanelHeight(null);
+            setCompactBottomOffset(8);
+            return;
+        }
+
+        const updateCompactMetrics = () => {
+            const viewport = window.visualViewport;
+            const viewportHeight = viewport?.height ?? window.innerHeight;
+            const keyboardInset = Math.max(
+                0,
+                window.innerHeight - viewportHeight - (viewport?.offsetTop ?? 0)
+            );
+
+            setCompactPanelHeight(Math.max(320, Math.floor(viewportHeight * 0.72)));
+            setCompactBottomOffset(Math.max(8, Math.floor(keyboardInset + 8)));
         };
 
-        updateHeight();
-
+        updateCompactMetrics();
         const viewport = window.visualViewport;
-        viewport?.addEventListener('resize', updateHeight);
-        viewport?.addEventListener('scroll', updateHeight);
-        window.addEventListener('resize', updateHeight);
-
-        const previousBodyOverflow = document.body.style.overflow;
-        const previousBodyOverscrollBehavior = document.body.style.overscrollBehavior;
-        document.body.style.overflow = 'hidden';
-        document.body.style.overscrollBehavior = 'none';
+        viewport?.addEventListener('resize', updateCompactMetrics);
+        viewport?.addEventListener('scroll', updateCompactMetrics);
+        window.addEventListener('resize', updateCompactMetrics);
 
         return () => {
-            viewport?.removeEventListener('resize', updateHeight);
-            viewport?.removeEventListener('scroll', updateHeight);
-            window.removeEventListener('resize', updateHeight);
-            document.body.style.overflow = previousBodyOverflow;
-            document.body.style.overscrollBehavior = previousBodyOverscrollBehavior;
+            viewport?.removeEventListener('resize', updateCompactMetrics);
+            viewport?.removeEventListener('scroll', updateCompactMetrics);
+            window.removeEventListener('resize', updateCompactMetrics);
         };
-    }, [isOpen, variant]);
+    }, [isOpen, isWideChatViewport]);
 
     // Queries
     const { data: usage } = trpc.ai.getChatUsage.useQuery(undefined, { enabled: isOpen });
@@ -560,108 +579,123 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
         e.preventDefault();
         if (!inputValue.trim()) return;
 
-        const newMsg: Message = { role: 'user', text: inputValue };
-        setMessages(prev => [...prev, newMsg]);
+        handleSend(inputValue);
         setInputValue('');
         setHasSentMessage(true);
         setMsgSent(true);
-        chatMutation.mutate({ message: newMsg.text, sessionId: currentSessionId });
-        posthog.capture('ai_message_sent', { session_id: currentSessionId, message_length: newMsg.text.length });
     };
 
-    const mobilePanelHeight = mobileViewportHeight
-        ? `${Math.max(320, mobileViewportHeight - 8)}px`
-        : 'calc(100dvh - 0.5rem)';
+    const handleNewChatClick = () => {
+        handleNewChat();
+        setCurrentSessionId(null);
+        setView('chat');
+        setHasSentMessage(false);
+        setMsgSent(false);
+    };
+
+    const isCompactViewport = !isWideChatViewport;
+    const triggerPositionClass = isSidebarMobile ? "bottom-4 right-4" : "bottom-6 right-6";
+    const panelPositionClass = isCompactViewport
+        ? "fixed inset-x-0 z-[46] pointer-events-auto mx-auto"
+        : "fixed bottom-6 right-6 z-[46] pointer-events-auto";
+    const panelClassName = cn(
+        "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 overflow-hidden shadow-2xl border-purple-200 dark:border-purple-800 flex flex-col",
+        isCompactViewport
+            ? "w-[95vw] rounded-3xl"
+            : "w-[350px] rounded-3xl"
+    );
+    const panelStyle = isCompactViewport
+        ? {
+            height: compactPanelHeight ? `${compactPanelHeight}px` : '72dvh',
+            maxHeight: compactPanelHeight ? `${compactPanelHeight}px` : '72dvh',
+            bottom: `${compactBottomOffset}px`,
+        }
+        : { height: '600px', maxHeight: '85vh' };
 
     return (
         <>
-            <div className={cn(
-                variant === 'desktop'
-                    ? "fixed bottom-6 left-6 z-[45] hidden min-[850px]:flex"
-                    : "fixed bottom-4 right-4 z-[45] flex min-[850px]:hidden",
-                "pointer-events-auto items-center justify-center"
-            )}>
-                <button
-                    onClick={() => setIsOpen(true)}
-                    onMouseEnter={() => setSidebarHovered(true)}
-                    onMouseLeave={() => { setSidebarHovered(false); setSidebarPressed(false); }}
-                    onMouseDown={() => setSidebarPressed(true)}
-                    onMouseUp={() => { setSidebarPressed(false); setIsOpen(true); }}
-                    className="relative h-14 w-14 rounded-2xl shadow-lg cursor-pointer transition-all duration-500 flex items-center justify-center pointer-events-auto overflow-hidden bg-transparent hover:bg-transparent"
-                >
-                    <motion.div
-                        layoutId="ai-chat-container"
-                        className={cn("absolute inset-0 rounded-2xl z-0", !isOpen ? "bg-purple-500" : "bg-transparent")}
-                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    />
-                    <div className="relative z-10">
+            {!isOpen && (
+                <div className={cn("fixed z-[45] pointer-events-auto items-center justify-center", triggerPositionClass)}>
+                    <button
+                        onClick={openChat}
+                        onMouseEnter={() => setSidebarHovered(true)}
+                        onMouseLeave={() => { setSidebarHovered(false); setSidebarPressed(false); }}
+                        onMouseDown={() => setSidebarPressed(true)}
+                        onMouseUp={() => setSidebarPressed(false)}
+                        className="relative h-14 w-14 rounded-2xl shadow-lg cursor-pointer transition-all duration-500 flex items-center justify-center pointer-events-auto overflow-hidden bg-transparent hover:bg-transparent"
+                    >
                         <motion.div
-                            layoutId="woo-wallet-icon-box"
-                            className="flex items-center justify-center"
+                            layoutId="ai-chat-container"
+                            className={cn("absolute inset-0 rounded-2xl z-0", !isOpen ? "bg-purple-500" : "bg-transparent")}
                             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                        >
-                            <MomoIcon
-                                className={cn("size-10", !isOpen ? "text-white" : "text-transparent")}
-                                isHovered={sidebarHovered}
-                                isPressed={sidebarPressed}
-                                isAngry={isAngry}
-                            />
-                        </motion.div>
-                    </div>
-                </button>
-            </div>
+                        />
+                        <div className="relative z-10">
+                            <motion.div
+                                layoutId="woo-wallet-icon-box"
+                                className="flex items-center justify-center"
+                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                            >
+                                <MomoIcon
+                                    className={cn("size-10", !isOpen ? "text-white" : "text-transparent")}
+                                    isHovered={sidebarHovered}
+                                    isPressed={sidebarPressed}
+                                    isAngry={isAngry}
+                                />
+                            </motion.div>
+                        </div>
+                    </button>
+                </div>
+            )}
 
             {createPortal(
                 <AnimatePresence>
                     {isOpen && (
-                        <div className="fixed inset-0 left-0 z-[46] flex items-end p-2 md:p-4 pointer-events-none w-full h-full">
-                            <div className="pointer-events-auto w-full md:w-auto h-full md:h-auto flex items-end justify-center md:justify-start">
-                                <motion.div
-                                    layoutId="ai-chat-container"
-                                    className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl border-purple-200 dark:border-purple-800 w-full md:w-[350px] flex flex-col md:h-[600px]"
-                                    style={variant === 'mobile' ? { height: mobilePanelHeight, maxHeight: mobilePanelHeight } : undefined}
-                                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                >
-                                    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                                        <CardHeader className="px-3 py-2 md:p-3 border-b bg-purple-50/50 dark:bg-purple-900/20 flex flex-row items-center justify-between space-y-0 shrink-0">
-                                            <div className="flex items-center gap-2">
-                                                <MomoIconWrapper
-                                                    layoutId="woo-wallet-icon-box"
-                                                    height="h-6"
-                                                    width="w-6"
-                                                    iconClassName="h-4 w-4"
-                                                />
-                                                <div className="flex flex-col">
-                                                    <CardTitle className="text-sm font-medium leading-none">
-                                                        {usage?.tierTitle || 'Woo'}
-                                                    </CardTitle>
-                                                    {usage && (
-                                                        <span className="text-[10px] text-muted-foreground mt-0.5">
-                                                            {usage.remaining} / {usage.limit || usage.lifetimeLimit} {usage.limit > 0 ? 'left today' : 'questions left'}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                {view === 'chat' ? (
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setView('history')} title="History">
-                                                        <History className="h-4 w-4" />
-                                                    </Button>
-                                                ) : (
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setView('chat')} title="Back to Chat">
-                                                        <MessageCircle className="h-4 w-4" />
-                                                    </Button>
-                                                )}
-                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleNewChat} title="New Chat">
-                                                    <PlusCircle className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsOpen(false)}>
-                                                    <X className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </CardHeader>
+                        <motion.div
+                            layoutId="ai-chat-container"
+                            className={cn(panelPositionClass, panelClassName)}
+                            style={panelStyle}
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        >
+                            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                                <CardHeader className="px-3 py-2 border-b bg-purple-50/50 dark:bg-purple-900/20 flex flex-row items-center justify-between space-y-0 shrink-0">
+                                    <div className="flex items-center gap-2">
+                                        <MomoIconWrapper
+                                            layoutId="woo-wallet-icon-box"
+                                            height="h-6"
+                                            width="w-6"
+                                            iconClassName="h-4 w-4"
+                                        />
+                                        <div className="flex flex-col">
+                                            <CardTitle className="text-sm font-medium leading-none">
+                                                {usage?.tierTitle || 'Woo'}
+                                            </CardTitle>
+                                            {usage && (
+                                                <span className="text-[10px] text-muted-foreground mt-0.5">
+                                                    {usage.remaining} / {usage.limit || usage.lifetimeLimit} {usage.limit > 0 ? 'left today' : 'questions left'}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        {view === 'chat' ? (
+                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setView('history')} title="History">
+                                                <History className="h-4 w-4" />
+                                            </Button>
+                                        ) : (
+                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setView('chat')} title="Back to Chat">
+                                                <MessageCircle className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleNewChatClick} title="New Chat">
+                                            <PlusCircle className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsOpen(false)}>
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </CardHeader>
 
-                                        <CardContent className="flex-1 min-h-0 p-0 overflow-hidden relative">
+                                <CardContent className="flex-1 min-h-0 p-0 overflow-hidden relative">
                                             {/* Chat View */}
                                             {view === 'chat' ? (
                                                 <div className="absolute inset-0 overflow-y-auto overscroll-contain p-4 space-y-4" ref={scrollRef}>
@@ -743,9 +777,9 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
                                                     </div>
                                                 </div>
                                             )}
-                                        </CardContent>
+                                </CardContent>
 
-                                        <CardFooter className="px-3 py-2 md:p-3 border-t bg-background/50 backdrop-blur-sm shrink-0">
+                                <CardFooter className="px-3 py-2 border-t bg-background/50 backdrop-blur-sm shrink-0">
                                             {view === 'chat' && (
                                                 <form
                                                     className="flex w-full items-center space-x-2 pointer-events-auto"
@@ -767,11 +801,9 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
                                                     </Button>
                                                 </form>
                                             )}
-                                        </CardFooter>
-                                    </div>
-                                </motion.div>
+                                </CardFooter>
                             </div>
-                        </div>
+                        </motion.div>
                     )}
                 </AnimatePresence>,
                 document.body

@@ -119,13 +119,12 @@ function RootLayout() {
                         <Outlet />
                     </main>
                 </SidebarInset>
+                <SignedIn>
+                    {!isAuthRoute && (
+                        <AiChatFloatingItem />
+                    )}
+                </SignedIn>
             </SidebarProvider>
-
-            <SignedIn>
-                {!isAuthRoute && (
-                    <AiChatFloatingItem variant="mobile" />
-                )}
-            </SignedIn>
         </>
     );
 }

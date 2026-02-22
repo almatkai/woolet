@@ -108,22 +108,35 @@ const EditOverlay = () => {
         const el = overlayRef.current;
         if (!el) return;
 
+        const stopNativeDragStart = (e: Event) => {
+            // Block native start events so only `.drag-handle` can initiate drag.
+            e.stopPropagation();
+            if ('stopImmediatePropagation' in e) {
+                (e as Event & { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
+            }
+        };
+
         const handleTouch = (e: TouchEvent) => {
-            // Stop the native event from reaching RGL's touchstart handler on the parent grid item
-            e.stopImmediatePropagation();
+            stopNativeDragStart(e);
         };
 
         const handleMouse = (e: MouseEvent) => {
-            e.stopImmediatePropagation();
+            stopNativeDragStart(e);
+        };
+
+        const handlePointer = (e: PointerEvent) => {
+            stopNativeDragStart(e);
         };
 
         // Attach in capture phase to intercept before RGL
-        el.addEventListener('touchstart', handleTouch, { capture: false, passive: false });
-        el.addEventListener('mousedown', handleMouse, { capture: false });
+        el.addEventListener('touchstart', handleTouch, { capture: true, passive: false });
+        el.addEventListener('mousedown', handleMouse, { capture: true });
+        el.addEventListener('pointerdown', handlePointer, { capture: true });
 
         return () => {
             el.removeEventListener('touchstart', handleTouch);
             el.removeEventListener('mousedown', handleMouse);
+            el.removeEventListener('pointerdown', handlePointer);
         };
     }, []);
 
@@ -131,6 +144,9 @@ const EditOverlay = () => {
         <div
             ref={overlayRef}
             className="absolute inset-0 z-40 bg-transparent"
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
         />
     );
@@ -707,8 +723,15 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                     cols={COLS}
                     measureBeforeMount
                     rowHeight={currentBreakpoint === 'xs' ? 36 : currentBreakpoint === 'sm' ? 40 : 100}
-                    isDraggable={isEditing}
-                    isResizable={isEditing}
+                    dragConfig={{
+                        enabled: isEditing,
+                        handle: '.drag-handle',
+                        cancel: '.no-drag, .no-drag *',
+                    }}
+                    resizeConfig={{
+                        enabled: isEditing,
+                        handles: ['se'],
+                    }}
                     onLayoutChange={onLayoutChange}
                     onBreakpointChange={onBreakpointChange}
                     onWidthChange={(width: number) => {
@@ -719,12 +742,6 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                     }}
                     margin={currentBreakpoint === 'xs' ? [4, 4] : currentBreakpoint === 'sm' ? [6, 6] : [16, 16]}
                     containerPadding={[0, 0]}
-                    draggableHandle=".drag-handle"
-                    draggableCancel=".no-drag"
-                    compactType="vertical"
-                    preventCollision={false}
-                    useCSSTransforms={true}
-                    transformScale={1}
                 >
                     {visibleWidgetIds.map((widgetId) => {
                         const child = getChild(widgetId);
