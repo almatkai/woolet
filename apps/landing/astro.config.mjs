@@ -8,4 +8,7 @@ export default defineConfig({
   integrations: [tailwind(), react()],
   output: 'static',
   site: 'https://woolet.com',
+  server: {
+    port: parseInt(process.env.LANDING_PORT || '4321'),
+  }
 });
