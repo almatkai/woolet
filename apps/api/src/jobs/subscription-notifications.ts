@@ -1,72 +1,163 @@
-import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '../db';
-import { subscriptions, subscriptionPayments, notifications } from '../db/schema';
-import { sendPushNotification } from '../services/push-notification-service';
+import {
+    subscriptions,
+    subscriptionPayments,
+    notifications,
+    credits,
+    creditPayments,
+    mortgages,
+    mortgagePayments,
+    userSettings,
+} from '../db/schema';
+import { deliverNotificationChannels } from '../services/notification-delivery-service';
 import { GlitchTip } from '../lib/error-tracking';
 
-const DAYS_AHEAD = 3; // notify when due within 3 days
+type ReminderKind = 'subscription' | 'credit' | 'mortgage';
 
-/**
- * For a given subscription, compute the next due date on or after today.
- */
-function getNextDueDate(sub: { billingDay: number | null; frequency: string }, today: Date): Date {
-    const billingDay = sub.billingDay || 1;
-
-    if (sub.frequency === 'monthly') {
-        // Try this calendar month first
-        const candidate = new Date(today.getFullYear(), today.getMonth(), billingDay);
-        if (candidate >= today) return candidate;
-        // Roll to next month
-        return new Date(today.getFullYear(), today.getMonth() + 1, billingDay);
-    }
-
-    if (sub.frequency === 'yearly') {
-        // billingDay encodes month*100 + day or just day; fall back to day 1 of year
-        const candidate = new Date(today.getFullYear(), 0, billingDay);
-        if (candidate >= today) return candidate;
-        return new Date(today.getFullYear() + 1, 0, billingDay);
-    }
-
-    // weekly / daily: just use today + billingDay offset as a rough estimate
-    const candidate = new Date(today);
-    candidate.setDate(today.getDate() + billingDay);
-    return candidate;
+function startOfToday(): Date {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
 }
 
-/**
- * Returns true if the user already has a notification for this subscription
- * that was created within the last 24 hours (prevents duplicate pushes on re-runs).
- */
-async function recentNotificationExists(userId: string, entityId: string): Promise<boolean> {
+function clampDayForMonth(year: number, month: number, day: number): number {
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    return Math.max(1, Math.min(day, lastDay));
+}
+
+function resolveNextMonthlyDueDate(today: Date, billingDay: number): Date {
+    const thisMonthDay = clampDayForMonth(today.getFullYear(), today.getMonth(), billingDay);
+    const current = new Date(today.getFullYear(), today.getMonth(), thisMonthDay);
+    if (current >= today) {
+        return current;
+    }
+
+    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    const nextDay = clampDayForMonth(nextMonth.getFullYear(), nextMonth.getMonth(), billingDay);
+    return new Date(nextMonth.getFullYear(), nextMonth.getMonth(), nextDay);
+}
+
+function monthYear(date: Date): string {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function daysUntil(date: Date, from: Date): number {
+    return Math.ceil((date.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+async function recentNotificationExists(userId: string, entityId: string, entityType: ReminderKind): Promise<boolean> {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const existing = await db.query.notifications.findFirst({
         where: and(
             eq(notifications.userId, userId),
             eq(notifications.entityId, entityId),
+            eq(notifications.entityType, entityType),
             gte(notifications.createdAt, oneDayAgo),
         ),
     });
     return !!existing;
 }
 
+function buildReminderText(kind: ReminderKind, name: string, amount: string, currency: string, daysUntilDue: number) {
+    const label = kind === 'subscription' ? 'Subscription' : kind === 'credit' ? 'Credit' : 'Mortgage';
+    const overdue = daysUntilDue < 0;
+
+    const title = overdue
+        ? `${label} Overdue: ${name}`
+        : daysUntilDue === 0
+            ? `${label} Due Today: ${name}`
+            : daysUntilDue === 1
+                ? `${label} Due Tomorrow: ${name}`
+                : `${label} Due Soon: ${name}`;
+
+    const message = `${name} payment of ${currency} ${Number(amount).toLocaleString()} is ${
+        overdue ? 'overdue' : `due in ${daysUntilDue} day${daysUntilDue !== 1 ? 's' : ''}`
+    }.`;
+
+    const priority = overdue ? 'urgent' : daysUntilDue <= 1 ? 'high' : 'medium';
+
+    return { title, message, priority } as const;
+}
+
+async function getUserReminderSettings(userId: string) {
+    const settings = await db.query.userSettings.findFirst({
+        where: eq(userSettings.userId, userId),
+    });
+
+    return {
+        notificationsEnabled: settings?.notificationsEnabled ?? true,
+        subscriptionReminderDays: settings?.subscriptionReminderDays ?? 3,
+        creditReminderDays: settings?.creditReminderDays ?? 3,
+        mortgageReminderDays: settings?.mortgageReminderDays ?? 3,
+    };
+}
+
+async function createAndDeliverReminder(params: {
+    userId: string;
+    kind: ReminderKind;
+    entityId: string;
+    name: string;
+    amount: string;
+    currency: string;
+    dueDate: Date;
+    daysUntilDue: number;
+    webPath: string;
+}) {
+    const { title, message, priority } = buildReminderText(
+        params.kind,
+        params.name,
+        params.amount,
+        params.currency,
+        params.daysUntilDue
+    );
+
+    await db.insert(notifications).values({
+        userId: params.userId,
+        type: 'payment_reminder',
+        title,
+        message,
+        priority,
+        links: {
+            web: params.webPath,
+            mobile: `woolet://${params.webPath.replace(/^\//, '')}`,
+            universal: `https://woolet.app${params.webPath}`,
+        },
+        entityType: params.kind,
+        entityId: params.entityId,
+        metadata: {
+            amount: params.amount,
+            currency: params.currency,
+            dueDate: params.dueDate.toISOString(),
+            daysUntilDue: params.daysUntilDue,
+        },
+    });
+
+    await deliverNotificationChannels({
+        userId: params.userId,
+        title,
+        message,
+        priority,
+        url: params.webPath,
+        entityType: params.kind,
+        entityId: params.entityId,
+        metadata: {
+            dueDate: params.dueDate.toISOString(),
+            daysUntilDue: params.daysUntilDue,
+        },
+    });
+}
+
 export async function runSubscriptionNotifications() {
-    console.log('🔔 Running subscription notifications job...');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    console.log('🔔 Running due reminders job (subscriptions, credits, mortgages)...');
 
-    const futureDate = new Date(today);
-    futureDate.setDate(futureDate.getDate() + DAYS_AHEAD);
-
+    const today = startOfToday();
     let notified = 0;
     let skipped = 0;
 
     try {
-        // Fetch ALL active monthly subscriptions across all users
-        const allActive = await db.query.subscriptions.findMany({
-            where: and(
-                eq(subscriptions.status, 'active'),
-                eq(subscriptions.frequency, 'monthly'),
-            ),
+        const activeSubscriptions = await db.query.subscriptions.findMany({
+            where: and(eq(subscriptions.status, 'active'), eq(subscriptions.frequency, 'monthly')),
             with: {
                 payments: {
                     orderBy: [desc(subscriptionPayments.paidAt)],
@@ -75,119 +166,193 @@ export async function runSubscriptionNotifications() {
             },
         });
 
-        console.log(`  Found ${allActive.length} active monthly subscriptions`);
-
-        for (const sub of allActive) {
+        for (const sub of activeSubscriptions) {
             try {
-                const dueDate = getNextDueDate(sub, today);
-                const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-                // Only notify if due within window or overdue
-                if (daysUntilDue > DAYS_AHEAD || daysUntilDue < -7) {
+                const userPrefs = await getUserReminderSettings(sub.userId);
+                if (!userPrefs.notificationsEnabled) {
                     skipped++;
                     continue;
                 }
 
-                // Check if already paid this due-date month
-                const lastPayment = sub.payments[0];
-                const isPaidThisMonth =
-                    lastPayment &&
-                    new Date(lastPayment.paidAt).getMonth() === dueDate.getMonth() &&
-                    new Date(lastPayment.paidAt).getFullYear() === dueDate.getFullYear();
+                const dueDate = resolveNextMonthlyDueDate(today, sub.billingDay || 1);
+                const dayDiff = daysUntil(dueDate, today);
 
-                if (isPaidThisMonth) {
+                if (dayDiff > userPrefs.subscriptionReminderDays || dayDiff < -7) {
                     skipped++;
                     continue;
                 }
 
-                // Deduplicate: skip if we already sent a notification in the last 24h
-                const alreadySent = await recentNotificationExists(sub.userId, sub.id);
-                if (alreadySent) {
+                const latestPayment = sub.payments[0];
+                const paidThisDueMonth = latestPayment &&
+                    new Date(latestPayment.paidAt).getMonth() === dueDate.getMonth() &&
+                    new Date(latestPayment.paidAt).getFullYear() === dueDate.getFullYear();
+
+                if (paidThisDueMonth) {
                     skipped++;
                     continue;
                 }
 
-                // Build notification content
-                const isOverdue = daysUntilDue <= 0;
-                const title = isOverdue
-                    ? `Subscription Overdue: ${sub.name}`
-                    : daysUntilDue === 1
-                        ? `Subscription Due Tomorrow: ${sub.name}`
-                        : daysUntilDue === 0
-                            ? `Subscription Due Today: ${sub.name}`
-                            : `Subscription Due Soon: ${sub.name}`;
+                if (await recentNotificationExists(sub.userId, sub.id, 'subscription')) {
+                    skipped++;
+                    continue;
+                }
 
-                const message = `${sub.name} payment of ${sub.currency} ${Number(sub.amount).toLocaleString()} is ${
-                    isOverdue ? 'overdue' : `due in ${daysUntilDue} day${daysUntilDue !== 1 ? 's' : ''}`
-                }.`;
-
-                // 1. Insert into notifications table (shows in bell icon)
-                await db.insert(notifications).values({
+                await createAndDeliverReminder({
                     userId: sub.userId,
-                    type: isOverdue ? 'subscription_overdue' : 'subscription_due',
-                    title,
-                    message,
-                    priority: isOverdue ? 'urgent' : daysUntilDue <= 1 ? 'high' : 'medium',
-                    links: {
-                        web: `/subscriptions/${sub.id}`,
-                        mobile: `woolet://subscriptions/${sub.id}`,
-                        universal: `https://woolet.app/subscriptions/${sub.id}`,
-                    },
-                    entityType: 'subscription',
+                    kind: 'subscription',
                     entityId: sub.id,
-                    metadata: {
-                        amount: sub.amount,
-                        currency: sub.currency,
-                        billingDay: sub.billingDay,
-                        dueDate: dueDate.toISOString(),
-                        daysUntilDue,
-                    },
+                    name: sub.name,
+                    amount: sub.amount,
+                    currency: sub.currency,
+                    dueDate,
+                    daysUntilDue: dayDiff,
+                    webPath: '/subscriptions',
                 });
-
-                // 2. Send push notification (shows in browser/device)
-                await sendPushNotification(sub.userId, {
-                    title,
-                    body: message,
-                    url: `/subscriptions/${sub.id}`,
-                    tag: `subscription-${sub.id}-${dueDate.getMonth()}-${dueDate.getFullYear()}`,
-                    requireInteraction: isOverdue,
-                });
-
                 notified++;
             } catch (subError) {
-                console.error(`  ❌ Failed to notify for subscription ${sub.id}:`, subError);
-                GlitchTip.captureException(subError, { extra: { subscriptionId: sub.id } });
+                console.error(`❌ Failed subscription reminder for ${sub.id}:`, subError);
+                GlitchTip.captureException(subError, { extra: { entityType: 'subscription', entityId: sub.id } });
             }
         }
 
-        console.log(`✅ Subscription notifications done: ${notified} sent, ${skipped} skipped`);
+        const activeCredits = await db.query.credits.findMany({
+            where: eq(credits.status, 'active'),
+            with: {
+                account: { with: { bank: true } },
+                payments: {
+                    orderBy: [desc(creditPayments.paidAt)],
+                    limit: 4,
+                },
+            },
+        });
+
+        for (const credit of activeCredits) {
+            try {
+                const userId = credit.account.bank.userId;
+                const userPrefs = await getUserReminderSettings(userId);
+                if (!userPrefs.notificationsEnabled) {
+                    skipped++;
+                    continue;
+                }
+
+                const dueDate = resolveNextMonthlyDueDate(today, new Date(credit.startDate).getDate());
+                const dayDiff = daysUntil(dueDate, today);
+
+                if (dayDiff > userPrefs.creditReminderDays || dayDiff < -7) {
+                    skipped++;
+                    continue;
+                }
+
+                const dueMonthYear = monthYear(dueDate);
+                const paidThisDueMonth = credit.payments.some((p) => p.monthYear === dueMonthYear);
+                if (paidThisDueMonth) {
+                    skipped++;
+                    continue;
+                }
+
+                if (await recentNotificationExists(userId, credit.id, 'credit')) {
+                    skipped++;
+                    continue;
+                }
+
+                await createAndDeliverReminder({
+                    userId,
+                    kind: 'credit',
+                    entityId: credit.id,
+                    name: credit.name,
+                    amount: credit.monthlyPayment,
+                    currency: credit.currency,
+                    dueDate,
+                    daysUntilDue: dayDiff,
+                    webPath: '/financial/credits',
+                });
+                notified++;
+            } catch (creditError) {
+                console.error(`❌ Failed credit reminder for ${credit.id}:`, creditError);
+                GlitchTip.captureException(creditError, { extra: { entityType: 'credit', entityId: credit.id } });
+            }
+        }
+
+        const activeMortgages = await db.query.mortgages.findMany({
+            where: eq(mortgages.status, 'active'),
+            with: {
+                account: { with: { bank: true } },
+                payments: {
+                    orderBy: [desc(mortgagePayments.paidAt)],
+                    limit: 4,
+                },
+            },
+        });
+
+        for (const mortgage of activeMortgages) {
+            try {
+                const userId = mortgage.account.bank.userId;
+                const userPrefs = await getUserReminderSettings(userId);
+                if (!userPrefs.notificationsEnabled) {
+                    skipped++;
+                    continue;
+                }
+
+                const dueDate = resolveNextMonthlyDueDate(today, mortgage.paymentDay || 1);
+                const dayDiff = daysUntil(dueDate, today);
+
+                if (dayDiff > userPrefs.mortgageReminderDays || dayDiff < -7) {
+                    skipped++;
+                    continue;
+                }
+
+                const dueMonthYear = monthYear(dueDate);
+                const paidThisDueMonth = mortgage.payments.some((p) => p.monthYear === dueMonthYear);
+                if (paidThisDueMonth) {
+                    skipped++;
+                    continue;
+                }
+
+                if (await recentNotificationExists(userId, mortgage.id, 'mortgage')) {
+                    skipped++;
+                    continue;
+                }
+
+                await createAndDeliverReminder({
+                    userId,
+                    kind: 'mortgage',
+                    entityId: mortgage.id,
+                    name: mortgage.propertyName,
+                    amount: mortgage.monthlyPayment,
+                    currency: mortgage.currency,
+                    dueDate,
+                    daysUntilDue: dayDiff,
+                    webPath: '/financial/mortgages',
+                });
+                notified++;
+            } catch (mortgageError) {
+                console.error(`❌ Failed mortgage reminder for ${mortgage.id}:`, mortgageError);
+                GlitchTip.captureException(mortgageError, { extra: { entityType: 'mortgage', entityId: mortgage.id } });
+            }
+        }
+
+        console.log(`✅ Due reminders done: ${notified} sent, ${skipped} skipped`);
     } catch (error) {
-        console.error('❌ Subscription notifications job failed:', error);
-        GlitchTip.captureException(error, { extra: { job: 'subscriptionNotifications' } });
+        console.error('❌ Due reminders job failed:', error);
+        GlitchTip.captureException(error, { extra: { job: 'dueReminders' } });
         throw error;
     }
 }
 
-/**
- * Starts the daily subscription notifications cron job.
- * Runs once at startup (to catch any missed notifications), then every 24 hours.
- */
 export function startSubscriptionNotificationsCron() {
     const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
-    console.log('⏰ Starting subscription notifications cron job (every 24h)...');
+    console.log('⏰ Starting due reminders cron job (every 24h)...');
 
-    // Run once at startup
     runSubscriptionNotifications().catch((error) => {
-        console.error('Initial subscription notifications run failed:', error);
+        console.error('Initial due reminders run failed:', error);
     });
 
-    // Then every 24 hours
     setInterval(() => {
         runSubscriptionNotifications().catch((error) => {
-            console.error('Scheduled subscription notifications failed:', error);
+            console.error('Scheduled due reminders failed:', error);
         });
     }, TWENTY_FOUR_HOURS);
 
-    console.log('✅ Subscription notifications cron job initialized');
+    console.log('✅ Due reminders cron job initialized');
 }

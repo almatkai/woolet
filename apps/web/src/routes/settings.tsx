@@ -4,6 +4,7 @@ import { trpc } from '@/lib/trpc';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from '@tanstack/react-router';
@@ -21,9 +22,10 @@ import {
     Upload,
     FileJson,
     Loader2,
-    ListChecks
+    ListChecks,
+    Mail
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PushNotificationSettings, usePushNotifications } from '@/hooks/usePushNotifications';
 import {
@@ -56,6 +58,7 @@ export function SettingsPage() {
     const [isImporting, setIsImporting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [pushSettingsOpen, setPushSettingsOpen] = useState(false);
+    const [emailNotificationAddress, setEmailNotificationAddress] = useState('');
 
     const { isSupported, isSubscribed, isLoading, isUpdating, vapidPublicKey, vapidKeyError, error: pushError, subscribe, unsubscribe } = usePushNotifications();
     const hasBrowserPermission =
@@ -104,6 +107,16 @@ export function SettingsPage() {
     const mortgageStatusPeriod = settings?.mortgageStatusPeriod ?? 'global';
     const subscriptionStatusLogic = settings?.subscriptionStatusLogic ?? 'global';
     const subscriptionStatusPeriod = settings?.subscriptionStatusPeriod ?? 'global';
+    const notificationsEnabled = settings?.notificationsEnabled ?? true;
+    const browserNotificationsEnabled = settings?.browserNotificationsEnabled ?? true;
+    const emailNotificationsEnabled = settings?.emailNotificationsEnabled ?? false;
+    const subscriptionReminderDays = String(settings?.subscriptionReminderDays ?? 3);
+    const creditReminderDays = String(settings?.creditReminderDays ?? 3);
+    const mortgageReminderDays = String(settings?.mortgageReminderDays ?? 3);
+
+    useEffect(() => {
+        setEmailNotificationAddress(settings?.emailNotificationAddress || '');
+    }, [settings?.emailNotificationAddress]);
 
     const handlePushToggle = async () => {
         if (isUpdating) {
@@ -472,9 +485,120 @@ export function SettingsPage() {
                 <CardHeader>
                     <CardTitle className="text-xl font-bold flex items-center gap-2">
                         <Bell className="size-5 text-primary" />
-                        Push Notifications
+                        Notification Preferences
                     </CardTitle>
-                    <CardDescription>Receive browser notifications for subscription reminders and payment alerts</CardDescription>
+                    <CardDescription>
+                        Configure channels and reminder timing for unpaid subscription, credit, and mortgage payments.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">
+                        <div>
+                            <Label className="text-base font-semibold">Enable Notifications</Label>
+                            <p className="text-sm text-muted-foreground">Master switch for all reminders and alerts</p>
+                        </div>
+                        <Switch
+                            checked={notificationsEnabled}
+                            onCheckedChange={(checked) => updateSettings.mutate({ notificationsEnabled: checked })}
+                        />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">
+                        <div>
+                            <Label className="text-base font-semibold">Browser Push Channel</Label>
+                            <p className="text-sm text-muted-foreground">Send reminders to browser notifications</p>
+                        </div>
+                        <Switch
+                            checked={browserNotificationsEnabled}
+                            onCheckedChange={(checked) => updateSettings.mutate({ browserNotificationsEnabled: checked })}
+                            disabled={!notificationsEnabled}
+                        />
+                    </div>
+
+                    <div className="space-y-3">
+                        <Label className="text-base font-semibold">Reminder Window (days before due date)</Label>
+                        <div className="grid gap-3 md:grid-cols-3">
+                            <div className="space-y-2">
+                                <Label className="text-sm text-muted-foreground">Subscriptions</Label>
+                                <Select
+                                    value={subscriptionReminderDays}
+                                    onValueChange={(value) => updateSettings.mutate({ subscriptionReminderDays: Number(value) })}
+                                    disabled={!notificationsEnabled}
+                                >
+                                    <SelectTrigger className="bg-background border-border">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="0">0 (Due day only)</SelectItem>
+                                        <SelectItem value="1">1 day</SelectItem>
+                                        <SelectItem value="2">2 days</SelectItem>
+                                        <SelectItem value="3">3 days</SelectItem>
+                                        <SelectItem value="5">5 days</SelectItem>
+                                        <SelectItem value="7">7 days</SelectItem>
+                                        <SelectItem value="10">10 days</SelectItem>
+                                        <SelectItem value="14">14 days</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-sm text-muted-foreground">Credits</Label>
+                                <Select
+                                    value={creditReminderDays}
+                                    onValueChange={(value) => updateSettings.mutate({ creditReminderDays: Number(value) })}
+                                    disabled={!notificationsEnabled}
+                                >
+                                    <SelectTrigger className="bg-background border-border">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="0">0 (Due day only)</SelectItem>
+                                        <SelectItem value="1">1 day</SelectItem>
+                                        <SelectItem value="2">2 days</SelectItem>
+                                        <SelectItem value="3">3 days</SelectItem>
+                                        <SelectItem value="5">5 days</SelectItem>
+                                        <SelectItem value="7">7 days</SelectItem>
+                                        <SelectItem value="10">10 days</SelectItem>
+                                        <SelectItem value="14">14 days</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-sm text-muted-foreground">Mortgages</Label>
+                                <Select
+                                    value={mortgageReminderDays}
+                                    onValueChange={(value) => updateSettings.mutate({ mortgageReminderDays: Number(value) })}
+                                    disabled={!notificationsEnabled}
+                                >
+                                    <SelectTrigger className="bg-background border-border">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="0">0 (Due day only)</SelectItem>
+                                        <SelectItem value="1">1 day</SelectItem>
+                                        <SelectItem value="2">2 days</SelectItem>
+                                        <SelectItem value="3">3 days</SelectItem>
+                                        <SelectItem value="5">5 days</SelectItem>
+                                        <SelectItem value="7">7 days</SelectItem>
+                                        <SelectItem value="10">10 days</SelectItem>
+                                        <SelectItem value="14">14 days</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Push Notifications */}
+            <Card className="bg-card/30 backdrop-blur-sm border-border/50">
+                <CardHeader>
+                    <CardTitle className="text-xl font-bold flex items-center gap-2">
+                        <Bell className="size-5 text-primary" />
+                        Browser Push Setup
+                    </CardTitle>
+                    <CardDescription>Connect this browser to receive push notifications</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">

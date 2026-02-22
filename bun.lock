@@ -30,6 +30,7 @@
         "hono": "^4.11.7",
         "ioredis": "^5.9.2",
         "node-notifier": "^10.0.1",
+        "nodemailer": "^8.0.1",
         "openai": "^6.17.0",
         "pino": "^10.3.0",
         "postgres": "^3.4.8",
@@ -3054,6 +3055,8 @@
     "node-releases": ["node-releases@2.0.27", "", {}, "sha512-nmh3lCkYZ3grZvqcCH+fjmQ7X+H0OeZgP40OierEaAptX4XofMh5kwNbWh7lBduUzCcV/8kZ+NDLCwm2iorIlA=="],
 
     "node-stream-zip": ["node-stream-zip@1.15.0", "", {}, "sha512-LN4fydt9TqhZhThkZIVQnF9cwjU3qmUH9h78Mx/K7d3VvfRqqwthLwJEUOEL0QPZ0XQmNN7be5Ggit5+4dq3Bw=="],
+
+    "nodemailer": ["nodemailer@8.0.1", "", {}, "sha512-5kcldIXmaEjZcHR6F28IKGSgpmZHaF1IXLWFTG+Xh3S+Cce4MiakLtWY+PlBU69fLbRa8HlaGIrC/QolUpHkhg=="],
 
     "normalize-path": ["normalize-path@3.0.0", "", {}, "sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA=="],
 

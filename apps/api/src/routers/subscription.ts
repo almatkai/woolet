@@ -18,7 +18,7 @@ import {
     notifications
 } from '../db/schema';
 import { checkEntityLimit } from '../lib/limits';
-import { sendPushNotification } from '../services/push-notification-service';
+import { deliverNotificationChannels } from '../services/notification-delivery-service';
 
 export const subscriptionRouter = router({
     // List all subscriptions with optional type filter
@@ -790,13 +790,18 @@ export const subscriptionRouter = router({
                             },
                         });
 
-                        // Also send push notification
-                        await sendPushNotification(ctx.userId!, {
+                        await deliverNotificationChannels({
+                            userId: ctx.userId!,
                             title,
-                            body: message,
+                            message,
                             url: `/subscriptions/${sub.id}`,
-                            tag: `subscription-${sub.id}-${currentMonthDue.getMonth()}-${currentMonthDue.getFullYear()}`,
-                            requireInteraction: isOverdue,
+                            priority: isOverdue ? 'urgent' : daysUntilDue <= 1 ? 'high' : 'medium',
+                            entityType: 'subscription',
+                            entityId: sub.id,
+                            metadata: {
+                                dueDate: currentMonthDue.toISOString(),
+                                daysUntilDue,
+                            },
                         });
 
                         createdNotifications.push(sub.id);

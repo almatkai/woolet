@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, boolean, integer } from 'drizzle-orm/pg-core';
 
 export const userSettings = pgTable('user_settings', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -15,6 +15,13 @@ export const userSettings = pgTable('user_settings', {
   mortgageStatusPeriod: text('mortgage_status_period'),
   subscriptionStatusLogic: text('subscription_status_logic'),
   subscriptionStatusPeriod: text('subscription_status_period'),
+  notificationsEnabled: boolean('notifications_enabled').notNull().default(true),
+  browserNotificationsEnabled: boolean('browser_notifications_enabled').notNull().default(true),
+  emailNotificationsEnabled: boolean('email_notifications_enabled').notNull().default(false),
+  emailNotificationAddress: text('email_notification_address'),
+  subscriptionReminderDays: integer('subscription_reminder_days').notNull().default(3),
+  creditReminderDays: integer('credit_reminder_days').notNull().default(3),
+  mortgageReminderDays: integer('mortgage_reminder_days').notNull().default(3),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
