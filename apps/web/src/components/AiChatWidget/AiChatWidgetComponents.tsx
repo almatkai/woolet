@@ -529,9 +529,11 @@ export function AiChatFloatingItem() {
 
     useEffect(() => {
         if (!isOpen || isWideChatViewport) {
-            setCompactPanelHeight(null);
-            setCompactBottomOffset(8);
-            return;
+            const timer = setTimeout(() => {
+                setCompactPanelHeight(null);
+                setCompactBottomOffset(8);
+            }, 0);
+            return () => clearTimeout(timer);
         }
 
         const updateCompactMetrics = () => {
