@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus, CreditCard, Trash2, Edit, DollarSign, Calendar, Percent, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
+import { PageHeader } from '@/components/PageHeader';
 import { AddCreditSheet } from '@/components/AddCreditSheet';
 import { CreditPaymentSheet } from '@/components/CreditPaymentSheet';
 import { CompoundCreditPaymentSheet } from '@/components/CompoundCreditPaymentSheet';
@@ -86,24 +87,22 @@ export default function CreditsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold">Credits</h1>
-                    <p className="hidden sm:block text-muted-foreground">Manage your credit cards and loans</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    {credits && credits.filter((c: Credit) => c.status === 'active').length > 0 && (
-                        <Button variant="secondary" onClick={() => setShowCompoundPayment(true)}>
-                            <Wallet className="h-4 w-4 mr-2" />
-                            Pay All Credits
-                        </Button>
-                    )}
-                    <Button onClick={() => setShowAddCredit(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Credit
+            <PageHeader
+                title="Credits"
+                subtitle="Manage your credit cards and loans"
+                variant="two-with-text"
+            >
+                {credits && credits.filter((c: Credit) => c.status === 'active').length > 0 && (
+                    <Button variant="secondary" onClick={() => setShowCompoundPayment(true)} className="gap-2 flex-1 sm:flex-none">
+                        <Wallet className="h-4 w-4" />
+                        Pay All Credits
                     </Button>
-                </div>
-            </div>
+                )}
+                <Button onClick={() => setShowAddCredit(true)} className="gap-2 flex-1 sm:flex-none">
+                    <Plus className="h-4 w-4" />
+                    Add Credit
+                </Button>
+            </PageHeader>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-10 gap-2 md:grid-cols-3 md:gap-4">
@@ -183,36 +182,37 @@ export default function CreditsPage() {
                                 </div>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div className="flex items-center gap-2">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 text-sm">
+                                    <div className="flex items-center gap-1 sm:gap-2" title="Principal">
                                         <DollarSign className="h-4 w-4 text-muted-foreground" />
-                                        <span className="text-muted-foreground">Principal:</span>
-                                        <span className="font-medium">
-                                            {credit.currency} {Number(credit.principalAmount).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                        <span className="text-muted-foreground hidden sm:inline">Principal:</span>
+                                        <span className="font-medium text-xs sm:text-sm">
+                                            {Number(credit.principalAmount).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                         </span>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 sm:gap-2" title="Interest Rate">
                                         <Percent className="h-4 w-4 text-muted-foreground" />
-                                        <span className="text-muted-foreground">Rate:</span>
-                                        <span className="font-medium">{credit.interestRate}%</span>
+                                        <span className="text-muted-foreground hidden sm:inline">Rate:</span>
+                                        <span className="font-medium text-xs sm:text-sm">{credit.interestRate}%</span>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 sm:gap-2" title="Monthly Payment">
                                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                                        <span className="text-muted-foreground">Monthly:</span>
-                                        <span className="font-medium">
-                                            {credit.currency} {Number(credit.monthlyPayment).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                        <span className="text-muted-foreground hidden sm:inline">Monthly:</span>
+                                        <span className="font-medium text-xs sm:text-sm">
+                                            {Number(credit.monthlyPayment).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                         </span>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 sm:gap-2" title="Remaining">
                                         <DollarSign className="h-4 w-4 text-red-500" />
-                                        <span className="text-muted-foreground">Remaining:</span>
-                                        <span className="font-medium text-red-500">
-                                            {credit.currency} {Number(credit.remainingBalance).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                        <span className="text-muted-foreground hidden sm:inline">Remaining:</span>
+                                        <span className="font-medium text-xs sm:text-sm text-red-500">
+                                            {Number(credit.remainingBalance).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                         </span>
                                     </div>
                                 </div>
                                 <div className="text-xs text-muted-foreground">
-                                    {getPayoffPercentage(credit)}% paid off • Ends: {new Date(credit.endDate).toLocaleDateString()}
+                                    {getPayoffPercentage(credit)}% paid
+                                    <span className="hidden sm:inline"> off • Ends: {new Date(credit.endDate).toLocaleDateString()}</span>
                                 </div>
 
                                 {/* Make Payment Button */}

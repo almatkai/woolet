@@ -42,7 +42,6 @@ import {
 // Dialog components removed (unused)
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AiChatSidebarItem } from '@/components/AiChatWidget';
 import { PricingCtaBanner } from '@/components/PricingCtaBanner';
 import { NotificationsMenu } from '@/components/NotificationsMenu';
 import { useState } from 'react';
@@ -202,8 +201,6 @@ export function AppSidebar() {
                 )}
 
                 <PricingCtaBanner variant="sidebar" className="mb-2" />
-
-                <AiChatSidebarItem />
 
                 <SidebarMenu>
                     <SidebarMenuItem>

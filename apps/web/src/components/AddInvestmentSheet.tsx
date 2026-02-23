@@ -83,9 +83,10 @@ type AddInvestmentForm = z.infer<typeof addInvestmentSchema>;
 interface AddInvestmentSheetProps {
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
+    trigger?: React.ReactNode;
 }
 
-export function AddInvestmentSheet({ open: controlledOpen, onOpenChange: controlledOnOpenChange }: AddInvestmentSheetProps = {}) {
+export function AddInvestmentSheet({ open: controlledOpen, onOpenChange: controlledOnOpenChange, trigger }: AddInvestmentSheetProps = {}) {
     const [internalOpen, setInternalOpen] = useState(false);
     const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
     const setOpen = controlledOnOpenChange || setInternalOpen;
@@ -338,10 +339,12 @@ export function AddInvestmentSheet({ open: controlledOpen, onOpenChange: control
         }}>
             {!isControlled && (
                 <SheetTrigger asChild>
-                    <Button className="gap-2">
-                        <TrendingUp className="h-4 w-4" />
-                        Add Investment
-                    </Button>
+                    {trigger ?? (
+                        <Button className="gap-2 flex-1 sm:flex-none">
+                            <TrendingUp className="h-4 w-4" />
+                            Add Investment
+                        </Button>
+                    )}
                 </SheetTrigger>
             )}
             <SheetContent className="overflow-y-auto">

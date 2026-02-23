@@ -1,5 +1,5 @@
 ---
-const appUrl = "http://78.40.109.172:8080";
+const appUrl = import.meta.env.WEB_URL || process.env.WEB_URL || "http://localhost:3000";
 ---
 
 <section class="relative py-24 sm:py-32 overflow-hidden">

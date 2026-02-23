@@ -6,7 +6,7 @@ export function SettingsLayout() {
         <div className="flex h-full bg-background overflow-hidden relative">
             {/* Content Area - Full width, no sidebar */}
             <main className="flex-1 overflow-y-auto">
-                <div className="max-w-7xl mx-auto p-1 md:p-10">
+                <div className="max-w-7xl mx-auto p-3 md:p-6">
                     <Outlet />
                 </div>
             </main>

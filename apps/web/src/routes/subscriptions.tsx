@@ -23,6 +23,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/PageHeader';
 import { AddSubscriptionSheet } from '@/components/AddSubscriptionSheet';
 import { SubscriptionPaymentSheet } from '@/components/SubscriptionPaymentSheet';
 
@@ -177,16 +178,16 @@ export function SubscriptionsPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold">Subscriptions</h1>
-                    <p className="hidden sm:block text-sm md:text-base text-muted-foreground">Manage your recurring payments</p>
-                </div>
-                <Button onClick={() => setShowAddSubscription(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
+            <PageHeader
+                title="Subscriptions"
+                subtitle="Manage your recurring payments"
+                variant="one"
+            >
+                <Button onClick={() => setShowAddSubscription(true)} className="gap-2">
+                    <Plus className="h-4 w-4" />
                     Add
                 </Button>
-            </div>
+            </PageHeader>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-4 gap-3 md:gap-4">

@@ -51,7 +51,7 @@ interface InvestmentCashBalance {
     settledBalance: string;
 }
 
-export function SeeInvestingAccountsSheet() {
+export function SeeInvestingAccountsSheet({ trigger }: { trigger?: React.ReactNode } = {}) {
     const [open, setOpen] = useState(false);
     const [showUSD, setShowUSD] = useState(true);
 
@@ -149,10 +149,12 @@ export function SeeInvestingAccountsSheet() {
     return (
         <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                    <Building2 className="h-4 w-4" />
-                    Accounts
-                </Button>
+                {trigger ?? (
+                    <Button variant="outline" size="sm" className="gap-2 flex-1 sm:flex-none">
+                        <Building2 className="h-4 w-4" />
+                        Accounts
+                    </Button>
+                )}
             </SheetTrigger>
             <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
                 <SheetHeader>

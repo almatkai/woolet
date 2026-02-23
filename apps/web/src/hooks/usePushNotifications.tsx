@@ -21,6 +21,8 @@ interface UsePushNotificationsReturn {
     unsubscribe: () => Promise<void>;
     requestPermission: () => Promise<NotificationPermission>;
     vapidPublicKey: string | null;
+    vapidKeyError: string | null;
+    isUpdating: boolean;
     error: Error | null;
 }
 
@@ -28,30 +30,54 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     const [isSupported, setIsSupported] = useState(false);
     const [isSubscribed, setIsSubscribed] = useState(false);
     const [error, setError] = useState<Error | null>(null);
+    const [isProcessing, setIsProcessing] = useState(false);
 
-    const { data: vapidPublicKey, isLoading: isLoadingKey } = trpc.pushSubscription.getVapidPublicKey.useQuery();
+    const {
+        data: vapidKeyData,
+        isLoading: isLoadingKey,
+        error: vapidQueryError,
+    } = trpc.pushSubscription.getVapidPublicKey.useQuery();
+    const vapidPublicKey = vapidKeyData?.publicKey ?? null;
 
     const subscribeMutation = trpc.pushSubscription.subscribe.useMutation();
     const unsubscribeMutation = trpc.pushSubscription.unsubscribe.useMutation();
+    const isUpdating = subscribeMutation.isLoading || unsubscribeMutation.isLoading || isProcessing;
 
-    useEffect(() => {
-        if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
-            setIsSupported(true);
-            checkSubscription();
+    const getActiveServiceWorkerRegistration = useCallback(async (): Promise<ServiceWorkerRegistration> => {
+        if (!('serviceWorker' in navigator)) {
+            throw new Error('Service workers are not supported in this browser');
         }
+        // register if not yet registered
+        if (!(await navigator.serviceWorker.getRegistration())) {
+            await navigator.serviceWorker.register('/push-sw.js');
+        }
+        // navigator.serviceWorker.ready resolves once an active SW controls the page
+        return navigator.serviceWorker.ready;
     }, []);
 
     const checkSubscription = useCallback(async () => {
         if (!('serviceWorker' in navigator) || !vapidPublicKey) return;
 
         try {
-            const registration = await navigator.serviceWorker.ready;
+            const registration = await getActiveServiceWorkerRegistration();
             const subscription = await registration.pushManager.getSubscription();
             setIsSubscribed(!!subscription);
         } catch (err) {
             console.error('Error checking subscription:', err);
         }
-    }, [vapidPublicKey]);
+    }, [vapidPublicKey, getActiveServiceWorkerRegistration]);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
+            setIsSupported(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (isSupported && vapidPublicKey) {
+            checkSubscription();
+        }
+    }, [isSupported, vapidPublicKey, checkSubscription]);
 
     const requestPermission = useCallback(async (): Promise<NotificationPermission> => {
         if (!('Notification' in window)) {
@@ -71,6 +97,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
     const subscribe = useCallback(async () => {
         setError(null);
+        setIsProcessing(true);
 
         try {
             const permission = await requestPermission();
@@ -82,15 +109,39 @@ export function usePushNotifications(): UsePushNotificationsReturn {
                 throw new Error('VAPID public key not available');
             }
 
-            const registration = await navigator.serviceWorker.ready;
+            const registration = await getActiveServiceWorkerRegistration();
+
+            // Pre-check: see if push is actually allowed before trying
+            const permState = await registration.pushManager.permissionState({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as any,
+            });
+            if (permState === 'denied') {
+                throw new Error('Push notifications are blocked. Please allow notifications in your browser site settings and try again.');
+            }
 
             let subscription = await registration.pushManager.getSubscription();
 
             if (!subscription) {
-            subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as any,
-            });
+                try {
+                    // Let the browser manage its own timeout and produce a real error
+                    subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as any,
+                    });
+                } catch (subError: any) {
+                    console.error('pushManager.subscribe error:', subError.name, subError.message);
+                    if (subError.name === 'NotAllowedError') {
+                        throw new Error('Push notifications are blocked. Please allow notifications in your browser site settings.');
+                    }
+                    if (subError.name === 'AbortError') {
+                        throw new Error('Push subscription was aborted by the browser. This can happen in Brave or when Google services are blocked. Check chrome://settings or brave://settings/privacy.');
+                    }
+                    if (subError.name === 'InvalidStateError') {
+                        throw new Error('Service worker is not active. Please refresh the page and try again.');
+                    }
+                    throw new Error(`Push subscription failed (${subError.name}): ${subError.message || 'Unknown error'}`);
+                }
             }
 
             const subscriptionData = subscription.toJSON();
@@ -102,21 +153,24 @@ export function usePushNotifications(): UsePushNotificationsReturn {
                     auth: subscriptionData.keys!.auth!,
                 },
                 browserName: getBrowserName(),
-                expirationTime: subscriptionData.expirationTime,
+                expirationTime: subscriptionData.expirationTime ?? undefined,
             });
 
             setIsSubscribed(true);
         } catch (err) {
             setError(err instanceof Error ? err : new Error('Failed to subscribe'));
             throw err;
+        } finally {
+            setIsProcessing(false);
         }
-    }, [vapidPublicKey, requestPermission, subscribeMutation]);
+    }, [vapidPublicKey, requestPermission, subscribeMutation, getActiveServiceWorkerRegistration]);
 
     const unsubscribe = useCallback(async () => {
         setError(null);
+        setIsProcessing(true);
 
         try {
-            const registration = await navigator.serviceWorker.ready;
+            const registration = await getActiveServiceWorkerRegistration();
             const subscription = await registration.pushManager.getSubscription();
 
             if (subscription) {
@@ -131,8 +185,10 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         } catch (err) {
             setError(err instanceof Error ? err : new Error('Failed to unsubscribe'));
             throw err;
+        } finally {
+            setIsProcessing(false);
         }
-    }, [unsubscribeMutation]);
+    }, [unsubscribeMutation, getActiveServiceWorkerRegistration]);
 
     return {
         isSupported,
@@ -142,14 +198,34 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         unsubscribe,
         requestPermission,
         vapidPublicKey,
+        vapidKeyError: vapidQueryError?.message ?? null,
+        isUpdating,
         error,
     };
 }
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
-    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-    const rawData = atob(base64);
+    if (typeof base64String !== 'string') {
+        throw new Error('Invalid VAPID public key format');
+    }
+    const sanitized = base64String.trim().replace(/^['"]|['"]$/g, '').replace(/\s+/g, '');
+    if (!sanitized || sanitized.includes('BEGIN PUBLIC KEY') || sanitized.includes('END PUBLIC KEY')) {
+        throw new Error('Invalid VAPID public key format');
+    }
+
+    const normalized = sanitized.replace(/-/g, '+').replace(/_/g, '/');
+    if (!/^[A-Za-z0-9+/=]+$/.test(normalized)) {
+        throw new Error('Invalid VAPID public key format');
+    }
+
+    const padding = '='.repeat((4 - (normalized.length % 4)) % 4);
+    let rawData: string;
+    try {
+        rawData = atob(normalized + padding);
+    } catch {
+        throw new Error('Invalid VAPID public key format');
+    }
+
     const outputArray = new Uint8Array(rawData.length);
     for (let i = 0; i < rawData.length; ++i) {
         outputArray[i] = rawData.charCodeAt(i);
@@ -179,6 +255,7 @@ export function PushNotificationSettings({ open, onOpenChange }: PushNotificatio
         subscribe,
         unsubscribe,
         vapidPublicKey,
+        vapidKeyError,
         error,
     } = usePushNotifications();
 
@@ -193,6 +270,11 @@ export function PushNotificationSettings({ open, onOpenChange }: PushNotificatio
             console.error('Toggle failed:', err);
         }
     };
+    const hasBrowserPermission =
+        typeof window !== 'undefined' &&
+        typeof Notification !== 'undefined' &&
+        Notification.permission === 'granted';
+    const needsInAppSetup = hasBrowserPermission && !isSubscribed;
 
     if (!isSupported) {
         return (
@@ -235,25 +317,32 @@ export function PushNotificationSettings({ open, onOpenChange }: PushNotificatio
                         <div className="py-4 space-y-4">
                             <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
                                 <div className="flex items-center gap-3">
-                                    {isSubscribed ? (
+                                    {isSubscribed || hasBrowserPermission ? (
                                         <BellRing className="h-5 w-5 text-green-500" />
                                     ) : (
                                         <Bell className="h-5 w-5 text-muted-foreground" />
                                     )}
                                     <div>
                                         <p className="font-medium">
-                                            {isSubscribed ? 'Notifications Enabled' : 'Notifications Disabled'}
+                                            {isSubscribed
+                                                ? 'Notifications Enabled'
+                                                : hasBrowserPermission
+                                                    ? 'Setup Required'
+                                                    : 'Notifications Disabled'}
                                         </p>
                                         <p className="text-sm text-muted-foreground">
                                             {isSubscribed
                                                 ? 'You will receive browser notifications'
-                                                : 'Enable to receive notifications'}
+                                                : needsInAppSetup
+                                                    ? 'Browser permission is on, but push setup is not complete.'
+                                                    : 'Enable to receive notifications'}
                                         </p>
                                     </div>
                                 </div>
                                 <Button
                                     variant={isSubscribed ? 'outline' : 'default'}
                                     onClick={handleToggle}
+                                    disabled={isLoading || !vapidPublicKey}
                                 >
                                     {isSubscribed ? (
                                         <>
@@ -261,14 +350,14 @@ export function PushNotificationSettings({ open, onOpenChange }: PushNotificatio
                                             Disable
                                         </>
                                     ) : (
-                                        'Enable'
+                                        needsInAppSetup ? 'Finish setup' : 'Enable'
                                     )}
                                 </Button>
                             </div>
 
-                            {error && (
+                            {(vapidKeyError || error) && (
                                 <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-                                    {error.message}
+                                    {vapidKeyError || error?.message}
                                 </div>
                             )}
 

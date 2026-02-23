@@ -6,8 +6,8 @@ import { z } from 'zod';
 import { Pencil, Trash2, MoreHorizontal, Star, StarOff, Bookmark, X, Plus, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn, formatAccountLabel } from '@/lib/utils';
+import { PageHeader } from '@/components/PageHeader';
 import { AddTransactionSheet } from '@/components/AddTransactionSheet';
-import { AiChatFloatingItem } from '@/components/AiChatWidget';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -501,24 +501,23 @@ export function SpendingPage() {
 
     return (
         <div className={cn("space-y-4 md:space-y-6", favoritesWidgetVisible ? "pb-32" : "")}>
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold">Spending</h1>
-                    <p className="hidden sm:block text-sm md:text-base text-muted-foreground">Track your daily expenses</p>
-                </div>
-                <div className="flex items-center gap-2 md:gap-3">
-                    {/* Shortcuts button */}
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShortcutsListOpen(true)}
-                        title="Shortcuts"
-                        className="px-2 md:px-3 h-8 md:h-9"
-                    >
-                        <Bookmark className="h-4 w-4 md:mr-2" />
-                        <span className="hidden md:inline">Shortcuts</span>
-                    </Button>
-                    <AddTransactionSheet
+            <PageHeader
+                title="Spending"
+                subtitle="Track your daily expenses"
+                variant="two-mixed"
+            >
+                {/* Shortcuts button - icon-only on mobile */}
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShortcutsListOpen(true)}
+                    title="Shortcuts"
+                    className="px-2 md:px-3 h-8 md:h-9"
+                >
+                    <Bookmark className="h-4 w-4 md:mr-2" />
+                    <span className="hidden md:inline">Shortcuts</span>
+                </Button>
+                <AddTransactionSheet
                         open={transactionSheetOpen}
                         onOpenChange={(nextOpen) => {
                             setTransactionSheetOpen(nextOpen);
@@ -549,8 +548,7 @@ export function SpendingPage() {
                             </Button>
                         )}
                     />
-                </div>
-            </div>
+            </PageHeader>
 
             <Card className="border-none sm:border shadow-none sm:shadow-sm">
                 <CardContent className="p-0 sm:p-6">
@@ -1274,9 +1272,9 @@ export function SpendingPage() {
 
             {/* Floating Favorites Widget */}
             {favoritesWidgetVisible && (
-                <div className="fixed bottom-4 right-20 left-auto sm:right-20 sm:bottom-4 z-40 animate-in fade-in slide-in-from-bottom-5 duration-500">
+                <div className="fixed bottom-16 right-20 left-4 min-[470px]:left-auto min-[470px]:right-20 min-[470px]:bottom-4 z-40 animate-in fade-in slide-in-from-bottom-5 duration-500">
                     <div className="flex items-end gap-2 min-[850px]:block">
-                        <div className="bg-background/80 backdrop-blur-xl border border-border rounded-2xl shadow-2xl p-3 sm:p-4 w-fit min-w-[150px] max-w-sm mx-0 overflow-hidden">
+                        <div className="bg-background/80 backdrop-blur-xl border border-border rounded-2xl shadow-2xl p-3 sm:p-4 w-full min-[470px]:w-fit min-w-[150px] max-w-sm mx-auto min-[470px]:mx-0 overflow-hidden">
                             <div className="flex items-center justify-between mb-3 pl-0 pr-1">
                                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">Starred</p>
                                 <Button
@@ -1295,7 +1293,7 @@ export function SpendingPage() {
                                     </p>
                                 </div>
                             ) : (
-                                <div className="flex flex-row overflow-x-auto pb-1 gap-3 sm:flex-wrap sm:justify-start scrollbar-hide">
+                                <div className="flex flex-row overflow-x-auto pb-1 gap-3 min-[470px]:flex-wrap min-[470px]:justify-start scrollbar-hide">
                                     {favoriteShortcuts.map((shortcut) => (
                                         <button
                                             key={shortcut.id}

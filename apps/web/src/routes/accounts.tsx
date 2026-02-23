@@ -6,6 +6,7 @@ import { AddBankSheet } from '@/components/AddBankSheet';
 import { AddAccountSheet } from '@/components/AddAccountSheet';
 import { AddCurrencyBalanceSheet } from '@/components/AddCurrencyBalanceSheet';
 import { AccountActionSheet } from '@/components/AccountActionSheet';
+import { PageHeader } from '@/components/PageHeader';
 import { TransferSheet } from '@/components/TransferSheet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -90,12 +91,9 @@ export function AccountsPage() {
     if (isLoading) {
         return (
             <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold">Accounts</h1>
-                        <p className="text-muted-foreground">Manage your finances</p>
-                    </div>
-                </div>
+                <PageHeader title="Accounts" subtitle="Manage your finances" variant="one">
+                    {null}
+                </PageHeader>
                 <div className="grid gap-6">
                     <Skeleton className="h-40 w-full" />
                     <Skeleton className="h-40 w-full" />
@@ -106,21 +104,19 @@ export function AccountsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold">Accounts</h1>
-                    <p className="text-muted-foreground hidden sm:block">Manage your banks and asset accounts</p>
-                </div>
-                <div className="flex gap-2 w-full sm:w-auto">
-                    <TransferSheet trigger={
-                        <Button variant="secondary" className="gap-2 flex-1 sm:flex-none">
-                            <CircleDollarSign className="h-4 w-4" />
-                            Transfer
-                        </Button>
-                    } />
-                    <AddBankSheet />
-                </div>
-            </div>
+            <PageHeader
+                title="Accounts"
+                subtitle="Manage your banks and asset accounts"
+                variant="two-with-text"
+            >
+                <TransferSheet trigger={
+                    <Button variant="secondary" className="gap-2 flex-1 sm:flex-none">
+                        <CircleDollarSign className="h-4 w-4" />
+                        Transfer
+                    </Button>
+                } />
+                <AddBankSheet />
+            </PageHeader>
 
             <AccountActionSheet
                 account={selectedAccount}

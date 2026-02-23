@@ -32,9 +32,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CurrencySelect } from '@/components/CurrencySelect';
-import { TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, DollarSign, Wallet, PieChart, BarChart3, LineChart, Trophy, AlertCircle, Trash2, ExternalLink, Cpu, Droplets, Stethoscope, Globe, Newspaper, Plus, Minus } from 'lucide-react';
+import { Building2, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, DollarSign, Wallet, PieChart, BarChart3, LineChart, Trophy, AlertCircle, Trash2, ExternalLink, Cpu, Droplets, Stethoscope, Globe, Newspaper, Plus, Minus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { PageHeader } from '@/components/PageHeader';
 import { AddInvestmentSheet } from '@/components/AddInvestmentSheet';
 import { SeeInvestingAccountsSheet } from '@/components/SeeInvestingAccountsSheet';
 import { EditInvestmentTransactionSheet } from '@/components/EditInvestmentTransactionSheet';
@@ -392,16 +393,28 @@ export function InvestingPage() {
     return (
         <div className="space-y-4 h-full">
             {/* Header with Add Button */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold">Investing</h1>
-                    <p className="text-sm text-muted-foreground">Track stocks, ETFs, and portfolio performance</p>
-                </div>
-                <div>
-                    <SeeInvestingAccountsSheet />
-                    <AddInvestmentSheet />
-                </div>
-            </div>
+            <PageHeader
+                title="Investing"
+                subtitle="Track stocks, ETFs, and portfolio performance"
+                variant="two-with-text"
+            >
+                <SeeInvestingAccountsSheet
+                    trigger={
+                        <Button variant="outline" size="sm" className="gap-2 flex-1 sm:flex-none">
+                            <Building2 className="h-4 w-4" />
+                            Accounts
+                        </Button>
+                    }
+                />
+                <AddInvestmentSheet
+                    trigger={
+                        <Button className="gap-2 flex-1 sm:flex-none">
+                            <TrendingUp className="h-4 w-4" />
+                            Add Investment
+                        </Button>
+                    }
+                />
+            </PageHeader>
 
             {/* Edit Transaction Sheet */}
             <EditInvestmentTransactionSheet
@@ -917,7 +930,7 @@ export function InvestingPage() {
             <div className="grid grid-cols-1 lg:grid-cols-8 gap-4">
                 {/* Transaction History */}
                 {transactions && transactions.length > 0 && (
-                    <Card className="col-span-1 lg:col-span-4 flex flex-col">
+                    <Card className="col-span-1 lg:col-span-4 flex flex-col w-full min-w-0">
                         <CardHeader className="pb-2 pt-4 px-4">
                             <CardTitle className="text-sm font-medium">Transaction History</CardTitle>
                         </CardHeader>
@@ -1006,7 +1019,7 @@ export function InvestingPage() {
 
                 {/* Portfolio Highlights */}
                 {portfolioHighlights && (
-                    <Card className="flex flex-col col-span-4 lg:col-span-2">
+                    <Card className="flex flex-col col-span-1 lg:col-span-2">
                         <CardHeader className="pb-2 pt-4 px-4">
                             <CardTitle className="text-sm font-medium flex items-center gap-2">
                                 <Trophy className="h-4 w-4 text-yellow-500" />
@@ -1081,7 +1094,7 @@ export function InvestingPage() {
                 )}
 
                 {/* Market Intelligence */}
-                <Card className="flex flex-col col-span-4 lg:col-span-2">
+                <Card className="flex flex-col col-span-1 lg:col-span-2">
                     <CardHeader className="pb-2 pt-4 px-4">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
                             <Newspaper className="h-4 w-4" />

@@ -11,8 +11,12 @@ if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
     console.warn('VAPID keys not set - push notifications will not work');
 }
 
-export const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
-export const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
+function cleanEnvKey(value?: string): string {
+    return (value || '').trim().replace(/^['"]|['"]$/g, '').replace(/\s+/g, '');
+}
+
+export const VAPID_PUBLIC_KEY = cleanEnvKey(process.env.VAPID_PUBLIC_KEY);
+export const VAPID_PRIVATE_KEY = cleanEnvKey(process.env.VAPID_PRIVATE_KEY);
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
     webPush.setVapidDetails(

@@ -81,13 +81,13 @@ export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: nu
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
                                     <div className="dashboard-widget__value">
-                                        <CurrencyDisplay amount={totalMonthly} currency={activeMortgages[0]?.currency || 'KZT'} />
+                                        <CurrencyDisplay amount={totalMonthly} currency={activeMortgages[0]?.currency || 'KZT'} className="max-[600px]:text-xs" />
                                     </div>
                                     <Badge variant={allPaidThisMonth ? "default" : "destructive"} className="dashboard-widget__badge flex items-center gap-1">
                                         {allPaidThisMonth ? (
                                             <><Check className="h-3 w-3" /> Paid</>
                                         ) : (
-                                            <><X className="h-3 w-3" /> Unpaid</>
+                                            <><X className="h-3 w-3" /> <span className="max-[600px]:hidden">Unpaid</span></>
                                         )}
                                     </Badge>
                                 </div>
@@ -116,7 +116,7 @@ export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: nu
                                                 </div>
                                                 <div className="flex items-center gap-2 flex-shrink-0">
                                                     <span className="whitespace-nowrap">
-                                                        <CurrencyDisplay amount={mortgage.monthlyPayment} currency={mortgage.currency} />
+                                                        <CurrencyDisplay amount={mortgage.monthlyPayment} currency={mortgage.currency} className="max-[600px]:text-xs" />
                                                     </span>
                                                     <Wallet className="h-3 w-3 text-muted-foreground" />
                                                 </div>
@@ -131,7 +131,7 @@ export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: nu
                                 <div className="flex items-center justify-between">
                                     <span className="text-xs text-muted-foreground">Total Remaining</span>
                                     <span className="font-medium text-orange-500">
-                                        <CurrencyDisplay amount={totalBalance} currency={activeMortgages[0]?.currency || 'KZT'} />
+                                        <CurrencyDisplay amount={totalBalance} currency={activeMortgages[0]?.currency || 'KZT'} className="max-[600px]:text-xs" />
                                     </span>
                                 </div>
                             </div>

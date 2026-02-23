@@ -3,6 +3,7 @@ import { digestService } from '../services/ai/digest-service';
 import { anomalyService } from '../services/ai/anomaly-service';
 import { AiConfigService } from '../services/ai/ai-config-service';
 import { AiUsageService } from '../services/ai/ai-usage-service';
+import { analyticsService } from '../services/investing/analytics-service';
 import { db } from '../db';
 import { transactions, portfolioHoldings, accounts, currencyBalances, chatSessions, chatMessages, banks, marketDigests, aiConfig, categories, subscriptions, debts, credits, mortgages, deposits, fxRates, users } from '../db/schema';
 import { createChatCompletionWithFallback, MODEL_FLASH, checkPromptGuard, getAiStatus } from '../lib/ai';
@@ -13,6 +14,229 @@ import { TIER_LIMITS } from './bank';
 import { getAiDigestLength } from '../lib/checkLimit';
 import { getCreditLimit } from '@woolet/shared';
 import { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions';
+import { logger } from '../lib/logger';
+import { cache } from '../lib/redis';
+
+const aiRouterLogger = logger.child({ module: 'ai-router' });
+const LOG_PREVIEW_LIMIT = Number(process.env.AI_LOG_PREVIEW_LIMIT || 20000);
+const AGENT_TRACE_TTL_SECONDS = 60 * 5;
+
+type AgentTraceStep = {
+    key: string;
+    label: string;
+    detail?: string;
+    status: 'done' | 'running' | 'pending';
+};
+
+type LiveAgentTracePayload = {
+    trace: AgentTraceStep[];
+    done: boolean;
+    updatedAt: string;
+};
+
+function summarizeList(items: string[], max = 5): string {
+    const normalized = items.map((i) => i.trim()).filter(Boolean);
+    if (normalized.length <= max) return normalized.join(', ');
+    const remainder = normalized.length - max;
+    return `${normalized.slice(0, max).join(', ')} +${remainder} more`;
+}
+
+const TOOL_DISPLAY_LABELS: Record<string, string> = {
+    search_transactions: 'Searching your transactions',
+    get_account_balance: 'Getting your account balances',
+    get_bank_balance: 'Getting your bank balance',
+    get_categories: 'Getting your categories',
+    get_subscriptions: 'Getting your subscriptions',
+    get_portfolio: 'Getting your portfolio holdings',
+    get_investing_value: 'Calculating your investing value',
+    analyze_spending: 'Analyzing your spending',
+    create_transaction: 'Creating your transaction',
+    get_debts_and_credits: 'Getting your debts and credits',
+    get_upcoming_payments: 'Getting your upcoming payments',
+    get_net_worth_breakdown: 'Calculating your net worth',
+    navigate_to: 'Opening requested page',
+    query_docs: 'Searching help docs',
+};
+
+function getToolDisplayLabel(toolName: string): string {
+    return TOOL_DISPLAY_LABELS[toolName] || `Running ${toolName}`;
+}
+
+function summarizeToolResult(toolName: string, toolResult: any): string {
+    if (toolResult?.error) return `Error: ${String(toolResult.error)}`;
+
+    if (toolName === 'get_account_balance') {
+        const banksList = Array.isArray(toolResult?.banks) ? toolResult.banks : [];
+        let accountCount = 0;
+        let balanceCount = 0;
+        const currencyTotals = new Map<string, number>();
+
+        for (const bank of banksList) {
+            const accountsList = Array.isArray(bank?.accounts) ? bank.accounts : [];
+            accountCount += accountsList.length;
+            for (const account of accountsList) {
+                const balancesList = Array.isArray(account?.balances) ? account.balances : [];
+                balanceCount += balancesList.length;
+                for (const balance of balancesList) {
+                    const currency = String(balance?.currency || 'UNKNOWN');
+                    const amount = Number(balance?.amount || 0);
+                    currencyTotals.set(currency, (currencyTotals.get(currency) || 0) + amount);
+                }
+            }
+        }
+
+        const totals = Array.from(currencyTotals.entries())
+            .slice(0, 3)
+            .map(([currency, amount]) => `${currency} ${amount.toFixed(2)}`)
+            .join(', ');
+        return `${banksList.length} banks, ${accountCount} accounts, ${balanceCount} balances${totals ? ` (${totals})` : ''}`;
+    }
+
+    if (toolName === 'search_transactions') {
+        const txCount = Array.isArray(toolResult?.transactions) ? toolResult.transactions.length : 0;
+        return `${txCount} transactions`;
+    }
+
+    if (toolName === 'get_bank_balance') {
+        const matched = Number(toolResult?.matchedBankCount || 0);
+        if (matched <= 0) return 'No matching bank found';
+        const primary = toolResult?.primaryMatch;
+        if (primary?.name && primary?.totalsByCurrency) {
+            const totals = Object.entries(primary.totalsByCurrency)
+                .map(([currency, amount]) => `${currency} ${Number(amount).toFixed(2)}`)
+                .join(', ');
+            return totals ? `${primary.name}: ${totals}` : `${primary.name}: no balances`;
+        }
+        return `${matched} banks matched`;
+    }
+
+    if (toolName === 'get_categories') {
+        const count = Array.isArray(toolResult?.categories) ? toolResult.categories.length : 0;
+        return `${count} categories`;
+    }
+
+    if (toolName === 'get_subscriptions') {
+        const count = Array.isArray(toolResult?.subscriptions) ? toolResult.subscriptions.length : 0;
+        return `${count} subscriptions`;
+    }
+
+    if (toolName === 'get_portfolio') {
+        const count = Array.isArray(toolResult?.holdings) ? toolResult.holdings.length : 0;
+        return `${count} portfolio positions`;
+    }
+
+    if (toolName === 'get_investing_value') {
+        const total = toolResult?.totalInvestingValue;
+        const currency = toolResult?.currency;
+        return total && currency ? `Investing value ${total} ${currency}` : 'Investing value calculated';
+    }
+
+    if (toolName === 'analyze_spending') {
+        const count = Array.isArray(toolResult?.spending_by_category) ? toolResult.spending_by_category.length : 0;
+        return `${count} spending groups`;
+    }
+
+    if (toolName === 'get_debts_and_credits') {
+        const debtCount = Array.isArray(toolResult?.debts) ? toolResult.debts.length : 0;
+        const creditCount = Array.isArray(toolResult?.credits) ? toolResult.credits.length : 0;
+        const mortgageCount = Array.isArray(toolResult?.mortgages) ? toolResult.mortgages.length : 0;
+        return `${debtCount} debts, ${creditCount} credits, ${mortgageCount} mortgages`;
+    }
+
+    if (toolName === 'get_upcoming_payments') {
+        const subsCount = Array.isArray(toolResult?.subscriptions) ? toolResult.subscriptions.length : 0;
+        const creditCount = Array.isArray(toolResult?.credits) ? toolResult.credits.length : 0;
+        const mortgageCount = Array.isArray(toolResult?.mortgages) ? toolResult.mortgages.length : 0;
+        return `${subsCount} subscriptions, ${creditCount} credits, ${mortgageCount} mortgages`;
+    }
+
+    if (toolName === 'get_net_worth_breakdown') {
+        const total = toolResult?.totalNetWorth;
+        const currency = toolResult?.defaultCurrency;
+        return total && currency ? `Net worth ${total} ${currency}` : 'Net worth calculated';
+    }
+
+    if (toolName === 'navigate_to') {
+        return toolResult?.path ? `Path: ${toolResult.path}` : 'Navigation prepared';
+    }
+
+    if (toolName === 'query_docs') {
+        const results = Array.isArray(toolResult?.results) ? toolResult.results.length : 0;
+        return `${results} docs matched`;
+    }
+
+    const keys = Object.keys(toolResult || {});
+    return keys.length > 0 ? `Fields: ${keys.join(', ')}` : 'Completed';
+}
+
+function resolveNavigationPath(message: string): string | null {
+    const q = message.toLowerCase();
+    if (/(invest|portfolio|stocks?)/.test(q)) return '/investing';
+    if (/(dashboard|home|overview)/.test(q)) return '/dashboard';
+    if (/(transaction|spending|expense|income)/.test(q)) return '/transactions';
+    if (/(account|bank|wallet|card)/.test(q)) return '/accounts';
+    if (/(insight|report|analytics?)/.test(q)) return '/insights';
+    if (/(setting|preference|profile)/.test(q)) return '/settings';
+    if (/(budget|budgets)/.test(q)) return '/budget';
+    return null;
+}
+
+function isFinanceDataIntentMessage(message: string): boolean {
+    return /(balance|account|bank|spend|spending|expense|income|transaction|debt|credit|mortgage|subscription|portfolio|invest|net worth|budget|currency|cash|savings|loan|payment|money)/i.test(message);
+}
+
+function needsDefaultCurrencyContext(message: string): boolean {
+    return /(default currency|currency|convert|conversion|exchange rate|fx|net worth|debt|liabilit|investing|portfolio value)/i.test(message);
+}
+
+function getAgentTraceCacheKey(userId: string, requestId: string): string {
+    return `ai:trace:${userId}:${requestId}`;
+}
+
+async function persistAgentTrace(
+    userId: string,
+    requestId: string,
+    trace: AgentTraceStep[],
+    done = false
+): Promise<void> {
+    try {
+        await cache.set<LiveAgentTracePayload>(
+            getAgentTraceCacheKey(userId, requestId),
+            {
+                trace,
+                done,
+                updatedAt: new Date().toISOString(),
+            },
+            AGENT_TRACE_TTL_SECONDS
+        );
+    } catch (error) {
+        aiRouterLogger.warn({
+            event: 'chat.trace.persist_failed',
+            userId,
+            requestId,
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+function upsertAgentTraceStep(trace: AgentTraceStep[], nextStep: AgentTraceStep): void {
+    const idx = trace.findIndex((step) => step.key === nextStep.key);
+    if (idx >= 0) {
+        trace[idx] = { ...trace[idx], ...nextStep };
+        return;
+    }
+    trace.push(nextStep);
+}
+
+function toPreview(value: unknown, maxLen = LOG_PREVIEW_LIMIT): string {
+    try {
+        const json = JSON.stringify(value);
+        if (!json) return '';
+        return json.length > maxLen ? `${json.slice(0, maxLen)}...<truncated>` : json;
+    } catch {
+        return String(value);
+    }
+}
 
 export const aiRouter = router({
     getDailyDigest: protectedProcedure
@@ -189,6 +413,17 @@ export const aiRouter = router({
             };
         }),
 
+    getLiveTrace: protectedProcedure
+        .input(z.object({
+            requestId: z.string().min(1).max(128),
+        }))
+        .query(async ({ ctx, input }) => {
+            const payload = await cache.get<LiveAgentTracePayload>(
+                getAgentTraceCacheKey(ctx.userId!, input.requestId)
+            );
+            return payload || { trace: [], done: false, updatedAt: new Date().toISOString() };
+        }),
+
     listSessions: protectedProcedure
         .query(async ({ ctx }) => {
             return await db.query.chatSessions.findMany({
@@ -232,12 +467,33 @@ export const aiRouter = router({
         .input(z.object({
             message: z.string(),
             sessionId: z.string().uuid().optional().nullable(),
+            clientRequestId: z.string().min(1).max(128).optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             const userId = ctx.userId!;
             const userTier = ctx.user.subscriptionTier || 'free';
             const creditConfig = getCreditLimit(userTier, 'aiChat');
             const usage = await AiUsageService.getUsage(userId);
+            const requestStartedAt = Date.now();
+            const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+            const traceRequestId = input.clientRequestId?.trim() || requestId;
+            const agentTrace: AgentTraceStep[] = [];
+            const isNavigationIntent = /(?:how to|go to|open|navigate|take me to).*(?:page|screen|tab|route|investing|dashboard|accounts|transactions|settings|insights|budget)/i.test(input.message)
+                || /(?:where is|show me).*(?:investing|dashboard|accounts|transactions|settings|insights|budget)/i.test(input.message);
+            const isFinanceDataIntent = isFinanceDataIntentMessage(input.message);
+
+            aiRouterLogger.info({
+                event: 'chat.request.start',
+                requestId,
+                userId,
+                tier: userTier,
+                sessionId: input.sessionId || null,
+                messageLength: input.message.length,
+                usageToday: usage.questionCountToday,
+                usageLifetime: usage.questionCountLifetime,
+                dailyLimit: creditConfig.limit || null,
+                lifetimeLimit: creditConfig.lifetimeLimit || null,
+            });
 
             // Check limits
             if (creditConfig.limit > 0) {
@@ -262,10 +518,17 @@ export const aiRouter = router({
             }
 
             let sessionId = input.sessionId;
+            await persistAgentTrace(userId, traceRequestId, agentTrace, false);
 
             // Check for prompt injection
             const guard = await checkPromptGuard(input.message);
             if (!guard.isSafe) {
+                aiRouterLogger.warn({
+                    event: 'chat.request.blocked_by_prompt_guard',
+                    requestId,
+                    userId,
+                    score: guard.score,
+                });
                 return {
                     response: "Looks like you are trying to prompt inject, huh? 🤨",
                     sessionId: sessionId || "blocked"
@@ -282,11 +545,23 @@ export const aiRouter = router({
                     title: input.message.slice(0, 30) + '...',
                 }).returning();
                 sessionId = newSession.id;
+                aiRouterLogger.info({
+                    event: 'chat.session.created',
+                    requestId,
+                    userId,
+                    sessionId,
+                });
             } else {
                 // Update updated_at
                 await db.update(chatSessions)
                     .set({ updatedAt: new Date() })
                     .where(eq(chatSessions.id, sessionId));
+                aiRouterLogger.info({
+                    event: 'chat.session.updated',
+                    requestId,
+                    userId,
+                    sessionId,
+                });
             }
 
             // 2. Fetch History for Context
@@ -298,20 +573,68 @@ export const aiRouter = router({
                     limit: 30
                 });
             }
+            aiRouterLogger.info({
+                event: 'chat.history.loaded',
+                requestId,
+                userId,
+                sessionId,
+                historyCount: dbHistory.length,
+            });
 
             // Map DB history to OpenAI messages
             const messages: ChatCompletionMessageParam[] = [];
 
             // 3. Gather Context & Add System Message
-            const holdings = await db.query.portfolioHoldings.findMany({
-                where: eq(portfolioHoldings.userId, userId),
-                with: { stock: true }
-            });
-            const context = `
+            let userDefaultCurrency = 'USD';
+            let holdingsCount = 0;
+            let topHoldings = '';
+            const shouldLoadDefaultCurrency = needsDefaultCurrencyContext(input.message);
+            if (isFinanceDataIntent) {
+                if (shouldLoadDefaultCurrency) {
+                    const userProfile = await db.query.users.findFirst({
+                        where: eq(users.id, userId),
+                        columns: {
+                            defaultCurrency: true,
+                        },
+                    });
+                    userDefaultCurrency = userProfile?.defaultCurrency || 'USD';
+                    if (!isNavigationIntent) {
+                        upsertAgentTraceStep(agentTrace, {
+                            key: 'default_currency',
+                            label: 'Getting your default currency',
+                            detail: userDefaultCurrency,
+                            status: 'done',
+                        });
+                        await persistAgentTrace(userId, traceRequestId, agentTrace, false);
+                    }
+                }
+
+                const holdings = await db.query.portfolioHoldings.findMany({
+                    where: eq(portfolioHoldings.userId, userId),
+                    with: { stock: true }
+                });
+                holdingsCount = holdings.length;
+                topHoldings = holdings.slice(0, 3).map(h => `${h.stock.ticker} (${h.quantity})`).join(', ');
+            }
+
+            const context = isFinanceDataIntent ? `
 User Financial Context:
-- Portfolio: ${holdings.length} positions. Top holdings: ${holdings.slice(0, 3).map(h => `${h.stock.ticker} (${h.quantity})`).join(', ')}.
+- Default Currency: ${shouldLoadDefaultCurrency ? userDefaultCurrency : 'N/A'}
+- Portfolio: ${holdingsCount} positions. Top holdings: ${topHoldings}.
+- Today's Date: ${new Date().toISOString().split('T')[0]}
+` : `
+General Context:
 - Today's Date: ${new Date().toISOString().split('T')[0]}
 `;
+            aiRouterLogger.info({
+                event: 'chat.context.built',
+                requestId,
+                userId,
+                sessionId,
+                holdingsCount,
+                isFinanceDataIntent,
+                contextPreview: toPreview(context, 500),
+            });
             messages.push({
                 role: 'system',
                 content: `You are Woo, a helpful financial assistant.
@@ -321,10 +644,25 @@ ${context}
 Capabilities:
 - You can search transactions with various filters.
 - You can check account balances.
+- You can check balances for a specific bank by name.
 - You can list categories (use this when you need category IDs for other tools).
 - You can list subscriptions and portfolio holdings.
+- You can calculate current investing value using cached/live stock prices.
 - You can analyze spending patterns by category.
 - You can create new transactions (always confirm the details with the user first).
+- You can navigate the user to pages using navigate_to.
+- You can answer product-usage questions with query_docs.
+
+Navigation rule:
+- If the user asks how to open/go to/navigate to a page or section, call navigate_to with the best matching path.
+
+Tool selection rule:
+- If user asks "how much money/value is in investing/portfolio/stocks", call get_investing_value (not get_portfolio).
+- If user asks balance in a specific bank (e.g., "how much in BCC bank"), call get_bank_balance with the bank name.
+
+Currency rule:
+- Always include ISO currency codes in monetary answers (e.g., USD, KZT, EUR).
+- Do not assume all numbers are USD; use currency fields returned by tools.
 
 Answer concisely and helpful. Use emojis. If you need data, use the tools provided.
 `
@@ -340,6 +678,13 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
 
             // Add current user message
             messages.push({ role: 'user', content: input.message });
+            aiRouterLogger.info({
+                event: 'chat.messages.prepared',
+                requestId,
+                userId,
+                sessionId,
+                totalMessages: messages.length,
+            });
 
             // 4. Save User Message to DB
             await db.insert(chatMessages).values({
@@ -348,8 +693,40 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                 content: input.message
             });
 
+            // Fast path for explicit navigation requests.
+            const resolvedPath = isNavigationIntent ? resolveNavigationPath(input.message) : null;
+            if (resolvedPath) {
+                const finalResponseText = `Open ${resolvedPath}`;
+                const clientAction = { type: 'navigate', path: resolvedPath } as const;
+                upsertAgentTraceStep(agentTrace, {
+                    key: 'tool_navigate_to',
+                    label: getToolDisplayLabel('navigate_to'),
+                    detail: `Path: ${resolvedPath}`,
+                    status: 'done',
+                });
+                await persistAgentTrace(userId, traceRequestId, agentTrace, true);
+
+                await db.insert(chatMessages).values({
+                    sessionId,
+                    role: 'model',
+                    content: finalResponseText,
+                });
+                await AiUsageService.incrementUsage(userId);
+
+                aiRouterLogger.info({
+                    event: 'chat.request.navigation_fast_path',
+                    requestId,
+                    userId,
+                    sessionId,
+                    path: resolvedPath,
+                    durationMs: Date.now() - requestStartedAt,
+                });
+
+                return { response: finalResponseText, sessionId, clientAction, agentTrace };
+            }
+
             // 5. Define Tools
-            const tools: ChatCompletionTool[] = [
+            const tools: ChatCompletionTool[] = isFinanceDataIntent ? [
                 {
                     type: "function",
                     function: {
@@ -382,6 +759,21 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                 {
                     type: "function",
                     function: {
+                        name: "get_bank_balance",
+                        description: "Get balances for a specific bank by bank name (and optional account name). Use this for bank-specific balance questions.",
+                        parameters: {
+                            type: "object",
+                            properties: {
+                                bankName: { type: "string", description: "Bank name to match, e.g. 'BCC'" },
+                                accountName: { type: "string", description: "Optional account name filter, e.g. 'Main Card 1821'" }
+                            },
+                            required: ["bankName"]
+                        }
+                    }
+                },
+                {
+                    type: "function",
+                    function: {
                         name: "get_categories",
                         description: "Get all available transaction categories (both system and user-defined).",
                         parameters: {
@@ -406,6 +798,17 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                     function: {
                         name: "get_portfolio",
                         description: "Get the user's current stock portfolio holdings and their quantities.",
+                        parameters: {
+                            type: "object",
+                            properties: {}
+                        }
+                    }
+                },
+                {
+                    type: "function",
+                    function: {
+                        name: "get_investing_value",
+                        description: "Get current market value of the user's investing portfolio using latest stock prices and existing caching layers.",
                         parameters: {
                             type: "object",
                             properties: {}
@@ -491,7 +894,40 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                             properties: {
                                 path: {
                                     type: "string",
-                                    enum: ["/dashboard", "/transactions", "/accounts", "/insights", "/settings", "/budget"],
+                                    enum: ["/dashboard", "/transactions", "/accounts", "/investing", "/insights", "/settings", "/budget"],
+                                    description: " The path to navigate to."
+                                }
+                            },
+                            required: ["path"]
+                        }
+                    }
+                },
+                {
+                    type: "function",
+                    function: {
+                        name: "query_docs",
+                        description: "Search the app documentation/help center for answers about how to use the app.",
+                        parameters: {
+                            type: "object",
+                            properties: {
+                                query: { type: "string", description: "The search query" }
+                            },
+                            required: ["query"]
+                        }
+                    }
+                }
+            ] : [
+                {
+                    type: "function",
+                    function: {
+                        name: "navigate_to",
+                        description: "Navigate the user to a specific page in the app.",
+                        parameters: {
+                            type: "object",
+                            properties: {
+                                path: {
+                                    type: "string",
+                                    enum: ["/dashboard", "/transactions", "/accounts", "/investing", "/insights", "/settings", "/budget"],
                                     description: " The path to navigate to."
                                 }
                             },
@@ -514,6 +950,16 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                     }
                 }
             ];
+            aiRouterLogger.info({
+                event: 'chat.tools.registered',
+                requestId,
+                userId,
+                sessionId,
+                toolCount: tools.length,
+                toolNames: tools
+                    .map((t) => t.type === 'function' ? t.function.name : 'unknown')
+                    .filter(Boolean),
+            });
 
             try {
                 // 6. Chat Loop
@@ -521,12 +967,20 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
 
                 // Max 5 turns to prevent infinite loops
                 for (let i = 0; i < 5; i++) {
+                    const turnStartedAt = Date.now();
+                    aiRouterLogger.info({
+                        event: 'chat.turn.start',
+                        requestId,
+                        userId,
+                        sessionId,
+                        turn: i + 1,
+                        messageCount: messages.length,
+                    });
                     const completion = await createChatCompletionWithFallback(
                         {
                             model: MODEL_FLASH,
                             messages: messages,
-                            tools: tools,
-                            tool_choice: "auto",
+                            ...(tools.length > 0 ? { tools: tools, tool_choice: "auto" as const } : {}),
                         },
                         {
                             purpose: 'chat',
@@ -539,6 +993,17 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                     );
 
                     const responseMessage = completion.choices[0].message;
+                    aiRouterLogger.info({
+                        event: 'chat.turn.response',
+                        requestId,
+                        userId,
+                        sessionId,
+                        turn: i + 1,
+                        durationMs: Date.now() - turnStartedAt,
+                        finishReason: completion.choices[0]?.finish_reason ?? null,
+                        hasToolCalls: Boolean(responseMessage.tool_calls?.length),
+                        contentPreview: toPreview(responseMessage.content, 500),
+                    });
 
                     // Add assistant response to history
                     messages.push(responseMessage);
@@ -546,8 +1011,42 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                     if (responseMessage.tool_calls) {
                         for (const toolCall of responseMessage.tool_calls) {
                             if (toolCall.type !== 'function') continue;
-                            const args = JSON.parse(toolCall.function.arguments);
+                            let args: any = {};
+                            try {
+                                args = JSON.parse(toolCall.function.arguments);
+                            } catch (error) {
+                                aiRouterLogger.error({
+                                    event: 'chat.tool_call.invalid_arguments',
+                                    requestId,
+                                    userId,
+                                    sessionId,
+                                    turn: i + 1,
+                                    toolCallId: toolCall.id,
+                                    toolName: toolCall.function.name,
+                                    rawArguments: toolCall.function.arguments,
+                                    error: error instanceof Error ? error.message : String(error),
+                                });
+                                args = {};
+                            }
+                            aiRouterLogger.info({
+                                event: 'chat.tool_call.start',
+                                requestId,
+                                userId,
+                                sessionId,
+                                turn: i + 1,
+                                toolCallId: toolCall.id,
+                                toolName: toolCall.function.name,
+                                argumentsPreview: toPreview(args),
+                            });
                             let toolResult: any = { error: "Unknown tool or execution failed" };
+                            const toolStartedAt = Date.now();
+                            const toolTraceKey = `tool_${toolCall.function.name}`;
+                            upsertAgentTraceStep(agentTrace, {
+                                key: toolTraceKey,
+                                label: getToolDisplayLabel(toolCall.function.name),
+                                status: 'running',
+                            });
+                            await persistAgentTrace(userId, traceRequestId, agentTrace, false);
 
                             if (toolCall.function.name === "search_transactions") {
                                 const userBanks = await db.query.banks.findMany({ where: eq(banks.userId, userId) });
@@ -606,6 +1105,70 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                                         }))
                                     }))
                                 };
+                            } else if (toolCall.function.name === "get_bank_balance") {
+                                const bankNameQuery = String(args.bankName || '').trim();
+                                const accountNameQuery = String(args.accountName || '').trim().toLowerCase();
+
+                                if (!bankNameQuery) {
+                                    toolResult = { error: "bankName is required" };
+                                } else {
+                                    const bankNameLower = bankNameQuery.toLowerCase();
+                                    const userBanks = await db.query.banks.findMany({
+                                        where: eq(banks.userId, userId),
+                                        with: { accounts: { with: { currencyBalances: true } } }
+                                    });
+
+                                    const matchedBanks = userBanks.filter((b) =>
+                                        String(b.name || '').toLowerCase().includes(bankNameLower)
+                                    );
+                                    const exactMatch = matchedBanks.find((b) =>
+                                        String(b.name || '').toLowerCase() === bankNameLower
+                                    );
+                                    const orderedBanks = exactMatch
+                                        ? [exactMatch, ...matchedBanks.filter((b) => b.id !== exactMatch.id)]
+                                        : matchedBanks;
+
+                                    const mappedBanks = orderedBanks.map((b) => {
+                                        const accountsList = accountNameQuery
+                                            ? b.accounts.filter((a) => String(a.name || '').toLowerCase().includes(accountNameQuery))
+                                            : b.accounts;
+
+                                        const totalsByCurrency: Record<string, number> = {};
+                                        for (const account of accountsList) {
+                                            for (const cb of account.currencyBalances) {
+                                                const currency = String(cb.currencyCode || 'UNKNOWN').toUpperCase();
+                                                totalsByCurrency[currency] = (totalsByCurrency[currency] || 0) + Number(cb.balance || 0);
+                                            }
+                                        }
+
+                                        return {
+                                            name: b.name,
+                                            totalsByCurrency: Object.fromEntries(
+                                                Object.entries(totalsByCurrency).map(([currency, amount]) => [currency, Number(amount.toFixed(2))])
+                                            ),
+                                            accounts: accountsList.map((a) => ({
+                                                id: a.id,
+                                                name: a.name,
+                                                type: a.type,
+                                                balances: a.currencyBalances.map((cb) => ({
+                                                    id: cb.id,
+                                                    amount: Number(cb.balance),
+                                                    currency: cb.currencyCode,
+                                                })),
+                                            })),
+                                        };
+                                    });
+
+                                    toolResult = {
+                                        query: {
+                                            bankName: bankNameQuery,
+                                            accountName: accountNameQuery || null,
+                                        },
+                                        matchedBankCount: mappedBanks.length,
+                                        primaryMatch: mappedBanks[0] || null,
+                                        banks: mappedBanks,
+                                    };
+                                }
                             } else if (toolCall.function.name === "get_categories") {
                                 const allCategories = await db.query.categories.findMany({
                                     where: sql`${categories.userId} IS NULL OR ${categories.userId} = ${userId}`
@@ -622,6 +1185,27 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                                     with: { stock: true }
                                 });
                                 toolResult = { holdings: userHoldings.map(h => ({ ticker: h.stock.ticker, name: h.stock.name, quantity: h.quantity, avgCost: h.averageCostBasis })) };
+                            } else if (toolCall.function.name === "get_investing_value") {
+                                const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+                                const defaultCurrency = user?.defaultCurrency || 'USD';
+                                const summary = await analyticsService.calculatePortfolioSummary(userId);
+
+                                toolResult = {
+                                    currency: defaultCurrency,
+                                    totalInvestingValue: summary.totalPortfolioValue.toFixed(2),
+                                    stockValue: summary.stockValue.toFixed(2),
+                                    cashValue: summary.cash.totalCash.toFixed(2),
+                                    positions: summary.holdings.map((h) => ({
+                                        ticker: h.ticker,
+                                        name: h.name,
+                                        quantity: h.quantity,
+                                        currentPrice: h.currentPrice,
+                                        currentValue: h.currentValue,
+                                        currency: h.currency,
+                                        lastUpdated: h.lastUpdated,
+                                        isStale: h.isStale,
+                                    })),
+                                };
                             } else if (toolCall.function.name === "analyze_spending") {
                                 const userBanks = await db.query.banks.findMany({ where: eq(banks.userId, userId) });
                                 let analysis: any[] = [];
@@ -672,7 +1256,42 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                                     toolResult = { success: true, transactionId: newTx.id };
                                 }
                             } else if (toolCall.function.name === "get_debts_and_credits") {
-                                const userDebts = await db.query.debts.findMany({ where: eq(debts.userId, userId) });
+                                const user = await db.query.users.findFirst({
+                                    where: eq(users.id, userId),
+                                    columns: { defaultCurrency: true }
+                                });
+                                const defaultCurrency = user?.defaultCurrency || 'USD';
+
+                                const rates = await db.query.fxRates.findMany({
+                                    where: eq(fxRates.toCurrency, defaultCurrency),
+                                    orderBy: [desc(fxRates.date)],
+                                    limit: 200
+                                });
+                                const rateMap = new Map<string, number>();
+                                for (const r of rates) {
+                                    if (!rateMap.has(r.fromCurrency)) {
+                                        rateMap.set(r.fromCurrency, Number(r.rate));
+                                    }
+                                }
+                                rateMap.set(defaultCurrency, 1);
+
+                                const convertToDefault = (amount: number, currency: string): number | null => {
+                                    const normalized = (currency || defaultCurrency).toUpperCase();
+                                    const rate = rateMap.get(normalized);
+                                    if (rate === undefined) return null;
+                                    return amount * rate;
+                                };
+
+                                const userDebts = await db.query.debts.findMany({
+                                    where: and(eq(debts.userId, userId), eq(debts.lifecycleStatus, 'active')),
+                                    with: {
+                                        currencyBalance: {
+                                            columns: {
+                                                currencyCode: true,
+                                            },
+                                        },
+                                    },
+                                });
                                 // Credits and mortgages are linked to accounts, need to fetch user accounts first
                                 const userBanks = await db.query.banks.findMany({ where: eq(banks.userId, userId) });
                                 const bankIds = userBanks.map(b => b.id);
@@ -688,10 +1307,85 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                                     }
                                 }
 
+                                let totalDebtsIOweDefault = 0;
+                                let totalCreditsDefault = 0;
+                                let totalMortgagesDefault = 0;
+                                let totalTheyOweMeDefault = 0;
+                                const missingRateCurrencies = new Set<string>();
+
+                                const debtItems = userDebts.map((d) => {
+                                    const currency = (d.currencyCode || d.currencyBalance?.currencyCode || defaultCurrency).toUpperCase();
+                                    const outstanding = Math.max(Number(d.amount) - Number(d.paidAmount), 0);
+                                    const converted = convertToDefault(outstanding, currency);
+                                    if (converted === null) {
+                                        missingRateCurrencies.add(currency);
+                                    } else if (d.type === 'i_owe') {
+                                        totalDebtsIOweDefault += converted;
+                                    } else if (d.type === 'they_owe') {
+                                        totalTheyOweMeDefault += converted;
+                                    }
+                                    return {
+                                        person: d.personName,
+                                        type: d.type,
+                                        status: d.status,
+                                        amount: Number(d.amount),
+                                        paidAmount: Number(d.paidAmount),
+                                        outstanding,
+                                        currency,
+                                        outstandingInDefaultCurrency: converted === null ? null : Number(converted.toFixed(2)),
+                                    };
+                                });
+
+                                const creditItems = creditsList.map((c) => {
+                                    const currency = String(c.currency || defaultCurrency).toUpperCase();
+                                    const remaining = Number(c.remainingBalance);
+                                    const converted = convertToDefault(remaining, currency);
+                                    if (converted === null) {
+                                        missingRateCurrencies.add(currency);
+                                    } else {
+                                        totalCreditsDefault += converted;
+                                    }
+                                    return {
+                                        name: c.name,
+                                        principal: Number(c.principalAmount),
+                                        remaining,
+                                        monthly: Number(c.monthlyPayment),
+                                        currency,
+                                        remainingInDefaultCurrency: converted === null ? null : Number(converted.toFixed(2)),
+                                    };
+                                });
+
+                                const mortgageItems = mortgagesList.map((m) => {
+                                    const currency = String(m.currency || defaultCurrency).toUpperCase();
+                                    const remaining = Number(m.remainingBalance);
+                                    const converted = convertToDefault(remaining, currency);
+                                    if (converted === null) {
+                                        missingRateCurrencies.add(currency);
+                                    } else {
+                                        totalMortgagesDefault += converted;
+                                    }
+                                    return {
+                                        property: m.propertyName,
+                                        remaining,
+                                        monthly: Number(m.monthlyPayment),
+                                        currency,
+                                        remainingInDefaultCurrency: converted === null ? null : Number(converted.toFixed(2)),
+                                    };
+                                });
+
                                 toolResult = {
-                                    debts: userDebts.map(d => ({ person: d.personName, amount: d.amount, type: d.type, status: d.status })),
-                                    credits: creditsList.map(c => ({ name: c.name, principal: c.principalAmount, remaining: c.remainingBalance, monthly: c.monthlyPayment })),
-                                    mortgages: mortgagesList.map(m => ({ property: m.propertyName, remaining: m.remainingBalance, monthly: m.monthlyPayment }))
+                                    defaultCurrency,
+                                    totals: {
+                                        debtsIOwe: Number(totalDebtsIOweDefault.toFixed(2)),
+                                        credits: Number(totalCreditsDefault.toFixed(2)),
+                                        mortgages: Number(totalMortgagesDefault.toFixed(2)),
+                                        totalLiabilities: Number((totalDebtsIOweDefault + totalCreditsDefault + totalMortgagesDefault).toFixed(2)),
+                                        theyOweMe: Number(totalTheyOweMeDefault.toFixed(2)),
+                                    },
+                                    debts: debtItems,
+                                    credits: creditItems,
+                                    mortgages: mortgageItems,
+                                    missingRateCurrencies: Array.from(missingRateCurrencies),
                                 };
                             } else if (toolCall.function.name === "get_upcoming_payments") {
                                 const days = args.days || 30;
@@ -795,11 +1489,37 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                                 tool_call_id: toolCall.id,
                                 content: JSON.stringify(toolResult)
                             });
+                            upsertAgentTraceStep(agentTrace, {
+                                key: toolTraceKey,
+                                label: getToolDisplayLabel(toolCall.function.name),
+                                detail: summarizeToolResult(toolCall.function.name, toolResult),
+                                status: 'done',
+                            });
+                            await persistAgentTrace(userId, traceRequestId, agentTrace, false);
+                            aiRouterLogger.info({
+                                event: 'chat.tool_call.complete',
+                                requestId,
+                                userId,
+                                sessionId,
+                                turn: i + 1,
+                                toolCallId: toolCall.id,
+                                toolName: toolCall.function.name,
+                                durationMs: Date.now() - toolStartedAt,
+                                resultPreview: toPreview(toolResult),
+                            });
                         }
                         // Continue loop to get fresh response after tool outputs
                     } else {
                         // No tool calls, final response
                         finalResponseText = responseMessage.content || "";
+                        aiRouterLogger.info({
+                            event: 'chat.turn.final_response',
+                            requestId,
+                            userId,
+                            sessionId,
+                            turn: i + 1,
+                            responseLength: finalResponseText.length,
+                        });
                         break;
                     }
                 }
@@ -816,6 +1536,14 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
                         if (navCall && navCall.type === 'function') {
                             const args = JSON.parse(navCall.function.arguments);
                             clientAction = { type: 'navigate', path: args.path };
+                            aiRouterLogger.info({
+                                event: 'chat.client_action.detected',
+                                requestId,
+                                userId,
+                                sessionId,
+                                actionType: 'navigate',
+                                path: args.path,
+                            });
                             break;
                         }
                     }
@@ -832,10 +1560,35 @@ Answer concisely and helpful. Use emojis. If you need data, use the tools provid
 
                 // Increment usage
                 await AiUsageService.incrementUsage(userId);
+                aiRouterLogger.info({
+                    event: 'chat.request.complete',
+                    requestId,
+                    userId,
+                    sessionId,
+                    durationMs: Date.now() - requestStartedAt,
+                    responseLength: finalResponseText.length,
+                    hasClientAction: Boolean(clientAction),
+                });
 
-                return { response: finalResponseText, sessionId, clientAction };
+                await persistAgentTrace(userId, traceRequestId, agentTrace, true);
+                return { response: finalResponseText, sessionId, clientAction, agentTrace };
             } catch (error: any) {
-                console.error("AI Error:", error);
+                upsertAgentTraceStep(agentTrace, {
+                    key: 'error',
+                    label: 'Request failed',
+                    detail: error?.message || 'Unknown error',
+                    status: 'done',
+                });
+                await persistAgentTrace(userId, traceRequestId, agentTrace, true);
+                aiRouterLogger.error({
+                    event: 'chat.request.failed',
+                    requestId,
+                    userId,
+                    sessionId,
+                    durationMs: Date.now() - requestStartedAt,
+                    error: error?.message || String(error),
+                    stack: error?.stack,
+                });
                 throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message || 'AI Service Error' });
             }
         }),

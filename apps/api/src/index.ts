@@ -10,6 +10,7 @@ import { appRouter } from './routers';
 import { createContext } from './lib/trpc';
 import { rateLimitMiddleware } from './middleware/rate-limit';
 import { startCurrencyRatesCron } from './jobs/currency-rates';
+import { startSubscriptionNotificationsCron } from './jobs/subscription-notifications';
 import { logger } from './lib/logger';
 import { initErrorTracking, GlitchTip } from './lib/error-tracking';
 import { runMigrations } from './db/migrate';
@@ -30,7 +31,7 @@ app.use('*', honoLogger((str) => {
 }));
 app.use('*', secureHeaders());
 app.use('*', cors({
-    origin: process.env.WEB_URL || 'http://78.40.109.172:8080',
+    origin: process.env.WEB_URL || 'http://localhost:3000',
     credentials: true,
 }));
 
@@ -80,12 +81,17 @@ app.use('/trpc/*', trpcServer({
     createContext,
 }));
 
-const port = parseInt(process.env.PORT || '3005');
+const port = parseInt(process.env.PORT || '3006');
 
 // Start background jobs
 startCurrencyRatesCron();
+startSubscriptionNotificationsCron();
 
-console.log(`🚀 API server running on http://localhost:${port}`);
+logger.info({
+    event: 'server.start',
+    url: `http://localhost:${port}`,
+    port,
+});
 
 export default {
     port,

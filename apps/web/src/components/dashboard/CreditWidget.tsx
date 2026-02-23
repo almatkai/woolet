@@ -51,7 +51,7 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                         <CardTitle className="dashboard-widget__title truncate">Credits</CardTitle>
                         {isCompactStyle ? (
                             <div className="dashboard-widget__header-value">
-                                <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} abbreviate />
+                                <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} abbreviate size="sm" />
                             </div>
                         ) : (
                             <CreditCard className="dashboard-widget__icon" />
@@ -80,14 +80,14 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                         <div className="flex items-center gap-3">
                             <div>
                                 <div className="dashboard-widget__value text-lg">
-                                    <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} />
+                                    <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} className="max-[600px]:text-xs" />
                                 </div>
                             </div>
                             <Badge variant={allPaidThisMonth ? "default" : "destructive"} className="dashboard-widget__badge flex items-center gap-1 text-xs h-5 px-2">
                                 {allPaidThisMonth ? (
                                     <><Check className="h-2.5 w-2.5" /> Paid</>
                                 ) : (
-                                    <><X className="h-2.5 w-2.5" /> Unpaid</>
+                                    <><X className="h-2.5 w-2.5" /> <span className="max-[600px]:hidden">Unpaid</span></>
                                 )}
                             </Badge>
                         </div>
@@ -100,13 +100,13 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <div className="dashboard-widget__value">
-                                    <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} />
+                                    <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} className="max-[600px]:text-xs" />
                                 </div>
                                 <Badge variant={allPaidThisMonth ? "default" : "destructive"} className="dashboard-widget__badge flex items-center gap-1 text-xs h-5 px-2">
                                     {allPaidThisMonth ? (
                                         <><Check className="h-2.5 w-2.5" /> Paid</>
                                     ) : (
-                                        <><X className="h-2.5 w-2.5" /> Unpaid</>
+                                        <><X className="h-2.5 w-2.5" /> <span className="max-[600px]:hidden">Unpaid</span></>
                                     )}
                                 </Badge>
                             </div>
@@ -128,7 +128,7 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                                                 <span className="truncate text-sm font-medium">{credit.name}</span>
                                             </div>
                                             <span className="whitespace-nowrap flex-shrink-0">
-                                                <CurrencyDisplay amount={credit.monthlyPayment} currency={credit.currency} />
+                                                <CurrencyDisplay amount={credit.monthlyPayment} currency={credit.currency} className="max-[600px]:text-xs" />
                                             </span>
                                         </div>
                                     );
@@ -141,13 +141,13 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <div className="dashboard-widget__value">
-                                    <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} />
+                                    <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} className="max-[600px]:text-xs" />
                                 </div>
                                 <Badge variant={allPaidThisMonth ? "default" : "destructive"} className="dashboard-widget__badge flex items-center gap-1">
                                     {allPaidThisMonth ? (
                                         <><Check className="h-3 w-3" /> Paid</>
                                     ) : (
-                                        <><X className="h-3 w-3" /> Unpaid</>
+                                        <><X className="h-3 w-3" /> <span className="max-[600px]:hidden">Unpaid</span></>
                                     )}
                                 </Badge>
                             </div>
@@ -170,7 +170,7 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                                                 <span className="truncate text-sm font-medium">{credit.name}</span>
                                             </div>
                                             <span className="whitespace-nowrap ml-2">
-                                                <CurrencyDisplay amount={credit.monthlyPayment} currency={credit.currency} />
+                                                <CurrencyDisplay amount={credit.monthlyPayment} currency={credit.currency} className="max-[600px]:text-xs" />
                                             </span>
                                         </div>
                                     );
@@ -195,7 +195,7 @@ export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: numb
                                             <span className="truncate">{credit.name}</span>
                                         </div>
                                         <span className="font-medium whitespace-nowrap ml-2">
-                                            <CurrencyDisplay amount={credit.monthlyPayment} currency={credit.currency} />
+                                            <CurrencyDisplay amount={credit.monthlyPayment} currency={credit.currency} className="max-[600px]:text-xs" />
                                         </span>
                                     </div>
                                 );

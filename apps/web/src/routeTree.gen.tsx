@@ -1,11 +1,41 @@
-import { createRootRoute, createRoute, Outlet, useLocation } from '@tanstack/react-router';
+import { createRootRoute, createRoute, Outlet, useLocation, Navigate } from '@tanstack/react-router';
 import { SignedIn, useAuth } from '@clerk/clerk-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AiChatFloatingItem } from '@/components/AiChatWidget';
+import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// Dashboard-like loading screen shown while Clerk resolves auth state
+function DashboardLoadingScreen() {
+    return (
+        <div className="min-h-screen w-full bg-background p-3 md:p-6">
+            <div className="space-y-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="space-y-2">
+                        <Skeleton className="h-8 w-44" />
+                        <Skeleton className="h-4 w-64" />
+                    </div>
+                    <div className="flex gap-2">
+                        <Skeleton className="h-9 w-24" />
+                        <Skeleton className="h-9 w-28" />
+                    </div>
+                </div>
+
+                <Skeleton className="h-24 w-full rounded-xl" />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                    {Array.from({ length: 12 }).map((_, i) => (
+                        <Skeleton key={i} className="h-44 w-full rounded-xl" />
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
 
 // Routes
 import { Dashboard } from './routes/index';
@@ -35,13 +65,24 @@ import { PostHogPageviewTracker, PostHogUserIdentifier } from './components/Post
 
 // Root layout with sidebar
 function RootLayout() {
-    const { isSignedIn } = useAuth();
+    const { isSignedIn, isLoaded } = useAuth();
     const location = useLocation();
     const isSettingsRoute = location.pathname.startsWith('/settings');
     const isAuthRoute = location.pathname.startsWith('/login')
         || location.pathname.startsWith('/register')
         || location.pathname.startsWith('/sso-callback');
     const isAdminRoute = location.pathname.startsWith('/admin');
+    const isPublicRoute = isAuthRoute;
+
+    // Block all route rendering until auth state is resolved to avoid UI flicker
+    // between protected pages and auth pages.
+    if (!isLoaded) {
+        return <DashboardLoadingScreen />;
+    }
+
+    if (!isPublicRoute && !isSignedIn) {
+        return <Navigate to="/login" replace />;
+    }
 
     // Admin route should have minimal layout
     if (isAdminRoute) {
@@ -68,24 +109,27 @@ function RootLayout() {
                     <SignedIn>
                         {!isAuthRoute && (
                             <header className={cn(
-                                "sticky top-0 z-40 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4"
+                                "sticky top-0 z-40 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4",
+                                "max-[470px]:hidden"
                             )}>
                                 <SidebarTrigger className="-ml-1" />
                                 <Separator orientation="vertical" className="hidden sm:block mr-2 h-4" />
                             </header>
                         )}
                     </SignedIn>
-                    <main className={cn("flex-1 w-full overflow-y-auto overflow-x-hidden", isSignedIn && !isSettingsRoute && !isAuthRoute ? "p-3 md:p-6" : "p-0")}>
+                    <main className={cn("flex-1 w-full overflow-y-auto overflow-x-hidden", isSignedIn && !isSettingsRoute && !isAuthRoute ? "p-3 md:p-6" : "p-0", "max-[470px]:pb-24")}>
                         <Outlet />
                     </main>
                 </SidebarInset>
+                <SignedIn>
+                    {!isAuthRoute && (
+                        <>
+                            <AiChatFloatingItem />
+                            <MobileBottomNav />
+                        </>
+                    )}
+                </SignedIn>
             </SidebarProvider>
-
-            <SignedIn>
-                {!isAuthRoute && (
-                    <AiChatFloatingItem variant="mobile" />
-                )}
-            </SignedIn>
         </>
     );
 }

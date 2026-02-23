@@ -36,6 +36,13 @@
       "when": 1770653054858,
       "tag": "0004_robust_kat_farrell",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1771793286571,
+      "tag": "0005_notification_preferences",
+      "breakpoints": true
     }
   ]
 }

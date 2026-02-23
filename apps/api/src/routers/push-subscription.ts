@@ -35,7 +35,7 @@ export const pushSubscriptionRouter = router({
                 auth: z.string(),
             }),
             browserName: z.string().optional(),
-            expirationTime: z.number().optional(),
+            expirationTime: z.number().nullable().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             const expiresAt = input.expirationTime

@@ -4,7 +4,7 @@ import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../lib/trpc';
 import { notifications } from '../db/schema';
 import type { NotificationType, NotificationPriority } from '../db/schema/notifications';
-import { sendPushNotification } from '../services/push-notification-service';
+import { deliverNotificationChannels } from '../services/notification-delivery-service';
 
 const notificationTypeSchema = z.enum([
     'subscription_due',
@@ -185,20 +185,16 @@ export const notificationRouter = router({
             }).returning();
 
             if (input.sendPush) {
-                try {
-                    await sendPushNotification(ctx.userId!, {
-                        title: input.title,
-                        body: input.message,
-                        url: links.web,
-                        requireInteraction: input.priority === 'urgent' || input.priority === 'high',
-                        data: {
-                            entityType: input.entityType,
-                            entityId: input.entityId,
-                        },
-                    });
-                } catch (error) {
-                    console.error('Failed to send push notification:', error);
-                }
+                await deliverNotificationChannels({
+                    userId: ctx.userId!,
+                    title: input.title,
+                    message: input.message,
+                    url: links.web,
+                    priority: input.priority,
+                    entityType: input.entityType,
+                    entityId: input.entityId,
+                    metadata: input.metadata,
+                });
             }
 
             return notification;
@@ -404,20 +400,16 @@ export const notificationRouter = router({
             }).returning();
             
             if (sendPush) {
-                try {
-                    await sendPushNotification(ctx.userId!, {
-                        title,
-                        body: message,
-                        url: links.web,
-                        requireInteraction: priority === 'urgent' || priority === 'high',
-                        data: {
-                            entityType: 'subscription',
-                            entityId: subscriptionId,
-                        },
-                    });
-                } catch (error) {
-                    console.error('Failed to send push notification:', error);
-                }
+                await deliverNotificationChannels({
+                    userId: ctx.userId!,
+                    title,
+                    message,
+                    url: links.web,
+                    priority,
+                    entityType: 'subscription',
+                    entityId: subscriptionId,
+                    metadata: { amount, currency, dueDate, daysUntilDue },
+                });
             }
             
             return notification;

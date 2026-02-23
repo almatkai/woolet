@@ -4,6 +4,7 @@ import { trpc } from '@/lib/trpc';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from '@tanstack/react-router';
@@ -21,9 +22,10 @@ import {
     Upload,
     FileJson,
     Loader2,
-    ListChecks
+    ListChecks,
+    Mail
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PushNotificationSettings, usePushNotifications } from '@/hooks/usePushNotifications';
 import {
@@ -56,8 +58,14 @@ export function SettingsPage() {
     const [isImporting, setIsImporting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [pushSettingsOpen, setPushSettingsOpen] = useState(false);
+    const [emailNotificationAddress, setEmailNotificationAddress] = useState('');
 
-    const { isSupported, isSubscribed, subscribe, unsubscribe } = usePushNotifications();
+    const { isSupported, isSubscribed, isLoading, isUpdating, vapidPublicKey, vapidKeyError, error: pushError, subscribe, unsubscribe } = usePushNotifications();
+    const hasBrowserPermission =
+        typeof window !== 'undefined' &&
+        typeof Notification !== 'undefined' &&
+        Notification.permission === 'granted';
+    const needsInAppSetup = hasBrowserPermission && !isSubscribed;
 
     const utils = trpc.useUtils();
 
@@ -99,6 +107,50 @@ export function SettingsPage() {
     const mortgageStatusPeriod = settings?.mortgageStatusPeriod ?? 'global';
     const subscriptionStatusLogic = settings?.subscriptionStatusLogic ?? 'global';
     const subscriptionStatusPeriod = settings?.subscriptionStatusPeriod ?? 'global';
+    const notificationsEnabled = settings?.notificationsEnabled ?? true;
+    const browserNotificationsEnabled = settings?.browserNotificationsEnabled ?? true;
+    const emailNotificationsEnabled = settings?.emailNotificationsEnabled ?? false;
+    const subscriptionReminderDays = String(settings?.subscriptionReminderDays ?? 3);
+    const creditReminderDays = String(settings?.creditReminderDays ?? 3);
+    const mortgageReminderDays = String(settings?.mortgageReminderDays ?? 3);
+
+    useEffect(() => {
+        setEmailNotificationAddress(settings?.emailNotificationAddress || '');
+    }, [settings?.emailNotificationAddress]);
+
+    const handlePushToggle = async () => {
+        if (isUpdating) {
+            return;
+        }
+
+        if (!isSupported) {
+            toast.error('Push notifications are not supported in this browser');
+            return;
+        }
+
+        if (isLoading) {
+            toast.message('Push setup is still loading. Please try again in a moment.');
+            return;
+        }
+
+        if (!vapidPublicKey) {
+            toast.error(vapidKeyError || 'Push notifications are not configured on the server');
+            return;
+        }
+
+        try {
+            if (isSubscribed) {
+                await unsubscribe();
+                toast.success('Push notifications disabled');
+            } else {
+                await subscribe();
+                toast.success('Push notifications enabled');
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to update push notifications';
+            toast.error(message);
+        }
+    };
 
     const exportData = async () => {
         setIsExporting(true);
@@ -139,10 +191,12 @@ export function SettingsPage() {
     };
 
     return (
-        <div className="space-y-8">
-            <div className="flex flex-col gap-1 mb-8">
-                <h1 className="text-4xl font-medium tracking-tight text-foreground">General Settings</h1>
-                <p className="text-muted-foreground text-lg">Manage your application preferences and appearance.</p>
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold">General Settings</h1>
+                    <p className="hidden sm:block text-muted-foreground">Manage your application preferences and appearance.</p>
+                </div>
             </div>
 
             <PushNotificationSettings open={pushSettingsOpen} onOpenChange={setPushSettingsOpen} />
@@ -433,43 +487,160 @@ export function SettingsPage() {
                 <CardHeader>
                     <CardTitle className="text-xl font-bold flex items-center gap-2">
                         <Bell className="size-5 text-primary" />
-                        Push Notifications
+                        Notification Preferences
                     </CardTitle>
-                    <CardDescription>Receive browser notifications for subscription reminders and payment alerts</CardDescription>
+                    <CardDescription>
+                        Configure channels and reminder timing for unpaid subscription, credit, and mortgage payments.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">
+                        <div>
+                            <Label className="text-base font-semibold">Enable Notifications</Label>
+                            <p className="text-sm text-muted-foreground">Master switch for all reminders and alerts</p>
+                        </div>
+                        <Switch
+                            checked={notificationsEnabled}
+                            onCheckedChange={(checked) => updateSettings.mutate({ notificationsEnabled: checked })}
+                        />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">
+                        <div>
+                            <Label className="text-base font-semibold">Browser Push Channel</Label>
+                            <p className="text-sm text-muted-foreground">Send reminders to browser notifications</p>
+                        </div>
+                        <Switch
+                            checked={browserNotificationsEnabled}
+                            onCheckedChange={(checked) => updateSettings.mutate({ browserNotificationsEnabled: checked })}
+                            disabled={!notificationsEnabled}
+                        />
+                    </div>
+
+                    <div className="space-y-3">
+                        <Label className="text-base font-semibold">Reminder Window (days before due date)</Label>
+                        <div className="grid gap-3 md:grid-cols-3">
+                            <div className="space-y-2">
+                                <Label className="text-sm text-muted-foreground">Subscriptions</Label>
+                                <Select
+                                    value={subscriptionReminderDays}
+                                    onValueChange={(value) => updateSettings.mutate({ subscriptionReminderDays: Number(value) })}
+                                    disabled={!notificationsEnabled}
+                                >
+                                    <SelectTrigger className="bg-background border-border">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="0">0 (Due day only)</SelectItem>
+                                        <SelectItem value="1">1 day</SelectItem>
+                                        <SelectItem value="2">2 days</SelectItem>
+                                        <SelectItem value="3">3 days</SelectItem>
+                                        <SelectItem value="5">5 days</SelectItem>
+                                        <SelectItem value="7">7 days</SelectItem>
+                                        <SelectItem value="10">10 days</SelectItem>
+                                        <SelectItem value="14">14 days</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-sm text-muted-foreground">Credits</Label>
+                                <Select
+                                    value={creditReminderDays}
+                                    onValueChange={(value) => updateSettings.mutate({ creditReminderDays: Number(value) })}
+                                    disabled={!notificationsEnabled}
+                                >
+                                    <SelectTrigger className="bg-background border-border">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="0">0 (Due day only)</SelectItem>
+                                        <SelectItem value="1">1 day</SelectItem>
+                                        <SelectItem value="2">2 days</SelectItem>
+                                        <SelectItem value="3">3 days</SelectItem>
+                                        <SelectItem value="5">5 days</SelectItem>
+                                        <SelectItem value="7">7 days</SelectItem>
+                                        <SelectItem value="10">10 days</SelectItem>
+                                        <SelectItem value="14">14 days</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-sm text-muted-foreground">Mortgages</Label>
+                                <Select
+                                    value={mortgageReminderDays}
+                                    onValueChange={(value) => updateSettings.mutate({ mortgageReminderDays: Number(value) })}
+                                    disabled={!notificationsEnabled}
+                                >
+                                    <SelectTrigger className="bg-background border-border">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="0">0 (Due day only)</SelectItem>
+                                        <SelectItem value="1">1 day</SelectItem>
+                                        <SelectItem value="2">2 days</SelectItem>
+                                        <SelectItem value="3">3 days</SelectItem>
+                                        <SelectItem value="5">5 days</SelectItem>
+                                        <SelectItem value="7">7 days</SelectItem>
+                                        <SelectItem value="10">10 days</SelectItem>
+                                        <SelectItem value="14">14 days</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Push Notifications */}
+            <Card className="bg-card/30 backdrop-blur-sm border-border/50">
+                <CardHeader>
+                    <CardTitle className="text-xl font-bold flex items-center gap-2">
+                        <Bell className="size-5 text-primary" />
+                        Browser Push Setup
+                    </CardTitle>
+                    <CardDescription>Connect this browser to receive push notifications</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">
-                        <div className="flex items-center gap-3">
-                            {isSubscribed ? (
+                            <div className="flex items-center gap-3">
+                            {isSubscribed || hasBrowserPermission ? (
                                 <BellRing className="size-5 text-green-500" />
                             ) : (
                                 <Bell className="size-5 text-muted-foreground" />
                             )}
                             <div>
                                 <p className="font-medium">
-                                    {isSubscribed ? 'Notifications Enabled' : 'Browser Notifications'}
+                                    {isSubscribed
+                                        ? 'Notifications Enabled'
+                                        : hasBrowserPermission
+                                            ? 'Setup Required'
+                                            : 'Browser Notifications'}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
                                     {isSubscribed
                                         ? 'You will receive push notifications'
-                                        : 'Enable to receive notifications outside the app'}
+                                        : needsInAppSetup
+                                            ? 'Browser permission is on, but push setup is not complete.'
+                                            : 'Enable to receive notifications outside the app'}
                                 </p>
                             </div>
                         </div>
                         <Button
                             variant={isSubscribed ? 'outline' : 'default'}
-                            onClick={() => {
-                                if (isSubscribed) {
-                                    unsubscribe().catch(console.error);
-                                } else {
-                                    subscribe().catch(console.error);
-                                }
-                            }}
-                            disabled={!isSupported}
+                            onClick={handlePushToggle}
+                            disabled={isUpdating}
                         >
-                            {isSubscribed ? 'Disable' : 'Enable'}
+                            {isUpdating ? 'Working...' : isSubscribed ? 'Disable' : needsInAppSetup ? 'Finish setup' : 'Enable'}
                         </Button>
                     </div>
+
+                    {(vapidKeyError || pushError?.message) && (
+                        <p className="text-sm text-destructive">
+                            {vapidKeyError || pushError?.message}
+                        </p>
+                    )}
 
                     {!isSupported && (
                         <p className="text-sm text-muted-foreground">
@@ -594,4 +765,3 @@ export function SettingsPage() {
         </div>
     );
 }
-

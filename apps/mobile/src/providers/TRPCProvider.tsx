@@ -37,14 +37,14 @@ export const TRPCProvider: React.FC<{ children: React.ReactNode }> = ({ children
 const getBaseUrl = () => {
   /**
    * Gets the IP address of your host-machine. If it cannot automatically find it,
-   * you'll have to manually set it. NOTE: Port 3005 is from your API server.
+   * you'll have to manually set it. NOTE: Port 3006 is from your API server.
    */
   const debuggerHost = Constants.expoConfig?.hostUri;
   const localhost = debuggerHost?.split(':')[0];
 
   if (!localhost) {
     // return 'https://your-production-url.com';
-    return 'http://localhost:3005/trpc';
+    return 'http://localhost:3006/trpc';
   }
-  return `http://${localhost}:3005/trpc`;
+  return `http://${localhost}:3006/trpc`;
 };
