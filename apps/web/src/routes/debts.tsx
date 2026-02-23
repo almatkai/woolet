@@ -13,6 +13,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { PageHeader } from '@/components/PageHeader';
 import { AddDebtSheet } from '@/components/AddDebtSheet';
 import { AddDebtPaymentSheet } from '@/components/AddDebtPaymentSheet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -467,13 +468,13 @@ export function DebtsPage() {
 
     return (
         <div className="space-y-4 md:space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold">Debts</h1>
-                    <p className="hidden sm:block text-sm md:text-base text-muted-foreground">Track who owes you and who you owe</p>
-                </div>
+            <PageHeader
+                title="Debts"
+                subtitle="Track who owes you and who you owe"
+                variant="one"
+            >
                 <AddDebtSheet />
-            </div>
+            </PageHeader>
             <div className="grid gap-4 md:grid-cols-2">
                 <Card>
                     <CardHeader>

@@ -3,11 +3,12 @@ import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { Navigate } from '@tanstack/react-router';
 import {
     Pencil,
+    Plus,
     Save,
     X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { trpc } from '@/lib/trpc';
+import { PageHeader } from '@/components/PageHeader';
 import { UniversalAddSheet } from '@/components/UniversalAddSheet';
 import { SpendingChart } from '@/components/SpendingChart';
 import { CategoryPieChart } from '@/components/CategoryPieChart';
@@ -40,44 +41,50 @@ export function Dashboard() {
             </SignedOut>
 
             <SignedIn>
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-                    </div>
-                    <div className="flex gap-2">
-                        {isEditing ? (
-                            <>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        setIsEditing(false);
-                                        dashboardGridRef.current?.handleCancel();
-                                    }}
-                                >
-                                    <X className="mr-2 h-4 w-4" />
-                                    Cancel
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    onClick={() => {
-                                        setIsEditing(false);
-                                        dashboardGridRef.current?.handleSave();
-                                    }}
-                                >
-                                    <Save className="mr-2 h-4 w-4" />
-                                    Save Layout
-                                </Button>
-                            </>
-                        ) : (
-                            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-                                <Pencil className="mr-2 h-4 w-4" />
+                <PageHeader title="Dashboard" variant="two-with-text">
+                    {isEditing ? (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    setIsEditing(false);
+                                    dashboardGridRef.current?.handleCancel();
+                                }}
+                                className="gap-2 flex-1 sm:flex-none"
+                            >
+                                <X className="h-4 w-4" />
+                                Cancel
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={() => {
+                                    setIsEditing(false);
+                                    dashboardGridRef.current?.handleSave();
+                                }}
+                                className="gap-2 flex-1 sm:flex-none"
+                            >
+                                <Save className="h-4 w-4" />
+                                Save Layout
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="gap-2 flex-1 sm:flex-none">
+                                <Pencil className="h-4 w-4" />
                                 Edit Layout
                             </Button>
-                        )}
-                        <UniversalAddSheet />
-                    </div>
-                </div>
+                            <UniversalAddSheet
+                                trigger={
+                                    <Button size="sm" className="gap-2 flex-1 sm:flex-none">
+                                        <Plus className="h-4 w-4" />
+                                        Add
+                                    </Button>
+                                }
+                            />
+                        </>
+                    )}
+                </PageHeader>
 
                 <PricingCtaBanner variant="inline" className="mb-4" />
 

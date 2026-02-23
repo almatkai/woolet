@@ -29,8 +29,17 @@ interface AddOption {
     href?: string;
 }
 
-export function UniversalAddSheet() {
-    const [open, setOpen] = useState(false);
+interface UniversalAddSheetProps {
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    trigger?: React.ReactNode;
+}
+
+export function UniversalAddSheet({ open: openProp, onOpenChange, trigger }: UniversalAddSheetProps = {}) {
+    const isControlled = openProp !== undefined;
+    const [openInternal, setOpenInternal] = useState(false);
+    const open = isControlled ? openProp! : openInternal;
+    const setOpen = isControlled ? (v: boolean) => onOpenChange?.(v) : setOpenInternal;
     const [selectedOption, setSelectedOption] = useState<string | null>('transaction');
     const navigate = useNavigate();
     const [isSmallScreen, setIsSmallScreen] = useState(false);
@@ -141,12 +150,16 @@ export function UniversalAddSheet() {
 
     return (
         <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-                <Button size="sm">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add
-                </Button>
-            </SheetTrigger>
+            {!isControlled && (
+                <SheetTrigger asChild>
+                    {trigger ?? (
+                        <Button size="sm" className="gap-2">
+                            <Plus className="h-4 w-4" />
+                            Add
+                        </Button>
+                    )}
+                </SheetTrigger>
+            )}
             <SheetContent side="right" className="w-full sm:max-w-4xl p-0">
                 <div className="flex h-full">
                     {/* Left Sidebar - Type Selection */}

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AiChatFloatingItem } from '@/components/AiChatWidget';
+import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -108,20 +109,24 @@ function RootLayout() {
                     <SignedIn>
                         {!isAuthRoute && (
                             <header className={cn(
-                                "sticky top-0 z-40 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4"
+                                "sticky top-0 z-40 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4",
+                                "max-[470px]:hidden"
                             )}>
                                 <SidebarTrigger className="-ml-1" />
                                 <Separator orientation="vertical" className="hidden sm:block mr-2 h-4" />
                             </header>
                         )}
                     </SignedIn>
-                    <main className={cn("flex-1 w-full overflow-y-auto overflow-x-hidden", isSignedIn && !isSettingsRoute && !isAuthRoute ? "p-3 md:p-6" : "p-0")}>
+                    <main className={cn("flex-1 w-full overflow-y-auto overflow-x-hidden", isSignedIn && !isSettingsRoute && !isAuthRoute ? "p-3 md:p-6" : "p-0", "max-[470px]:pb-24")}>
                         <Outlet />
                     </main>
                 </SidebarInset>
                 <SignedIn>
                     {!isAuthRoute && (
-                        <AiChatFloatingItem />
+                        <>
+                            <AiChatFloatingItem />
+                            <MobileBottomNav />
+                        </>
                     )}
                 </SignedIn>
             </SidebarProvider>

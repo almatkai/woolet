@@ -183,12 +183,12 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
                             return (
                             <div key={tx.id} className="flex items-center justify-between py-1 px-1 sm:p-1.5 hover:bg-muted/50 rounded-lg transition-colors gap-2">
                                 <div className="flex items-center gap-2 min-w-0">
-                                    <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-full bg-muted/60 flex items-center justify-center dashboard-widget__item text-xs flex-shrink-0">
+                                    <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-full bg-muted/60 flex items-center justify-center dashboard-widget__item text-xs flex-shrink-0 max-[600px]:hidden">
                                         {tx.category?.icon || '📄'}
                                     </div>
                                     <div className="min-w-0">
                                         <p className="dashboard-widget__item font-medium text-sm truncate max-w-[120px] sm:max-w-[170px] leading-tight">{tx.description || tx.category?.name || 'Unknown'}</p>
-                                        <p className="dashboard-widget__meta text-xs text-muted-foreground mt-0.5">
+                                        <p className="dashboard-widget__meta text-xs max-[600px]:text-[10px] text-muted-foreground mt-0.5">
                                             {new Date(tx.date).toLocaleDateString()}
                                         </p>
                                     </div>
@@ -202,6 +202,7 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
                                         currency={tx.currencyBalance?.currencyCode || 'USD'}
                                         showSign={tx.type === 'income'}
                                         abbreviate={shouldAbbreviate}
+                                        className="max-[600px]:text-xs"
                                     />
                                 </span>
                             </div>

@@ -518,6 +518,15 @@ export function AiChatFloatingItem() {
         return () => mql.removeEventListener('change', syncViewport);
     }, []);
 
+    const [hasMobileBottomNav, setHasMobileBottomNav] = useState(false);
+    useEffect(() => {
+        const mql = window.matchMedia('(max-width: 470px)');
+        const sync = () => setHasMobileBottomNav(mql.matches);
+        sync();
+        mql.addEventListener('change', sync);
+        return () => mql.removeEventListener('change', sync);
+    }, []);
+
     useEffect(() => {
         if (!isOpen || isWideChatViewport) {
             setCompactPanelHeight(null);
@@ -594,7 +603,11 @@ export function AiChatFloatingItem() {
     };
 
     const isCompactViewport = !isWideChatViewport;
-    const triggerPositionClass = isSidebarMobile ? "bottom-4 right-4" : "bottom-6 right-6";
+    const triggerPositionClass = isSidebarMobile
+        ? hasMobileBottomNav
+            ? "bottom-24 right-4"
+            : "bottom-4 right-4"
+        : "bottom-6 right-6";
     const panelPositionClass = isCompactViewport
         ? "fixed inset-x-0 z-[46] pointer-events-auto mx-auto"
         : "fixed bottom-6 right-6 z-[46] pointer-events-auto";

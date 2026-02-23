@@ -140,7 +140,7 @@ export function AssetAllocationWidget({ gridParams }: AssetAllocationWidgetProps
                     ) : (
                         <>
                             {/* Left: Full-size Voronoi Diagram */}
-                            <div className="h-full flex items-center justify-center" style={{ flex: '0 0 45%' }}>
+                            <div className="h-full flex items-center justify-center" style={{ flex: '0 0 60%' }}>
                                 <VoronoiTreemap
                                     data={allocationData}
                                     resolution={250}

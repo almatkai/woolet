@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus, PiggyBank, Trash2, Edit, DollarSign, Calendar, Percent, TrendingUp, Building } from 'lucide-react';
 import { toast } from 'sonner';
+import { PageHeader } from '@/components/PageHeader';
 import { AddDepositSheet } from '@/components/AddDepositSheet';
 import {
     AlertDialog,
@@ -85,16 +86,16 @@ export default function DepositsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold">Deposits</h1>
-                    <p className="hidden sm:block text-muted-foreground">Manage your savings and deposits</p>
-                </div>
-                <Button onClick={() => setShowAddDeposit(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
+            <PageHeader
+                title="Deposits"
+                subtitle="Manage your savings and deposits"
+                variant="one"
+            >
+                <Button onClick={() => setShowAddDeposit(true)} className="gap-2">
+                    <Plus className="h-4 w-4" />
                     Add Deposit
                 </Button>
-            </div>
+            </PageHeader>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

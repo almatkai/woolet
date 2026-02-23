@@ -191,10 +191,12 @@ export function SettingsPage() {
     };
 
     return (
-        <div className="space-y-8">
-            <div className="flex flex-col gap-1 mb-8">
-                <h1 className="text-4xl font-medium tracking-tight text-foreground">General Settings</h1>
-                <p className="text-muted-foreground text-lg">Manage your application preferences and appearance.</p>
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold">General Settings</h1>
+                    <p className="hidden sm:block text-muted-foreground">Manage your application preferences and appearance.</p>
+                </div>
             </div>
 
             <PushNotificationSettings open={pushSettingsOpen} onOpenChange={setPushSettingsOpen} />
