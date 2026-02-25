@@ -18,6 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { IconDisplay } from '@/components/IconDisplay';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface CurrencyBalance {
     id: string;
@@ -54,6 +55,7 @@ interface InvestmentCashBalance {
 export function SeeInvestingAccountsSheet({ trigger }: { trigger?: React.ReactNode } = {}) {
     const [open, setOpen] = useState(false);
     const [showUSD, setShowUSD] = useState(true);
+    const isCompactMobile = useIsMobile(470);
 
     // Get user's default currency
     const { data: userSettings } = trpc.settings.getUserSettings.useQuery();
@@ -156,7 +158,10 @@ export function SeeInvestingAccountsSheet({ trigger }: { trigger?: React.ReactNo
                     </Button>
                 )}
             </SheetTrigger>
-            <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+            <SheetContent
+                side={isCompactMobile ? 'bottom' : 'right'}
+                className="w-full sm:max-w-lg overflow-y-auto max-[470px]:h-[92dvh] max-[470px]:rounded-t-2xl max-[470px]:pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
+            >
                 <SheetHeader>
                     <SheetTitle className="flex items-center gap-2">
                         <Landmark className="h-5 w-5" />

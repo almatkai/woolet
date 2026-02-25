@@ -24,6 +24,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useIsMobile } from '@/hooks/use-mobile';
 // Switch removed (unused)
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -49,6 +50,7 @@ interface TransferSheetProps {
 
 export function TransferSheet({ preselectedSenderId, trigger }: TransferSheetProps) {
     const [open, setOpen] = useState(false);
+    const isCompactMobile = useIsMobile(470);
     const utils = trpc.useUtils();
 
     // Fetch all accounts to populate sender/receiver lists
@@ -141,22 +143,22 @@ export function TransferSheet({ preselectedSenderId, trigger }: TransferSheetPro
                     </Button>
                 )}
             </SheetTrigger>
-            <SheetContent className="sm:max-w-[500px] overflow-y-auto">
-                <SheetHeader>
+            <SheetContent
+                side={isCompactMobile ? 'bottom' : 'right'}
+                className="sm:max-w-[500px] overflow-y-auto max-[470px]:h-[92dvh] max-[470px]:rounded-t-2xl max-[470px]:pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
+            >
+                <SheetHeader className="pb-1">
                     <SheetTitle>Transfer Money</SheetTitle>
-                    <SheetDescription>
-                        Move money between your accounts with optional fees and exchange rates.
-                    </SheetDescription>
                 </SheetHeader>
 
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-6">
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 pt-2">
                     {/* Sender Selection */}
-                    <div className="p-4 rounded-xl bg-muted/30 border space-y-3">
+                    <div className="p-2.5 rounded-xl bg-muted/30 border space-y-1.5">
                         <div className="flex items-center justify-between">
-                            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">From (Sender)</Label>
+                            <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">From (Sender)</Label>
                             {sender && (
-                                <span className="text-xs font-medium px-2 py-0.5 rounded bg-background border animate-in fade-in zoom-in duration-300">
-                                    Balance: {sender.balance.toLocaleString()} {sender.currencyCode}
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-background border animate-in fade-in zoom-in duration-300">
+                                    {sender.balance.toLocaleString()} {sender.currencyCode}
                                 </span>
                             )}
                         </div>
@@ -164,34 +166,40 @@ export function TransferSheet({ preselectedSenderId, trigger }: TransferSheetPro
                             onValueChange={(val) => setValue('fromCurrencyBalanceId', val)}
                             defaultValue={preselectedSenderId}
                         >
-                            <SelectTrigger className="h-14 bg-background">
+                            <SelectTrigger className="h-9 bg-background text-sm">
                                 <SelectValue placeholder="Select sender account" />
                             </SelectTrigger>
                             <SelectContent>
                                 {allBalances.map((b: any) => (
                                     <SelectItem key={b.id} value={b.id}>
-                                        <div className="flex flex-col items-start py-1">
+                                        <div className="flex flex-col items-start">
                                             <span className="font-medium text-sm">{formatAccountLabel(b.bankName || 'Unknown Bank', b.accountName, b.last4Digits)}</span>
-                                            <span className="text-xs text-muted-foreground">{b.currencyCode} • {b.balance.toLocaleString()}</span>
                                         </div>
                                     </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
-                        {errors.fromCurrencyBalanceId && <p className="text-sm text-red-500">{(errors.fromCurrencyBalanceId as any).message}</p>}
+                        {errors.fromCurrencyBalanceId && <p className="text-xs text-red-500">{(errors.fromCurrencyBalanceId as any).message}</p>}
                     </div>
 
-                    <div className="flex justify-center -my-2 relative z-10">
-                        <div className="bg-background rounded-full p-1 border shadow-sm">
-                            <ArrowRight className="h-4 w-4 text-muted-foreground rotate-90" />
+                    <div className="flex justify-center -my-1 relative z-10">
+                        <div className="bg-background rounded-full p-0.5 border shadow-sm">
+                            <ArrowRight className="h-3 w-3 text-muted-foreground rotate-90" />
                         </div>
                     </div>
 
                     {/* Receiver Selection */}
-                    <div className="p-4 rounded-xl bg-muted/30 border space-y-3">
-                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">To (Receiver)</Label>
+                    <div className="p-2.5 rounded-xl bg-muted/30 border space-y-1.5">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">To (Receiver)</Label>
+                            {receiver && (
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-background border animate-in fade-in zoom-in duration-300">
+                                    {receiver.balance.toLocaleString()} {receiver.currencyCode}
+                                </span>
+                            )}
+                        </div>
                         <Select onValueChange={(val) => setValue('toCurrencyBalanceId', val)}>
-                            <SelectTrigger className="h-14 bg-background">
+                            <SelectTrigger className="h-9 bg-background text-sm">
                                 <SelectValue placeholder="Select receiver account" />
                             </SelectTrigger>
                             <SelectContent>
@@ -199,15 +207,14 @@ export function TransferSheet({ preselectedSenderId, trigger }: TransferSheetPro
                                     .filter((b: any) => b.id !== fromId) // Exclude sender
                                     .map((b: any) => (
                                         <SelectItem key={b.id} value={b.id}>
-                                            <div className="flex flex-col items-start py-1">
+                                            <div className="flex flex-col items-start">
                                                 <span className="font-medium text-sm">{formatAccountLabel(b.bankName || 'Unknown Bank', b.accountName, b.last4Digits)}</span>
-                                                <span className="text-xs text-muted-foreground">{b.currencyCode} • {b.balance.toLocaleString()}</span>
                                             </div>
                                         </SelectItem>
                                     ))}
                             </SelectContent>
                         </Select>
-                        {errors.toCurrencyBalanceId && <p className="text-sm text-red-500">{(errors.toCurrencyBalanceId as any).message}</p>}
+                        {errors.toCurrencyBalanceId && <p className="text-xs text-red-500">{(errors.toCurrencyBalanceId as any).message}</p>}
                     </div>
 
                     {/* Amount & Date */}

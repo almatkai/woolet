@@ -7,6 +7,7 @@ import { Plus, Settings2, Bookmark } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
 import { formatAccountLabel } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { ManageCategoriesSheet } from '@/components/ManageCategoriesSheet';
 import { SplitSelector } from '@/components/SplitBillComponents';
 import { Button } from '@/components/ui/button';
@@ -98,6 +99,7 @@ export function AddTransactionSheet({
     favoriteShortcuts = [],
     onOpenShortcut,
 }: AddTransactionSheetProps = {}) {
+    const isCompactMobile = useIsMobile(470);
     const [internalOpen, setInternalOpen] = useState(false);
     const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
     const setOpen = controlledOnOpenChange || setInternalOpen;
@@ -282,7 +284,10 @@ export function AddTransactionSheet({
                     )}
                 </SheetTrigger>
             )}
-            <SheetContent className="flex flex-col h-full">
+            <SheetContent
+                side={isCompactMobile ? 'bottom' : 'right'}
+                className="flex h-full flex-col max-[470px]:h-[92dvh] max-[470px]:rounded-t-2xl max-[470px]:pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
+            >
                 <SheetHeader className="px-1">
                     <SheetTitle>Add Transaction</SheetTitle>
                     <SheetDescription>
@@ -334,7 +339,7 @@ export function AddTransactionSheet({
                         if (errorMessages.length > 0) {
                             toast.error(`Please fill required fields: ${errorMessages.join(', ')}`);
                         }
-                    })} className="space-y-6 pt-6 pb-10">
+                    })} className="space-y-2 pt-2 pb-4">
                         <Tabs defaultValue={watch('type') || 'expense'} onValueChange={(val) => setValue('type', val as 'income' | 'expense' | 'transfer')} className="w-full">
                             <TabsList className="grid w-full grid-cols-3">
                                 <TabsTrigger value="expense">Expense</TabsTrigger>
@@ -343,7 +348,7 @@ export function AddTransactionSheet({
                             </TabsList>
                         </Tabs>
 
-                        <div className="p-4 rounded-xl bg-muted/30 border space-y-3 transition-all duration-200">
+                        <div className="p-2 rounded-xl bg-muted/30 border space-y-2 transition-all duration-200">
                             <div className="flex items-center justify-between">
                                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                     {transactionType === 'transfer' ? 'From Account' : 'Account'}
@@ -362,13 +367,13 @@ export function AddTransactionSheet({
                                 }}
                                 value={watch('currencyBalanceId') || ''}
                             >
-                                <SelectTrigger className="h-14 bg-background">
+                                <SelectTrigger className="h-9 bg-background">
                                     <SelectValue placeholder="Select Account" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {currencyOptions.map(opt => (
                                         <SelectItem key={opt.id} value={opt.id}>
-                                            <div className="flex flex-col items-start py-1">
+                                            <div className="flex flex-col items-start">
                                                 <span className="font-medium text-sm">{opt.label}</span>
                                                 <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
                                             </div>
@@ -380,7 +385,7 @@ export function AddTransactionSheet({
                         </div>
 
                         {transactionType === 'transfer' && (
-                            <div className="p-4 rounded-xl bg-muted/30 border space-y-3 transition-all duration-200 animate-in fade-in slide-in-from-top-2">
+                            <div className="p-2 rounded-xl bg-muted/30 border space-y-2 transition-all duration-200 animate-in fade-in slide-in-from-top-2">
                                 <div className="flex items-center justify-between">
                                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                         To Account
@@ -395,7 +400,7 @@ export function AddTransactionSheet({
                                     onValueChange={(val) => setValue('toCurrencyBalanceId', val)}
                                     value={watch('toCurrencyBalanceId') || ''}
                                 >
-                                    <SelectTrigger className="h-14 bg-background">
+                                    <SelectTrigger className="h-9 bg-background">
                                         <SelectValue placeholder="Select Target Account" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -403,7 +408,7 @@ export function AddTransactionSheet({
                                             .filter(opt => opt.id !== currencyBalanceId)
                                             .map(opt => (
                                                 <SelectItem key={opt.id} value={opt.id}>
-                                                    <div className="flex flex-col items-start py-1">
+                                                    <div className="flex flex-col items-start">
                                                         <span className="font-medium text-sm">{opt.label}</span>
                                                         <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
                                                     </div>
@@ -417,7 +422,7 @@ export function AddTransactionSheet({
 
 
 
-                        <div className="p-4 rounded-xl bg-muted/30 border space-y-3 transition-all duration-200">
+                        <div className="p-2 rounded-xl bg-muted/30 border space-y-2 transition-all duration-200">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
@@ -450,7 +455,7 @@ export function AddTransactionSheet({
                                 )}
                             </div>
                             <Select onValueChange={(val) => setValue('categoryId', val)} value={watch('categoryId') || ''}>
-                                <SelectTrigger className="h-12 bg-background border-muted-foreground/20">
+                                <SelectTrigger className="h-9 bg-background border-muted-foreground/20">
                                     <SelectValue placeholder="Select Category" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -472,7 +477,7 @@ export function AddTransactionSheet({
                             {errors.categoryId && <p className="text-sm text-red-500 mt-1">{errors.categoryId.message}</p>}
                         </div>
 
-                        <div className="p-4 rounded-xl bg-muted/30 border space-y-3 transition-all duration-200">
+                        <div className="p-2 rounded-xl bg-muted/30 border space-y-2 transition-all duration-200">
                             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Amount</Label>
                             <div className="relative group">
                                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-foreground transition-colors">
@@ -590,7 +595,7 @@ export function AddTransactionSheet({
                             </div>
                         )}
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             <div className="space-y-2">
                                 <Label htmlFor="date" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground ml-1">Date</Label>
                                 <div className="relative">
@@ -610,13 +615,13 @@ export function AddTransactionSheet({
                             </div>
                         </div>
 
-                        <SheetFooter className="flex items-center gap-2 mt-4">
+                        <SheetFooter className="flex flex-row items-center gap-2 mt-2">
                             {onSaveAsShortcut && (
                                 <Button
                                     type="button"
                                     variant="outline"
                                     size="icon"
-                                    className="h-11 w-11 rounded-xl shrink-0 border-muted-foreground/20"
+                                    className="h-10 w-10 rounded-xl shrink-0 border-muted-foreground/20"
                                     disabled={!canSaveAsShortcut}
                                     onClick={() => {
                                         const currencyBalanceId = watch('currencyBalanceId');
@@ -635,12 +640,12 @@ export function AddTransactionSheet({
                                     }}
                                     title="Save as Shortcut"
                                 >
-                                    <Bookmark className="h-5 w-5 text-primary" />
+                                    <Bookmark className="h-4 w-4 text-primary" />
                                 </Button>
                             )}
                             <Button
                                 type="submit"
-                                className="flex-1 h-11 rounded-xl font-bold shadow-lg shadow-primary/20 transition-all"
+                                className="flex-1 h-10 rounded-xl font-bold shadow-lg shadow-primary/20 transition-all ml-auto"
                                 disabled={createTransaction.isLoading}
                             >
                                 {!createTransaction.isLoading && <Plus className="h-4 w-4 mr-1" />}

@@ -216,7 +216,7 @@ export function AddMortgageForm({ onSuccess, onCancel }: AddMortgageFormProps) {
                 </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                     <Label>Principal Amount *</Label>
                     <Input
@@ -304,7 +304,7 @@ export function AddMortgageForm({ onSuccess, onCancel }: AddMortgageFormProps) {
                 />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                     <div className="flex items-center justify-between">
                         <Label>Monthly Payment *</Label>
@@ -353,7 +353,7 @@ export function AddMortgageForm({ onSuccess, onCancel }: AddMortgageFormProps) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                     <Label>Term (Years) *</Label>
                     <Input
@@ -371,7 +371,7 @@ export function AddMortgageForm({ onSuccess, onCancel }: AddMortgageFormProps) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                     <Label>Start Date *</Label>
                     <Input type="date" {...register('startDate')} />
@@ -388,7 +388,7 @@ export function AddMortgageForm({ onSuccess, onCancel }: AddMortgageFormProps) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                     <Label>Status *</Label>
                     <Select

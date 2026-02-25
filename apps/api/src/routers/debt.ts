@@ -310,7 +310,7 @@ export const debtRouter = router({
                     amount: dist.amount.toString(),
                     date: input.paymentDate, // Just date string YYYY-MM-DD
                     type: debt.type === 'they_owe' ? 'income' : 'expense', // If they paid me, it's income. If I paid them, it's expense/transfer.
-                    description: `Repayment from ${debt.personName}${input.note ? ` - ${input.note}` : ''}`,
+                    description: `Repayment ${debt.type === 'they_owe' ? 'from' : 'to'} ${debt.personName}${input.note ? ` - ${input.note}` : ''}`,
                     debtPaymentId: paymentRecord.id,
                     excludeFromMonthlyStats: isSameMonth,
                 });
@@ -501,7 +501,7 @@ export const debtRouter = router({
                             amount: dist.amount.toString(),
                             date: data.paidAt ?? payment.paidAt.toISOString().split('T')[0],
                             type: debt.type === 'they_owe' ? 'income' : 'expense',
-                            description: `Repayment from ${debt.personName}${data.note ?? payment.note ? ` - ${data.note ?? payment.note}` : ''}`,
+                            description: `Repayment ${debt.type === 'they_owe' ? 'from' : 'to'} ${debt.personName}${data.note ?? payment.note ? ` - ${data.note ?? payment.note}` : ''}`,
                             debtPaymentId: id,
                             excludeFromMonthlyStats: isSameMonth,
                         });

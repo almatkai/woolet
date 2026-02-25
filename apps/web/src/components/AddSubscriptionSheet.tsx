@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -67,6 +68,7 @@ const typeIcons: Record<string, { icon: string; color: string }> = {
 };
 
 export function AddSubscriptionSheet({ open: controlledOpen, onOpenChange: controlledOnOpenChange, editingSubscription }: AddSubscriptionSheetProps = {}) {
+    const isCompactMobile = useIsMobile(470);
     const [internalOpen, setInternalOpen] = useState(false);
     const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
     const setOpen = controlledOnOpenChange || setInternalOpen;
@@ -155,7 +157,10 @@ export function AddSubscriptionSheet({ open: controlledOpen, onOpenChange: contr
 
     return (
         <Sheet open={open} onOpenChange={handleClose}>
-            <SheetContent className="sm:max-w-[480px] overflow-y-auto">
+            <SheetContent
+                side={isCompactMobile ? 'bottom' : 'right'}
+                className="overflow-y-auto sm:max-w-[480px] max-[470px]:h-[92dvh] max-[470px]:rounded-t-2xl max-[470px]:pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
+            >
                 <SheetHeader>
                     <SheetTitle>{editingSubscription ? 'Edit Subscription' : 'Add Subscription'}</SheetTitle>
                     <SheetDescription>
@@ -198,7 +203,7 @@ export function AddSubscriptionSheet({ open: controlledOpen, onOpenChange: contr
                     </div>
 
                     {/* Amount and Currency */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                             <Label htmlFor="amount">Amount</Label>
                             <Input
@@ -220,7 +225,7 @@ export function AddSubscriptionSheet({ open: controlledOpen, onOpenChange: contr
                     </div>
 
                     {/* Frequency and Billing Day */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                             <Label>Frequency</Label>
                             <Select
@@ -241,7 +246,7 @@ export function AddSubscriptionSheet({ open: controlledOpen, onOpenChange: contr
                     </div>
 
                     {/* Start Date and End Date */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                             <Label htmlFor="startDate">Start Date</Label>
                             <Input

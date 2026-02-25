@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Wallet, Calendar, AlertCircle, CheckCircle2, CreditCard } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Credit {
     id: string;
@@ -108,6 +109,7 @@ export function CompoundCreditPaymentSheet({ open, onOpenChange, credits }: Comp
     const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [skipPayment, setSkipPayment] = useState(false); // Mark as paid without deducting
+    const isCompactMobile = useIsMobile(470);
     const utils = trpc.useUtils();
 
     const makePayment = trpc.credit.makeMonthlyPayment.useMutation();
@@ -272,7 +274,10 @@ export function CompoundCreditPaymentSheet({ open, onOpenChange, credits }: Comp
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="sm:max-w-[550px] flex flex-col">
+            <SheetContent
+                side={isCompactMobile ? 'bottom' : 'right'}
+                className="sm:max-w-[550px] flex flex-col max-[470px]:h-[92dvh] max-[470px]:rounded-t-2xl max-[470px]:pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
+            >
                 <SheetHeader>
                     <SheetTitle className="flex items-center gap-2">
                         <CreditCard className="h-5 w-5" />

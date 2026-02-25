@@ -358,13 +358,13 @@ export function DebtsPage() {
                         )}
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
-                        {debt.type === 'they_owe' && remaining > 0.01 && (
+                        {remaining > 0.01 && (
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8"
                                 onClick={() => handlePayment(debt)}
-                                title="Add Repayment"
+                                title="Record Repayment"
                             >
                                 <Banknote className="h-4 w-4" />
                             </Button>
@@ -385,10 +385,10 @@ export function DebtsPage() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                {debt.type === 'they_owe' && remaining > 0.01 && (
+                                {remaining > 0.01 && (
                                     <DropdownMenuItem onClick={() => handlePayment(debt)}>
                                         <Banknote className="h-4 w-4 mr-2" />
-                                        Add Repayment
+                                        Record Repayment
                                     </DropdownMenuItem>
                                 )}
                                 <DropdownMenuItem onClick={() => handleEdit(debt)}>
@@ -438,7 +438,7 @@ export function DebtsPage() {
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-5 w-5 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
+                                            className="h-5 w-5 bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                                             onClick={() => handleEditPayment(payment, debt)}
                                             title="Edit Payment"
                                         >
@@ -447,7 +447,7 @@ export function DebtsPage() {
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-5 w-5 text-red-500 hover:text-red-700 hover:bg-red-100"
+                                            className="h-5 w-5 bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                                             onClick={() => {
                                                 if (confirm('Delete this payment and revert balance?')) {
                                                     deletePayment.mutate({ id: payment.id });
@@ -815,7 +815,9 @@ export function DebtsPage() {
 
                         {!isPaymentSplit ? (
                             <div className="space-y-2">
-                                <Label htmlFor="destination-account">Destination Account</Label>
+                                <Label htmlFor="repayment-account">
+                                    {editingPayment?.debt.type === 'i_owe' ? 'Payment Account' : 'Destination Account'}
+                                </Label>
                                 <Select
                                     value={watchPayment('distributions.0.currencyBalanceId')}
                                     onValueChange={(val: string) => {
@@ -823,7 +825,7 @@ export function DebtsPage() {
                                         setValuePayment('distributions.0.amount', paymentTotalAmount);
                                     }}
                                 >
-                                    <SelectTrigger id="destination-account">
+                                    <SelectTrigger id="repayment-account">
                                         <SelectValue placeholder="Select account" />
                                     </SelectTrigger>
                                     <SelectContent>

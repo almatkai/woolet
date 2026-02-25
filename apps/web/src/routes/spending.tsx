@@ -612,7 +612,7 @@ export function SpendingPage() {
                                             </div>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                                                         <MoreHorizontal className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
@@ -922,7 +922,7 @@ export function SpendingPage() {
                                                     type="button"
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-7 w-7 text-destructive opacity-0 group-hover/item:opacity-100 transition-opacity"
+                                                    className="h-7 w-7 text-destructive"
                                                     onClick={() => {
                                                         if (confirm('Delete this payback?')) {
                                                             deleteTransaction.mutate({ id: child.id });
@@ -1154,7 +1154,7 @@ export function SpendingPage() {
                                             )}
                                         </div>
                                     </button>
-                                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                    <div className="flex items-center gap-1 shrink-0">
                                         <Button
                                             size="icon"
                                             variant="ghost"
@@ -1272,7 +1272,7 @@ export function SpendingPage() {
 
             {/* Floating Favorites Widget */}
             {favoritesWidgetVisible && (
-                <div className="fixed bottom-16 right-20 left-4 min-[470px]:left-auto min-[470px]:right-20 min-[470px]:bottom-4 z-40 animate-in fade-in slide-in-from-bottom-5 duration-500">
+                <div className="fixed bottom-[calc(88px+env(safe-area-inset-bottom))] right-20 left-4 min-[470px]:left-auto min-[470px]:right-24 min-[470px]:bottom-4 z-40 animate-in fade-in slide-in-from-bottom-5 duration-500">
                     <div className="flex items-end gap-2 min-[850px]:block">
                         <div className="bg-background/80 backdrop-blur-xl border border-border rounded-2xl shadow-2xl p-3 sm:p-4 w-full min-[470px]:w-fit min-w-[150px] max-w-sm mx-auto min-[470px]:mx-0 overflow-hidden">
                             <div className="flex items-center justify-between mb-3 pl-0 pr-1">

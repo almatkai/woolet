@@ -29,6 +29,7 @@ interface Debt {
     id: string;
     personName: string;
     amount: string | number;
+    type: 'i_owe' | 'they_owe';
     paidAmount?: string | number | null;
     currencyCode?: string | null;
     currencyBalance: {
@@ -142,7 +143,7 @@ export function AddDebtPaymentSheet({ debt, open, onOpenChange }: AddDebtPayment
             // Also user might not have selected account if they just typed total amount?
             // Wait, we need at least one destination.
             if (data.distributions.length === 0 || !data.distributions[0].currencyBalanceId) {
-                toast.error("Please select a destination account");
+                toast.error("Please select an account");
                 return;
             }
             finalDistributions = [{
@@ -170,6 +171,9 @@ export function AddDebtPaymentSheet({ debt, open, onOpenChange }: AddDebtPayment
     if (!debt) return null;
 
     const remainingDebt = Number(debt.amount) - Number(debt.paidAmount || 0);
+    const isIncomingRepayment = debt.type === 'they_owe';
+    const accountLabel = isIncomingRepayment ? 'Destination Account' : 'Payment Account';
+    const repaymentDirection = isIncomingRepayment ? 'from' : 'to';
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -177,7 +181,7 @@ export function AddDebtPaymentSheet({ debt, open, onOpenChange }: AddDebtPayment
                 <SheetHeader>
                     <SheetTitle>Record Repayment</SheetTitle>
                     <SheetDescription>
-                        Record a payment from {debt.personName}. Remaining: {remainingDebt.toFixed(2)} {debt.currencyBalance?.currencyCode || debt.currencyCode}
+                        Record a payment {repaymentDirection} {debt.personName}. Remaining: {remainingDebt.toFixed(2)} {debt.currencyBalance?.currencyCode || debt.currencyCode}
                     </SheetDescription>
                 </SheetHeader>
 
@@ -208,7 +212,7 @@ export function AddDebtPaymentSheet({ debt, open, onOpenChange }: AddDebtPayment
                     {!isSplit ? (
                         <div className="p-4 rounded-xl bg-muted/30 border space-y-3 transition-all duration-200">
                             <div className="flex items-center justify-between">
-                                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Destination Account</Label>
+                                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{accountLabel}</Label>
                                 {selectedAccount && (
                                     <span className="text-xs font-medium px-2 py-0.5 rounded bg-background border animate-in fade-in zoom-in duration-300">
                                         Balance: {selectedAccount.balance.toLocaleString()} {selectedAccount.currencyCode}
