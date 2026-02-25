@@ -622,7 +622,7 @@ export function AiChatFloatingItem() {
         ? "fixed inset-x-0 z-[46] pointer-events-auto mx-auto"
         : "fixed bottom-6 right-6 z-[46] pointer-events-auto";
     const panelClassName = cn(
-        "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 overflow-hidden shadow-2xl border-purple-200 dark:border-purple-800 flex flex-col",
+        "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 overflow-hidden shadow-2xl border-purple-200 dark:border-purple-800 flex flex-col z-[50]",
         isCompactViewport
             ? "w-[95vw] rounded-3xl"
             : "w-[350px] rounded-3xl"
@@ -631,7 +631,7 @@ export function AiChatFloatingItem() {
         ? {
             height: compactPanelHeight ? `${compactPanelHeight}px` : '72dvh',
             maxHeight: compactPanelHeight ? `${compactPanelHeight}px` : '72dvh',
-            bottom: `calc(${compactBottomOffset}px + env(safe-area-inset-bottom))`,
+            bottom: `calc(${8}px + env(safe-area-inset-bottom))`,
         }
         : { height: '600px', maxHeight: '85vh' };
 
