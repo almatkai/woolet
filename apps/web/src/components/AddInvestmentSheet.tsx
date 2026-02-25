@@ -6,6 +6,7 @@ import { TrendingUp, Search, Loader2, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
 import { formatAccountLabel } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -87,6 +88,7 @@ interface AddInvestmentSheetProps {
 }
 
 export function AddInvestmentSheet({ open: controlledOpen, onOpenChange: controlledOnOpenChange, trigger }: AddInvestmentSheetProps = {}) {
+    const isCompactMobile = useIsMobile(470);
     const [internalOpen, setInternalOpen] = useState(false);
     const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
     const setOpen = controlledOnOpenChange || setInternalOpen;
@@ -347,7 +349,10 @@ export function AddInvestmentSheet({ open: controlledOpen, onOpenChange: control
                     )}
                 </SheetTrigger>
             )}
-            <SheetContent className="overflow-y-auto">
+            <SheetContent
+                side={isCompactMobile ? 'bottom' : 'right'}
+                className="overflow-y-auto max-[470px]:h-[92dvh] max-[470px]:rounded-t-2xl max-[470px]:pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
+            >
                 <SheetHeader>
                     <SheetTitle>Add Investment</SheetTitle>
                     <SheetDescription>

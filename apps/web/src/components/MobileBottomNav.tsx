@@ -134,21 +134,21 @@ export function MobileBottomNav() {
                     />
 
                     {/* Center FAB */}
-                    <div className="flex flex-col items-center -mt-5">
+                    <div className="flex flex-col items-center -mt-6">
                         <button
                             onClick={() => setAddOpen(true)}
                             className={cn(
-                                'flex h-13 w-13 items-center justify-center rounded-full',
+                                'flex h-14 w-14 items-center justify-center rounded-full',
                                 'bg-primary text-primary-foreground',
-                                'shadow-lg shadow-primary/30',
-                                'transition-all active:scale-95 hover:brightness-110',
-                                'border-4 border-background'
+                                'shadow-[0_4px_20px_0px] shadow-primary/50',
+                                'transition-all duration-150 active:scale-90 hover:scale-105',
+                                'ring-[3px] ring-background'
                             )}
                             aria-label="Add"
                         >
                             <Plus className="h-6 w-6" strokeWidth={2.5} />
                         </button>
-                        <span className="mt-1 text-[10px] font-medium text-muted-foreground">Add</span>
+                        <span className="mt-1.5 text-[10px] font-medium text-primary">Add</span>
                     </div>
 
                     {/* Investing */}

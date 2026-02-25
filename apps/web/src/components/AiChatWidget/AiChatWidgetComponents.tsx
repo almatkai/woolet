@@ -466,6 +466,9 @@ export function AiChatSidebarItem() {
 }
 
 export function AiChatFloatingItem() {
+    const COMPACT_PANEL_GAP = 8;
+    const MOBILE_TABBAR_OFFSET = 96;
+    const MOBILE_TRIGGER_OFFSET = 88;
     const { isMobile: isSidebarMobile } = useSidebar();
     const [isOpen, setIsOpen] = useState(false);
     const [view, setView] = useState<'chat' | 'history'>('chat');
@@ -527,11 +530,13 @@ export function AiChatFloatingItem() {
         return () => mql.removeEventListener('change', sync);
     }, []);
 
+    const compactBottomBaseOffset = hasMobileBottomNav ? MOBILE_TABBAR_OFFSET : COMPACT_PANEL_GAP;
+
     useEffect(() => {
         if (!isOpen || isWideChatViewport) {
             const timer = setTimeout(() => {
                 setCompactPanelHeight(null);
-                setCompactBottomOffset(8);
+                setCompactBottomOffset(compactBottomBaseOffset);
             }, 0);
             return () => clearTimeout(timer);
         }
@@ -545,7 +550,7 @@ export function AiChatFloatingItem() {
             );
 
             setCompactPanelHeight(Math.max(320, Math.floor(viewportHeight * 0.72)));
-            setCompactBottomOffset(Math.max(8, Math.floor(keyboardInset + 8)));
+            setCompactBottomOffset(Math.max(compactBottomBaseOffset, Math.floor(keyboardInset + compactBottomBaseOffset)));
         };
 
         updateCompactMetrics();
@@ -559,7 +564,7 @@ export function AiChatFloatingItem() {
             viewport?.removeEventListener('scroll', updateCompactMetrics);
             window.removeEventListener('resize', updateCompactMetrics);
         };
-    }, [isOpen, isWideChatViewport]);
+    }, [isOpen, isWideChatViewport, compactBottomBaseOffset]);
 
     // Queries
     const { data: usage } = trpc.ai.getChatUsage.useQuery(undefined, { enabled: isOpen });
@@ -605,11 +610,14 @@ export function AiChatFloatingItem() {
     };
 
     const isCompactViewport = !isWideChatViewport;
-    const triggerPositionClass = isSidebarMobile
-        ? hasMobileBottomNav
-            ? "bottom-24 right-4"
-            : "bottom-4 right-4"
-        : "bottom-6 right-6";
+    const triggerPositionClass = isSidebarMobile ? "right-4" : "bottom-6 right-6";
+    const triggerStyle = isSidebarMobile
+        ? {
+            bottom: hasMobileBottomNav
+                ? `calc(${MOBILE_TRIGGER_OFFSET}px + env(safe-area-inset-bottom))`
+                : '1rem',
+        }
+        : undefined;
     const panelPositionClass = isCompactViewport
         ? "fixed inset-x-0 z-[46] pointer-events-auto mx-auto"
         : "fixed bottom-6 right-6 z-[46] pointer-events-auto";
@@ -623,14 +631,17 @@ export function AiChatFloatingItem() {
         ? {
             height: compactPanelHeight ? `${compactPanelHeight}px` : '72dvh',
             maxHeight: compactPanelHeight ? `${compactPanelHeight}px` : '72dvh',
-            bottom: `${compactBottomOffset}px`,
+            bottom: `calc(${compactBottomOffset}px + env(safe-area-inset-bottom))`,
         }
         : { height: '600px', maxHeight: '85vh' };
 
     return (
         <>
             {!isOpen && (
-                <div className={cn("fixed z-[45] pointer-events-auto items-center justify-center", triggerPositionClass)}>
+                <div
+                    className={cn("fixed z-[45] pointer-events-auto items-center justify-center", triggerPositionClass)}
+                    style={triggerStyle}
+                >
                     <button
                         onClick={openChat}
                         onMouseEnter={() => setSidebarHovered(true)}

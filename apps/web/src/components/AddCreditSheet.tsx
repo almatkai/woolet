@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { trpc } from '@/lib/trpc';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,6 +58,7 @@ interface AddCreditSheetProps {
 }
 
 export function AddCreditSheet({ open, onOpenChange, editingCredit }: AddCreditSheetProps) {
+    const isCompactMobile = useIsMobile(470);
     const [markPastMonthsAsPaid, setMarkPastMonthsAsPaid] = useState(true);
     const utils = trpc.useUtils();
     const { data: banks } = trpc.bank.getHierarchy.useQuery();
@@ -151,7 +153,10 @@ export function AddCreditSheet({ open, onOpenChange, editingCredit }: AddCreditS
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="sm:max-w-[500px] overflow-y-auto">
+            <SheetContent
+                side={isCompactMobile ? 'bottom' : 'right'}
+                className="overflow-y-auto sm:max-w-[500px] max-[470px]:h-[92dvh] max-[470px]:rounded-t-2xl max-[470px]:pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
+            >
                 <SheetHeader>
                     <SheetTitle>{editingCredit ? 'Edit Credit' : 'Add Credit'}</SheetTitle>
                     <SheetDescription>
@@ -202,7 +207,7 @@ export function AddCreditSheet({ open, onOpenChange, editingCredit }: AddCreditS
                         </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                             <Label>Principal Amount *</Label>
                             <Input
@@ -225,7 +230,7 @@ export function AddCreditSheet({ open, onOpenChange, editingCredit }: AddCreditS
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                             <Label>Monthly Payment *</Label>
                             <Input type="number" step="0.01" {...register('monthlyPayment')} placeholder="5000" />
@@ -236,7 +241,7 @@ export function AddCreditSheet({ open, onOpenChange, editingCredit }: AddCreditS
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                             <Label>Currency *</Label>
                             <CurrencySelect
@@ -263,7 +268,7 @@ export function AddCreditSheet({ open, onOpenChange, editingCredit }: AddCreditS
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                             <Label>Start Date *</Label>
                             <Input type="date" {...register('startDate')} disabled={!!editingCredit} />

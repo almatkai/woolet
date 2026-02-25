@@ -7,6 +7,7 @@ import { Plus, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
 import { cn, formatAccountLabel } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { CurrencySelect } from './CurrencySelect';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -71,6 +72,7 @@ interface AddDebtSheetProps {
 }
 
 export function AddDebtSheet({ open: controlledOpen, onOpenChange: controlledOnOpenChange }: AddDebtSheetProps = {}) {
+    const isCompactMobile = useIsMobile(470);
     const [internalOpen, setInternalOpen] = useState(false);
     const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
     const setOpen = controlledOnOpenChange || setInternalOpen;
@@ -150,7 +152,10 @@ export function AddDebtSheet({ open: controlledOpen, onOpenChange: controlledOnO
                     </Button>
                 </SheetTrigger>
             )}
-            <SheetContent>
+            <SheetContent
+                side={isCompactMobile ? 'bottom' : 'right'}
+                className="max-[470px]:h-[92dvh] max-[470px]:rounded-t-2xl max-[470px]:pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
+            >
                 <SheetHeader>
                     <SheetTitle>Add Debt</SheetTitle>
                     <SheetDescription>
@@ -253,7 +258,7 @@ export function AddDebtSheet({ open: controlledOpen, onOpenChange: controlledOnO
 
                     <div className="space-y-2">
                         <Label>Type</Label>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <Button
                                 type="button"
                                 variant={watch('type') === 'i_owe' ? 'default' : 'outline'}

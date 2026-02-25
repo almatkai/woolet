@@ -173,7 +173,7 @@ export function AddDepositForm({ onSuccess, onCancel }: AddDepositFormProps) {
                 </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                     <Label>Principal Amount *</Label>
                     <Input
@@ -208,7 +208,7 @@ export function AddDepositForm({ onSuccess, onCancel }: AddDepositFormProps) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                     <Label>Interest Rate (%) *</Label>
                     <Input type="number" step="0.01" {...register('interestRate')} placeholder="14.5" />
@@ -232,7 +232,7 @@ export function AddDepositForm({ onSuccess, onCancel }: AddDepositFormProps) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                     <Label>Currency *</Label>
                     <CurrencySelect
@@ -258,7 +258,7 @@ export function AddDepositForm({ onSuccess, onCancel }: AddDepositFormProps) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                     <Label>Start Date *</Label>
                     <Input type="date" {...register('startDate')} />

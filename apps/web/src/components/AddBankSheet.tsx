@@ -20,6 +20,7 @@ import {
     SheetFooter,
     SheetClose
 } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const createBankSchema = z.object({
     name: z.string().min(1, "Name is required"),
@@ -31,6 +32,7 @@ type CreateBankForm = z.infer<typeof createBankSchema>;
 
 export function AddBankSheet({ trigger }: { trigger?: React.ReactNode }) {
     const [open, setOpen] = useState(false);
+    const isCompactMobile = useIsMobile(470);
     const utils = trpc.useUtils();
 
     const { register, control, handleSubmit, reset, formState: { errors } } = useForm<CreateBankForm>({
@@ -68,7 +70,10 @@ export function AddBankSheet({ trigger }: { trigger?: React.ReactNode }) {
                     </Button>
                 )}
             </SheetTrigger>
-            <SheetContent>
+            <SheetContent
+                side={isCompactMobile ? 'bottom' : 'right'}
+                className="overflow-y-auto max-[470px]:h-[92dvh] max-[470px]:rounded-t-2xl max-[470px]:pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
+            >
                 <SheetHeader>
                     <SheetTitle>Add Bank</SheetTitle>
                     <SheetDescription>
