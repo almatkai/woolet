@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Home, Trash2, Edit, DollarSign, Calendar, Percent, MapPin, Wallet, CheckCircle2, Circle } from 'lucide-react';
 import { toast } from 'sonner';
-import { PageHeader } from '@/components/PageHeader';
 import { AddMortgageSheet } from '@/components/AddMortgageSheet';
 import { MortgagePaymentSheet } from '@/components/MortgagePaymentSheet';
 import {
@@ -100,16 +99,16 @@ export default function MortgagesPage() {
 
     return (
         <div className="space-y-6">
-            <PageHeader
-                title="Mortgages"
-                subtitle="Manage your properties and loans"
-                variant="one"
-            >
-                <Button onClick={() => setShowAddMortgage(true)} className="gap-2">
-                    <Plus className="h-4 w-4" />
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold">Mortgages</h1>
+                    <p className="hidden sm:block text-muted-foreground">Manage your properties and loans</p>
+                </div>
+                <Button onClick={() => setShowAddMortgage(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
                     Add Mortgage
                 </Button>
-            </PageHeader>
+            </div>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
