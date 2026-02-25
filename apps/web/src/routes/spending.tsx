@@ -612,7 +612,7 @@ export function SpendingPage() {
                                             </div>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                                                         <MoreHorizontal className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
@@ -922,7 +922,7 @@ export function SpendingPage() {
                                                     type="button"
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-7 w-7 text-destructive opacity-0 group-hover/item:opacity-100 transition-opacity"
+                                                    className="h-7 w-7 text-destructive"
                                                     onClick={() => {
                                                         if (confirm('Delete this payback?')) {
                                                             deleteTransaction.mutate({ id: child.id });
@@ -1154,7 +1154,7 @@ export function SpendingPage() {
                                             )}
                                         </div>
                                     </button>
-                                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                    <div className="flex items-center gap-1 shrink-0">
                                         <Button
                                             size="icon"
                                             variant="ghost"
