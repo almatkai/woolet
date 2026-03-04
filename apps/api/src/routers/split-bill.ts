@@ -11,6 +11,7 @@ import {
     categories,
     banks,
     accounts,
+    users,
 } from '../db/schema';
 import {
     createSplitParticipantSchema,
@@ -43,6 +44,15 @@ export const splitBillRouter = router({
             const participants = await ctx.db.query.splitParticipants.findMany({
                 where: and(...conditions),
                 orderBy: [desc(splitParticipants.createdAt)],
+                with: {
+                    linkedUser: {
+                        columns: {
+                            id: true,
+                            name: true,
+                            username: true,
+                        },
+                    },
+                },
             });
 
             return participants;
@@ -159,9 +169,37 @@ export const splitBillRouter = router({
     createParticipant: protectedProcedure
         .input(createSplitParticipantSchema)
         .mutation(async ({ ctx, input }) => {
+            let linkedUserId: string | null = null;
+            let linkedUsername: string | null = null;
+
+            if (input.username) {
+                const normalizedUsername = input.username.toLowerCase();
+                const foundUser = await ctx.db.query.users.findFirst({
+                    where: eq(users.username, normalizedUsername),
+                    columns: {
+                        id: true,
+                        username: true,
+                        name: true,
+                    },
+                });
+
+                if (!foundUser) {
+                    throw new TRPCError({ code: 'NOT_FOUND', message: 'No user found with that username' });
+                }
+
+                if (foundUser.id === ctx.userId) {
+                    throw new TRPCError({ code: 'BAD_REQUEST', message: 'You cannot add yourself as participant' });
+                }
+
+                linkedUserId = foundUser.id;
+                linkedUsername = foundUser.username;
+            }
+
             const [participant] = await ctx.db.insert(splitParticipants).values({
                 userId: ctx.userId!,
                 name: input.name,
+                linkedUserId,
+                linkedUsername,
                 contactType: input.contactType,
                 contactValue: input.contactValue,
                 color: input.color || '#8b5cf6',
@@ -191,6 +229,29 @@ export const splitBillRouter = router({
             };
 
             if (input.name !== undefined) updateData.name = input.name;
+            if (input.username !== undefined) {
+                if (!input.username) {
+                    updateData.linkedUserId = null;
+                    updateData.linkedUsername = null;
+                } else {
+                    const normalizedUsername = input.username.toLowerCase();
+                    const foundUser = await ctx.db.query.users.findFirst({
+                        where: eq(users.username, normalizedUsername),
+                        columns: { id: true, username: true },
+                    });
+
+                    if (!foundUser) {
+                        throw new TRPCError({ code: 'NOT_FOUND', message: 'No user found with that username' });
+                    }
+
+                    if (foundUser.id === ctx.userId) {
+                        throw new TRPCError({ code: 'BAD_REQUEST', message: 'You cannot add yourself as participant' });
+                    }
+
+                    updateData.linkedUserId = foundUser.id;
+                    updateData.linkedUsername = foundUser.username;
+                }
+            }
             if (input.contactType !== undefined) updateData.contactType = input.contactType;
             if (input.contactValue !== undefined) updateData.contactValue = input.contactValue;
             if (input.color !== undefined) updateData.color = input.color;

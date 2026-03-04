@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { eq, inArray, or, isNull } from 'drizzle-orm';
+import { eq, inArray, or, isNull, ilike, ne } from 'drizzle-orm';
 import { router, protectedProcedure } from '../lib/trpc';
 import { investingCache } from '../lib/investing-cache';
 import { redis } from '../lib/redis';
@@ -39,6 +39,13 @@ import { subMonths, startOfDay, startOfWeek } from 'date-fns';
 import { gte, count, and } from 'drizzle-orm';
 
 const ISO_DATE_REGEXP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+const USERNAME_SCHEMA = z.string()
+    .trim()
+    .min(4, 'Username must be at least 4 characters')
+    .max(32, 'Username must be at most 32 characters')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores');
+
 
 // UUID validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -197,6 +204,28 @@ export const userRouter = router({
         return !!admin;
     }),
 
+    searchByUsername: protectedProcedure
+        .input(z.object({
+            query: z.string().trim().min(2).max(32),
+            limit: z.number().min(1).max(20).default(8),
+        }))
+        .query(async ({ ctx, input }) => {
+            const results = await ctx.db.query.users.findMany({
+                where: and(
+                    ilike(users.username, `${input.query.toLowerCase()}%`),
+                    ne(users.id, ctx.userId),
+                ),
+                columns: {
+                    id: true,
+                    username: true,
+                    name: true,
+                },
+                limit: input.limit,
+            });
+
+            return results.filter((u) => !!u.username);
+        }),
+
     getLimits: protectedProcedure.query(async ({ ctx }) => {
         const user = await ctx.db.query.users.findFirst({
             where: eq(users.id, ctx.userId),
@@ -212,6 +241,7 @@ export const userRouter = router({
         .input(z.object({
             email: z.string().email(),
             name: z.string().optional(),
+            username: USERNAME_SCHEMA.optional(),
             defaultCurrency: z.string().length(3).default('USD'),
         }))
         .mutation(async ({ ctx, input }) => {
@@ -223,10 +253,21 @@ export const userRouter = router({
                 return existing;
             }
 
+            if (input.username) {
+                const existingUsername = await ctx.db.query.users.findFirst({
+                    where: eq(users.username, input.username.toLowerCase()),
+                });
+
+                if (existingUsername) {
+                    throw new TRPCError({ code: 'CONFLICT', message: 'Username is already taken' });
+                }
+            }
+
             const [user] = await ctx.db.insert(users).values({
                 id: ctx.userId,
                 email: input.email,
                 name: input.name,
+                username: input.username?.toLowerCase(),
                 defaultCurrency: input.defaultCurrency.toUpperCase(),
             }).returning();
 
@@ -236,6 +277,7 @@ export const userRouter = router({
     update: protectedProcedure
         .input(z.object({
             name: z.string().optional(),
+            username: USERNAME_SCHEMA.optional(),
             defaultCurrency: z.string().length(3).optional(),
             testMode: z.boolean().optional(),
             preferences: userPreferencesSchema,
@@ -245,6 +287,20 @@ export const userRouter = router({
 
             if (input.name !== undefined) {
                 updateData.name = input.name;
+            }
+            if (input.username !== undefined) {
+                const existingUsername = await ctx.db.query.users.findFirst({
+                    where: and(
+                        eq(users.username, input.username.toLowerCase()),
+                        ne(users.id, ctx.userId)
+                    ),
+                });
+
+                if (existingUsername) {
+                    throw new TRPCError({ code: 'CONFLICT', message: 'Username is already taken' });
+                }
+
+                updateData.username = input.username.toLowerCase();
             }
             if (input.defaultCurrency !== undefined) {
                 updateData.defaultCurrency = input.defaultCurrency.toUpperCase();

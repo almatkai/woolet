@@ -62,6 +62,7 @@ import { SettingsLayout } from '@/components/SettingsLayout';
 import { Bitcoin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PostHogPageviewTracker, PostHogUserIdentifier } from './components/PostHogProvider';
+import { UsernameSetupDialog } from '@/components/UsernameSetupDialog';
 
 // Root layout with sidebar
 function RootLayout() {
@@ -124,6 +125,7 @@ function RootLayout() {
                 <SignedIn>
                     {!isAuthRoute && (
                         <>
+                            <UsernameSetupDialog />
                             <AiChatFloatingItem />
                             <MobileBottomNav />
                         </>
