@@ -18,6 +18,8 @@ export const splitParticipants = pgTable('split_participants', {
     id: uuid('id').defaultRandom().primaryKey(),
     userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
     name: text('name').notNull(),
+    linkedUserId: text('linked_user_id').references(() => users.id, { onDelete: 'set null' }),
+    linkedUsername: text('linked_username'),
     // Contact information for notifications
     contactType: contactTypeEnum('contact_type'),
     contactValue: text('contact_value'), // phone number, telegram username, etc.
@@ -29,11 +31,16 @@ export const splitParticipants = pgTable('split_participants', {
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
     userIdIdx: index('split_participants_user_id_idx').on(table.userId),
+    linkedUserIdIdx: index('split_participants_linked_user_id_idx').on(table.linkedUserId),
 }));
 
 export const splitParticipantsRelations = relations(splitParticipants, ({ one, many }) => ({
     user: one(users, {
         fields: [splitParticipants.userId],
+        references: [users.id],
+    }),
+    linkedUser: one(users, {
+        fields: [splitParticipants.linkedUserId],
         references: [users.id],
     }),
     transactionSplits: many(transactionSplits),

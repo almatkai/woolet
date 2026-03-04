@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils';
 
 const createParticipantSchema = z.object({
     name: z.string().min(1, "Name is required").max(100),
+    username: z.string().min(4).max(32).regex(/^[a-zA-Z0-9_]+$/).optional().or(z.literal('')),
     contactType: z.enum(['telegram', 'whatsapp', 'phone', 'email', 'other']).optional(),
     contactValue: z.string().optional(),
     color: z.string().optional(),
@@ -56,6 +57,7 @@ export function ManageParticipantsSheet({ open, onOpenChange }: ManageParticipan
         resolver: zodResolver(createParticipantSchema),
         defaultValues: {
             name: '',
+            username: '',
             contactType: undefined,
             contactValue: '',
             color: '#8b5cf6',
@@ -90,21 +92,35 @@ export function ManageParticipantsSheet({ open, onOpenChange }: ManageParticipan
     });
 
     const contactType = watch('contactType');
+    const usernameInput = watch('username');
+    const normalizedUsername = (usernameInput || '').trim().toLowerCase();
+
+    const { data: usernameMatches, isLoading: isSearchingUsername } = trpc.user.searchByUsername.useQuery(
+        { query: normalizedUsername, limit: 5 },
+        {
+            enabled: normalizedUsername.length >= 2,
+        }
+    );
 
     const onSubmit = (data: CreateParticipantValues) => {
         if (editingId) {
             updateMutation.mutate({
                 id: editingId,
                 ...data,
+                username: data.username ? data.username.toLowerCase() : null,
             });
         } else {
-            createMutation.mutate(data);
+            createMutation.mutate({
+                ...data,
+                username: data.username ? data.username.toLowerCase() : undefined,
+            });
         }
     };
 
     const startEdit = (participant: any) => {
         setEditingId(participant.id);
         setValue('name', participant.name);
+        setValue('username', participant.linkedUsername || '');
         setValue('contactType', participant.contactType || undefined);
         setValue('contactValue', participant.contactValue || '');
         setValue('color', participant.color);
@@ -159,6 +175,48 @@ export function ManageParticipantsSheet({ open, onOpenChange }: ManageParticipan
                         />
                         {errors.name && (
                             <p className="text-xs text-destructive">{errors.name.message}</p>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="username">Find mate by username (optional)</Label>
+                        <Input
+                            id="username"
+                            placeholder="e.g. @john_woolet"
+                            value={usernameInput || ''}
+                            onChange={(e) => {
+                                const cleaned = e.target.value.replace('@', '');
+                                setValue('username', cleaned, { shouldValidate: true });
+                            }}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Link this contact to an existing Woolet username for faster sharing.
+                        </p>
+                        {normalizedUsername.length >= 2 && (
+                            <div className="rounded-md border p-2 space-y-1 max-h-28 overflow-y-auto">
+                                {isSearchingUsername && (
+                                    <p className="text-xs text-muted-foreground">Searching users...</p>
+                                )}
+                                {!isSearchingUsername && usernameMatches?.length === 0 && (
+                                    <p className="text-xs text-muted-foreground">No users found.</p>
+                                )}
+                                {usernameMatches?.map((u) => (
+                                    <button
+                                        key={u.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setValue('username', u.username || '', { shouldValidate: true });
+                                            if (u.name) {
+                                                setValue('name', u.name);
+                                            }
+                                        }}
+                                        className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted"
+                                    >
+                                        <span className="font-medium">@{u.username}</span>
+                                        {u.name && <span className="text-muted-foreground"> · {u.name}</span>}
+                                    </button>
+                                ))}
+                            </div>
                         )}
                     </div>
 
@@ -249,6 +307,11 @@ export function ManageParticipantsSheet({ open, onOpenChange }: ManageParticipan
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="font-medium truncate">{p.name}</div>
+                                    {p.linkedUsername && (
+                                        <div className="text-xs mt-1">
+                                            <Badge variant="secondary">@{p.linkedUsername}</Badge>
+                                        </div>
+                                    )}
                                     {p.contactValue && (
                                         <div className="text-xs text-muted-foreground flex items-center gap-1">
                                             {getContactIcon(p.contactType)}

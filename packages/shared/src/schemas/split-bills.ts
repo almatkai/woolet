@@ -14,6 +14,7 @@ export type SplitStatus = z.infer<typeof splitStatusSchema>;
 
 export const createSplitParticipantSchema = z.object({
     name: z.string().min(1).max(100),
+    username: z.string().trim().min(4).max(32).regex(/^[a-zA-Z0-9_]+$/).optional(),
     contactType: contactTypeSchema.optional(),
     contactValue: z.string().optional(),
     color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
@@ -22,6 +23,7 @@ export const createSplitParticipantSchema = z.object({
 export const updateSplitParticipantSchema = z.object({
     id: z.string().uuid(),
     name: z.string().min(1).max(100).optional(),
+    username: z.string().trim().min(4).max(32).regex(/^[a-zA-Z0-9_]+$/).nullable().optional(),
     contactType: contactTypeSchema.nullable().optional(),
     contactValue: z.string().nullable().optional(),
     color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
