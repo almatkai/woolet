@@ -52,39 +52,14 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
                     >
                         Your all-in-one personal finance manager
                     </motion.p>
-
-                    {/* Feature highlights */}
-                    <div className="grid grid-cols-2 gap-4 w-full max-w-lg">
-                        {[
-                            { icon: '💰', text: 'Track Wealth' },
-                            { icon: '📊', text: 'Analytics' },
-                            { icon: '🎯', text: 'Money Goals' },
-                            { icon: '🔒', text: 'Bank-grade' },
-                        ].map((item, i) => (
-                            <motion.div
-                                key={i}
-                                className="flex items-center gap-3 p-4 rounded-2xl bg-white/[0.03] backdrop-blur-md border border-white/10 hover:bg-white/5 transition-all duration-300"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.5 + i * 0.1 }}
-                            >
-                                <span className="text-2xl">{item.icon}</span>
-                                <span className="text-white text-sm font-semibold tracking-wide uppercase">{item.text}</span>
-                            </motion.div>
-                        ))}
-                    </div>
                 </div>
             </div>
 
             {/* Right side - Form */}
             <div className="w-full lg:w-1/2 flex items-center justify-center p-1 sm:p-6 lg:p-12 relative bg-background overflow-hidden">
-                {/* Decorative rectangles */}
-                <Rectangles
-                    mainRectSize={200}
-                    mainRectOpacity={0.15}
-                    numRects={5}
-                    className="z-0"
-                />
+                {/* Hero Background on mobile - showing the right side */}
+                <HeroBackground className="lg:hidden absolute inset-0 -right-[100%] sm:-right-[50%] md:-right-[25%]" />
+
                 {/* Mobile-only header */}
                 <div className="absolute top-6 left-6 lg:hidden">
                     <div className="flex items-center gap-3">

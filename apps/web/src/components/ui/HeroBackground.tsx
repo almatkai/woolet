@@ -4,9 +4,13 @@ import Particles from "./Particles";
 import AnimatedGridPattern from "./AnimatedGridPattern";
 import Spotlight from "./Spotlight";
 
-export function HeroBackground() {
+interface HeroBackgroundProps {
+    className?: string;
+}
+
+export function HeroBackground({ className }: HeroBackgroundProps) {
     return (
-        <>
+        <div className={className}>
             {/* Particles */}
             <Particles
                 className="absolute inset-0"
@@ -29,7 +33,7 @@ export function HeroBackground() {
                 className="-top-40 left-0 md:left-60 md:-top-20 h-screen"
                 fill="white"
             />
-        </>
+        </div>
     );
 }
 
