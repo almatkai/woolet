@@ -47,6 +47,12 @@ interface ManageParticipantsSheetProps {
     onOpenChange: (open: boolean) => void;
 }
 
+type UsernameSearchResult = {
+    id: string;
+    username: string | null;
+    name: string | null;
+};
+
 export function ManageParticipantsSheet({ open, onOpenChange }: ManageParticipantsSheetProps) {
     const utils = trpc.useUtils();
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -200,7 +206,7 @@ export function ManageParticipantsSheet({ open, onOpenChange }: ManageParticipan
                                 {!isSearchingUsername && usernameMatches?.length === 0 && (
                                     <p className="text-xs text-muted-foreground">No users found.</p>
                                 )}
-                                {usernameMatches?.map((u) => (
+                                {usernameMatches?.map((u: UsernameSearchResult) => (
                                     <button
                                         key={u.id}
                                         type="button"
