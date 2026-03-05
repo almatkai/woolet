@@ -190,9 +190,7 @@ const EXPORT_LIMITS: Record<string, ExportTierLimits> = {
 
 export const userRouter = router({
     me: protectedProcedure.query(async ({ ctx }) => {
-        const user = await ctx.db.query.users.findFirst({
-            where: eq(users.id, ctx.userId),
-        });
+        const [user] = await ctx.db.select().from(users).where(eq(users.id, ctx.userId)).limit(1);
 
         return user;
     }),
@@ -210,26 +208,24 @@ export const userRouter = router({
             limit: z.number().min(1).max(20).default(8),
         }))
         .query(async ({ ctx, input }) => {
-            const results = await ctx.db.query.users.findMany({
-                where: and(
+            const results = await ctx.db
+                .select({
+                    id: users.id,
+                    username: users.username,
+                    name: users.name,
+                })
+                .from(users)
+                .where(and(
                     ilike(users.username, `${input.query.toLowerCase()}%`),
-                    ne(users.id, ctx.userId),
-                ),
-                columns: {
-                    id: true,
-                    username: true,
-                    name: true,
-                },
-                limit: input.limit,
-            });
+                    ne(users.id, ctx.userId)
+                ))
+                .limit(input.limit);
 
             return results.filter((u) => !!u.username);
         }),
 
     getLimits: protectedProcedure.query(async ({ ctx }) => {
-        const user = await ctx.db.query.users.findFirst({
-            where: eq(users.id, ctx.userId),
-        });
+        const [user] = await ctx.db.select().from(users).where(eq(users.id, ctx.userId)).limit(1);
 
         if (user?.testMode) {
             return { testMode: true, limits: TEST_MODE_LIMITS };
@@ -245,18 +241,14 @@ export const userRouter = router({
             defaultCurrency: z.string().length(3).default('USD'),
         }))
         .mutation(async ({ ctx, input }) => {
-            const existing = await ctx.db.query.users.findFirst({
-                where: eq(users.id, ctx.userId),
-            });
+            const [existing] = await ctx.db.select().from(users).where(eq(users.id, ctx.userId)).limit(1);
 
             if (existing) {
                 return existing;
             }
 
             if (input.username) {
-                const existingUsername = await ctx.db.query.users.findFirst({
-                    where: eq(users.username, input.username.toLowerCase()),
-                });
+                const [existingUsername] = await ctx.db.select().from(users).where(eq(users.username, input.username.toLowerCase())).limit(1);
 
                 if (existingUsername) {
                     throw new TRPCError({ code: 'CONFLICT', message: 'Username is already taken' });
@@ -289,12 +281,14 @@ export const userRouter = router({
                 updateData.name = input.name;
             }
             if (input.username !== undefined) {
-                const existingUsername = await ctx.db.query.users.findFirst({
-                    where: and(
+                const [existingUsername] = await ctx.db
+                    .select()
+                    .from(users)
+                    .where(and(
                         eq(users.username, input.username.toLowerCase()),
                         ne(users.id, ctx.userId)
-                    ),
-                });
+                    ))
+                    .limit(1);
 
                 if (existingUsername) {
                     throw new TRPCError({ code: 'CONFLICT', message: 'Username is already taken' });
@@ -457,9 +451,7 @@ export const userRouter = router({
 
     exportAllData: protectedProcedure.query(async ({ ctx }) => {
         // 1. Get user and tier
-        const user = await ctx.db.query.users.findFirst({
-            where: eq(schema.users.id, ctx.userId!),
-        });
+        const [user] = await ctx.db.select().from(users).where(eq(users.id, ctx.userId!)).limit(1);
 
         if (!user) {
             throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found' });
