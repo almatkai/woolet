@@ -158,7 +158,9 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
     GlitchTip.setUser({ id: ctx.userId });
 
     // Auto-sync user: ensure user exists in database
-    let [user] = await ctx.db.select().from(users).where(eq(users.id, ctx.userId)).limit(1);
+    let user = await ctx.db.query.users.findFirst({
+        where: eq(users.id, ctx.userId),
+    });
 
     if (!user) {
         // Get Clerk user info from the auth context
@@ -182,8 +184,9 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
             // User might have been created by a concurrent request
             console.log(`User ${ctx.userId} already exists or creation failed:`, err);
             // Fetch again
-            const [fetchedUser] = await ctx.db.select().from(users).where(eq(users.id, ctx.userId)).limit(1);
-            user = fetchedUser;
+            user = await ctx.db.query.users.findFirst({
+                where: eq(users.id, ctx.userId),
+            });
         }
     }
 
@@ -328,4 +331,3 @@ export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
 
     return next();
 });
-
