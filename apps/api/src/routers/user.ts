@@ -197,7 +197,7 @@ export const userRouter = router({
 
     isAdmin: protectedProcedure.query(async ({ ctx }) => {
         const admin = await ctx.db.query.admins.findFirst({
-            where: eq(admins.id, ctx.userId!),
+            where: eq(admins.id, ctx.userId),
         });
         return !!admin;
     }),
@@ -451,7 +451,7 @@ export const userRouter = router({
 
     exportAllData: protectedProcedure.query(async ({ ctx }) => {
         // 1. Get user and tier
-        const [user] = await ctx.db.select().from(users).where(eq(users.id, ctx.userId!)).limit(1);
+        const [user] = await ctx.db.select().from(users).where(eq(users.id, ctx.userId)).limit(1);
 
         if (!user) {
             throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found' });
@@ -469,7 +469,7 @@ export const userRouter = router({
             .select({ value: count() })
             .from(exportHistories)
             .where(and(
-                eq(exportHistories.userId, ctx.userId!),
+                eq(exportHistories.userId, ctx.userId),
                 gte(exportHistories.timestamp, dailyStart)
             ));
 
@@ -477,7 +477,7 @@ export const userRouter = router({
             .select({ value: count() })
             .from(exportHistories)
             .where(and(
-                eq(exportHistories.userId, ctx.userId!),
+                eq(exportHistories.userId, ctx.userId),
                 gte(exportHistories.timestamp, weeklyStart)
             ));
 
@@ -496,7 +496,7 @@ export const userRouter = router({
         }
 
         // 3. Fetch data with tier-based filters
-        const userBanks = await ctx.db.query.banks.findMany({ where: eq(schema.banks.userId, ctx.userId!) });
+        const userBanks = await ctx.db.query.banks.findMany({ where: eq(schema.banks.userId, ctx.userId) });
         const bankIds = userBanks.map(b => b.id);
 
         const userAccounts = bankIds.length ? await ctx.db.query.accounts.findMany({
@@ -520,9 +520,9 @@ export const userRouter = router({
             where: transactionCondition
         }) : [];
 
-        const userCategories = await ctx.db.query.categories.findMany({ where: eq(schema.categories.userId, ctx.userId!) });
+        const userCategories = await ctx.db.query.categories.findMany({ where: eq(schema.categories.userId, ctx.userId) });
 
-        const userDebts = await ctx.db.query.debts.findMany({ where: eq(schema.debts.userId, ctx.userId!) });
+        const userDebts = await ctx.db.query.debts.findMany({ where: eq(schema.debts.userId, ctx.userId) });
         const debtIds = userDebts.map(d => d.id);
         const userDebtPayments = debtIds.length ? await ctx.db.query.debtPayments.findMany({
             where: inArray(schema.debtPayments.debtId, debtIds)
@@ -532,16 +532,16 @@ export const userRouter = router({
         const userMortgages = accountIds.length ? await ctx.db.query.mortgages.findMany({ where: inArray(schema.mortgages.accountId, accountIds) }) : [];
         const userDeposits = accountIds.length ? await ctx.db.query.deposits.findMany({ where: inArray(schema.deposits.accountId, accountIds) }) : [];
 
-        const userStocks = await ctx.db.query.stocks.findMany({ where: eq(schema.stocks.userId, ctx.userId!) });
+        const userStocks = await ctx.db.query.stocks.findMany({ where: eq(schema.stocks.userId, ctx.userId) });
         const manualStockIds = userStocks.filter(s => s.isManual).map(s => s.id);
         const userStockPrices = manualStockIds.length ? await ctx.db.query.stockPrices.findMany({
             where: inArray(schema.stockPrices.stockId, manualStockIds)
         }) : [];
 
-        const holdings = await ctx.db.query.portfolioHoldings.findMany({ where: eq(schema.portfolioHoldings.userId, ctx.userId!) });
-        const invTransactions = await ctx.db.query.investmentTransactions.findMany({ where: eq(schema.investmentTransactions.userId, ctx.userId!) });
+        const holdings = await ctx.db.query.portfolioHoldings.findMany({ where: eq(schema.portfolioHoldings.userId, ctx.userId) });
+        const invTransactions = await ctx.db.query.investmentTransactions.findMany({ where: eq(schema.investmentTransactions.userId, ctx.userId) });
 
-        const userSplitParticipants = await ctx.db.query.splitParticipants.findMany({ where: eq(schema.splitParticipants.userId, ctx.userId!) });
+        const userSplitParticipants = await ctx.db.query.splitParticipants.findMany({ where: eq(schema.splitParticipants.userId, ctx.userId) });
         const participantIds = userSplitParticipants.map(p => p.id);
         const userTransactionSplits = participantIds.length ? await ctx.db.query.transactionSplits.findMany({
             where: inArray(schema.transactionSplits.participantId, participantIds)
@@ -553,12 +553,12 @@ export const userRouter = router({
 
         // 4. Record export attempt
         await ctx.db.insert(exportHistories).values({
-            userId: ctx.userId!,
+            userId: ctx.userId,
         });
 
         // 5. Fetch additional data (settings, subscriptions)
-        const userSettingsData = await ctx.db.query.userSettings.findMany({ where: eq(schema.userSettings.userId, ctx.userId!) });
-        const dashboards = await ctx.db.query.dashboardLayouts.findMany({ where: eq(schema.dashboardLayouts.userId, ctx.userId!) });
+        const userSettingsData = await ctx.db.query.userSettings.findMany({ where: eq(schema.userSettings.userId, ctx.userId) });
+        const dashboards = await ctx.db.query.dashboardLayouts.findMany({ where: eq(schema.dashboardLayouts.userId, ctx.userId) });
 
         return {
             timestamp: new Date().toISOString(),
@@ -578,9 +578,9 @@ export const userRouter = router({
                 stockPrices: userStockPrices,
                 portfolioHoldings: holdings,
                 investmentTransactions: invTransactions,
-                subscriptions: await ctx.db.query.subscriptions.findMany({ where: eq(schema.subscriptions.userId, ctx.userId!) }),
+                subscriptions: await ctx.db.query.subscriptions.findMany({ where: eq(schema.subscriptions.userId, ctx.userId) }),
                 subscriptionPayments: (await (async () => {
-                    const subs = await ctx.db.query.subscriptions.findMany({ where: eq(schema.subscriptions.userId, ctx.userId!) });
+                    const subs = await ctx.db.query.subscriptions.findMany({ where: eq(schema.subscriptions.userId, ctx.userId) });
                     const ids = subs.map(s => s.id);
                     return ids.length ? await ctx.db.query.subscriptionPayments.findMany({ where: inArray(schema.subscriptionPayments.subscriptionId, ids) }) : [];
                 })()),
@@ -611,7 +611,7 @@ export const userRouter = router({
                 const userBankIds = tx
                     .select({ id: schema.banks.id })
                     .from(schema.banks)
-                    .where(eq(schema.banks.userId, ctx.userId!));
+                    .where(eq(schema.banks.userId, ctx.userId));
 
                 const userAccountIds = tx
                     .select({ id: schema.accounts.id })
@@ -631,17 +631,17 @@ export const userRouter = router({
                 const userDebtIds = tx
                     .select({ id: schema.debts.id })
                     .from(schema.debts)
-                    .where(eq(schema.debts.userId, ctx.userId!));
+                    .where(eq(schema.debts.userId, ctx.userId));
 
                 const userSubIds = tx
                     .select({ id: schema.subscriptions.id })
                     .from(schema.subscriptions)
-                    .where(eq(schema.subscriptions.userId, ctx.userId!));
+                    .where(eq(schema.subscriptions.userId, ctx.userId));
 
                 const participantIds = tx
                     .select({ id: schema.splitParticipants.id })
                     .from(schema.splitParticipants)
-                    .where(eq(schema.splitParticipants.userId, ctx.userId!));
+                    .where(eq(schema.splitParticipants.userId, ctx.userId));
 
                 const splitIds = tx
                     .select({ id: schema.transactionSplits.id })
@@ -669,20 +669,20 @@ export const userRouter = router({
                 await tx.delete(schema.deposits).where(inArray(schema.deposits.accountId, userAccountIds));
 
                 // Delete parent tables
-                await tx.delete(schema.banks).where(eq(schema.banks.userId, ctx.userId!));
-                await tx.delete(schema.categories).where(eq(schema.categories.userId, ctx.userId!));
-                await tx.delete(schema.debts).where(eq(schema.debts.userId, ctx.userId!));
-                await tx.delete(schema.stocks).where(eq(schema.stocks.userId, ctx.userId!));
-                await tx.delete(schema.subscriptions).where(eq(schema.subscriptions.userId, ctx.userId!));
-                await tx.delete(schema.splitParticipants).where(eq(schema.splitParticipants.userId, ctx.userId!));
-                await tx.delete(schema.portfolioHoldings).where(eq(schema.portfolioHoldings.userId, ctx.userId!));
-                await tx.delete(schema.investmentTransactions).where(eq(schema.investmentTransactions.userId, ctx.userId!));
-                await tx.delete(schema.dashboardLayouts).where(eq(schema.dashboardLayouts.userId, ctx.userId!));
-                await tx.delete(schema.userSettings).where(eq(schema.userSettings.userId, ctx.userId!));
+                await tx.delete(schema.banks).where(eq(schema.banks.userId, ctx.userId));
+                await tx.delete(schema.categories).where(eq(schema.categories.userId, ctx.userId));
+                await tx.delete(schema.debts).where(eq(schema.debts.userId, ctx.userId));
+                await tx.delete(schema.stocks).where(eq(schema.stocks.userId, ctx.userId));
+                await tx.delete(schema.subscriptions).where(eq(schema.subscriptions.userId, ctx.userId));
+                await tx.delete(schema.splitParticipants).where(eq(schema.splitParticipants.userId, ctx.userId));
+                await tx.delete(schema.portfolioHoldings).where(eq(schema.portfolioHoldings.userId, ctx.userId));
+                await tx.delete(schema.investmentTransactions).where(eq(schema.investmentTransactions.userId, ctx.userId));
+                await tx.delete(schema.dashboardLayouts).where(eq(schema.dashboardLayouts.userId, ctx.userId));
+                await tx.delete(schema.userSettings).where(eq(schema.userSettings.userId, ctx.userId));
 
                 // 2. Insert new data with proper foreign key validation
                 // Build valid ID sets as we insert parent tables, then filter child tables
-                const withUser = (items: any[]) => items.map(i => ({ ...i, userId: ctx.userId! }));
+                const withUser = (items: any[]) => items.map(i => ({ ...i, userId: ctx.userId }));
 
                 // Track valid IDs for foreign key filtering
                 const validBankIds = new Set<string>();

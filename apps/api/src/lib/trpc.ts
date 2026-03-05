@@ -316,7 +316,7 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
 export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
     // Check if the user is in the admins table
     const admin = await ctx.db.query.admins.findFirst({
-        where: eq(admins.id, ctx.userId!),
+        where: eq(admins.id, ctx.userId),
     });
 
     if (!admin) {
