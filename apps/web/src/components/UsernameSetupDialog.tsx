@@ -124,7 +124,7 @@ function LEDBoard({ word }: { word: string }) {
 
     return (
         <div
-            className="group p-6 flex flex-1 items-center justify-center bg-gradient-to-bl from-zinc-950/80 via-zinc-900/90 to-zinc-950 overflow-hidden"
+            className="group p-3 sm:p-6 flex flex-1 items-center justify-center bg-gradient-to-bl from-zinc-950/80 via-zinc-900/90 to-zinc-950 overflow-hidden"
             onMouseEnter={() => setHovering(true)}
             onMouseLeave={() => setHovering(false)}
         >
@@ -180,7 +180,6 @@ export function UsernameSetupDialog() {
 
     const updateUser = trpc.user.update.useMutation({
         onSuccess: async () => {
-            toast.success('Username saved');
             await utils.user.me.invalidate();
         },
         onError: (error: unknown) => {
@@ -214,8 +213,7 @@ export function UsernameSetupDialog() {
     return (
         <Dialog open={open} onOpenChange={(val) => !val && setDismissed(true)}>
             <DialogContent
-                className="p-0 overflow-hidden border-border bg-card gap-0 sm:max-w-[680px] w-[calc(100%-2.5rem)] mx-auto rounded-2xl sm:rounded-3xl"
-                style={{ minHeight: 480 }}
+                className="p-0 overflow-hidden border-border bg-card gap-0 sm:max-w-[680px] w-[calc(100%-2.5rem)] mx-auto rounded-2xl sm:rounded-3xl !top-auto !bottom-4 !translate-y-0 sm:!top-[50%] sm:!bottom-auto sm:!-translate-y-1/2 flex flex-col max-h-[85vh] sm:max-h-none min-h-[300px] sm:min-h-[480px]"
             >
                 {/* inline keyframes */}
                 <style>{`
@@ -227,9 +225,9 @@ export function UsernameSetupDialog() {
                 `}</style>
 
                 {/* top accent line */}
-                <div className="h-[3px] w-full bg-gradient-to-r from-transparent via-foreground/20 to-transparent" />
+                <div className="h-[3px] w-full bg-gradient-to-r from-transparent via-foreground/20 to-transparent shrink-0" />
 
-                <div className="flex flex-row" style={{ minHeight: 476 }}>
+                <div className="flex flex-row flex-1">
                     {/* ── LEFT COLUMN ── */}
                     <div className="flex flex-1 flex-col justify-between">
                         {/* LED board — shows typed username or "WOOLET" */}
@@ -241,7 +239,7 @@ export function UsernameSetupDialog() {
                         <div
                             className="px-8 mx-4 flex flex-col gap-5 flex-1 justify-center transition-transform duration-300"
                             style={{
-                                transform: focused
+                                transform: focused || username.trim().length > 0
                                     ? 'skewX(0deg) skewY(0deg)'
                                     : 'skewX(-2.4deg) skewY(2.4deg)',
                             }}
@@ -280,7 +278,7 @@ export function UsernameSetupDialog() {
                                         }
                                         onFocus={() => setFocused(true)}
                                         onBlur={() => setFocused(false)}
-                                        maxLength={32}
+                                        maxLength={30}
                                         autoFocus
                                         className="pl-7 pr-12 h-10 transition-all duration-150"
                                         style={{ fontSize: 14 }}
@@ -301,7 +299,7 @@ export function UsernameSetupDialog() {
                                                 color: 'hsl(var(--muted-foreground))',
                                             }}
                                         >
-                                            {username.length}/32
+                                            {username.length}/30
                                         </span>
                                     )}
                                 </div>
