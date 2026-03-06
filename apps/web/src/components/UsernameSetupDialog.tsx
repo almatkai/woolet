@@ -183,6 +183,10 @@ export function UsernameSetupDialog({
     const [focused, setFocused] = useState(false);
     const [dismissed, setDismissed] = useState(false);
 
+    useEffect(() => {
+        setUsername(initialUsername);
+    }, [initialUsername]);
+
     const isControlled = typeof controlledOpen !== 'undefined';
 
     const open = useMemo(() => {
@@ -192,17 +196,36 @@ export function UsernameSetupDialog({
     }, [isLoading, me, dismissed, isControlled, controlledOpen]);
 
     const updateUser = trpc.user.update.useMutation({
-        onSuccess: async () => {
-            await utils.user.me.invalidate();
-            toast.success(initialUsername ? 'Username updated' : 'Username saved');
+        onMutate: async (variables: any) => {
+            await utils.user.me.cancel();
+            const previousMe = utils.user.me.getData();
+
+            utils.user.me.setData(undefined, (current: any) => {
+                if (!current) {
+                    return current;
+                }
+
+                return {
+                    ...current,
+                    username: variables.username,
+                };
+            });
+
+            return { previousMe };
+        },
+        onSuccess: () => {
             if (controlledOnOpenChange) {
                 controlledOnOpenChange(false);
             }
         },
-        onError: (error: unknown) => {
+        onError: (error: unknown, _variables: any, context: any) => {
+            utils.user.me.setData(undefined, context?.previousMe);
             const message =
                 error instanceof Error ? error.message : 'Failed to save username';
             toast.error(message);
+        },
+        onSettled: async () => {
+            await utils.user.me.invalidate();
         },
     });
 
@@ -302,7 +325,6 @@ export function UsernameSetupDialog({
                                         onFocus={() => setFocused(true)}
                                         onBlur={() => setFocused(false)}
                                         maxLength={30}
-                                        autoFocus
                                         className="pl-7 pr-12 h-10 transition-all duration-150"
                                         style={{ fontSize: 14 }}
                                         onKeyDown={(e) => {

@@ -137,7 +137,13 @@ export function AddDebtSheet({ open: controlledOpen, onOpenChange: controlledOnO
                 return;
             }
         }
-        createDebt.mutate(data);
+        const normalizedData = {
+            ...data,
+            description: data.description?.trim() || undefined,
+            personContact: data.personContact?.trim() || undefined,
+            dueDate: data.dueDate?.trim() || undefined,
+        };
+        createDebt.mutate(normalizedData);
     };
 
     const isControlled = controlledOpen !== undefined;

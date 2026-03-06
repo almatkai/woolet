@@ -1,10 +1,17 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
+import {
+    applyBalanceDeltas,
+    captureOptimisticFinanceSnapshot,
+    restoreOptimisticFinanceSnapshot,
+    upsertTransactionAcrossCaches,
+} from '@/lib/optimistic-cache';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -59,6 +66,7 @@ const paymentSchema = z.object({
 type PaymentForm = z.infer<typeof paymentSchema>;
 
 export function AddDebtPaymentSheet({ debt, open, onOpenChange }: AddDebtPaymentSheetProps) {
+    const queryClient = useQueryClient();
     const utils = trpc.useUtils();
     const { data: accountsData } = trpc.account.list.useQuery({});
 
@@ -119,35 +127,142 @@ export function AddDebtPaymentSheet({ debt, open, onOpenChange }: AddDebtPayment
         availableAccounts.find(o => o.id === firstDistId),
         [availableAccounts, firstDistId]);
 
+    useEffect(() => {
+        if (!open || !debt || isSplit || availableAccounts.length === 0) return;
+        if (!firstDistId) {
+            setValue('distributions.0.currencyBalanceId', availableAccounts[0].id, { shouldValidate: true });
+            setValue('distributions.0.amount', Number(totalAmount) || 0);
+        }
+    }, [open, debt, isSplit, availableAccounts, totalAmount, firstDistId, setValue]);
+
     const addPaymentMutation = trpc.debt.addPayment.useMutation({
+        onMutate: async (variables: any) => {
+            if (!debt) {
+                return {};
+            }
+
+            await Promise.all([
+                utils.debt.list.cancel(),
+                utils.bank.getHierarchy.cancel(),
+                utils.account.getTotalBalance.cancel(),
+                utils.transaction.list.cancel(),
+            ]);
+
+            const snapshot = captureOptimisticFinanceSnapshot(queryClient);
+            const previousDebts = utils.debt.list.getData({});
+
+            try {
+                const nextPaidAmount = Number(debt.paidAmount || 0) + variables.amount;
+                const nextStatus = Math.abs(Number(debt.amount) - nextPaidAmount) < 0.01 ? 'paid' : 'partial';
+                const distributionCurrencyCode = debt.currencyBalance?.currencyCode || debt.currencyCode || 'USD';
+                const balanceLabelById = new Map(availableAccounts.map((account) => [account.id, account.currencyCode]));
+                const transactionType = debt.type === 'they_owe' ? 'income' : 'expense';
+                const transactionDescription = `Repayment ${debt.type === 'they_owe' ? 'from' : 'to'} ${debt.personName}${variables.note ? ` - ${variables.note}` : ''}`;
+
+                utils.debt.list.setData({}, (current: any) => {
+                    if (!current?.debts) {
+                        return current;
+                    }
+
+                    return {
+                        ...current,
+                        debts: current.debts.map((item: any) => {
+                            if (item.id !== debt.id) {
+                                return item;
+                            }
+
+                            return {
+                                ...item,
+                                paidAmount: nextPaidAmount.toString(),
+                                status: nextStatus,
+                                payments: [
+                                    {
+                                        id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `temp-payment-${Date.now()}`,
+                                        amount: variables.amount.toString(),
+                                        paidAt: variables.paymentDate,
+                                        note: variables.note,
+                                        transactions: variables.distributions.map((distribution: any) => ({
+                                            id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `temp-payment-tx-${Date.now()}`,
+                                            amount: distribution.amount.toString(),
+                                            currencyBalanceId: distribution.currencyBalanceId,
+                                        })),
+                                    },
+                                    ...(item.payments || []),
+                                ],
+                            };
+                        }),
+                    };
+                });
+
+                variables.distributions.forEach((distribution: any, index: number) => {
+                    upsertTransactionAcrossCaches(queryClient, {
+                        id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `temp-debt-repayment-${Date.now()}-${index}`,
+                        currencyBalanceId: distribution.currencyBalanceId,
+                        amount: distribution.amount,
+                        description: transactionDescription,
+                        date: variables.paymentDate,
+                        type: transactionType,
+                        excludeFromMonthlyStats: false,
+                        category: {
+                            id: 'optimistic-debt-repayment',
+                            name: 'Debt Repayment',
+                            icon: '💸',
+                        },
+                        currencyBalance: {
+                            currencyCode: balanceLabelById.get(distribution.currencyBalanceId) || distributionCurrencyCode,
+                        },
+                    });
+                });
+
+                applyBalanceDeltas(
+                    queryClient,
+                    variables.distributions.map((distribution: any) => ({
+                        currencyBalanceId: distribution.currencyBalanceId,
+                        currencyCode: balanceLabelById.get(distribution.currencyBalanceId) || distributionCurrencyCode,
+                        delta: debt.type === 'they_owe' ? distribution.amount : -distribution.amount,
+                    })),
+                );
+            } catch (error) {
+                console.error('Failed to apply optimistic debt payment update', error);
+            }
+
+            return { snapshot, previousDebts };
+        },
         onSuccess: () => {
-            toast.success('Payment recorded successfully');
-            utils.debt.list.invalidate();
-            utils.bank.getHierarchy.invalidate();
-            utils.account.getTotalBalance.invalidate();
             onOpenChange(false);
             reset();
         },
-        onError: (error: any) => {
+        onError: (error: any, _variables: any, context: any) => {
+            restoreOptimisticFinanceSnapshot(queryClient, context?.snapshot);
+            utils.debt.list.setData({}, context?.previousDebts);
             toast.error(error.message);
-        }
+        },
+        onSettled: () => {
+            utils.debt.list.invalidate();
+            utils.bank.getHierarchy.invalidate();
+            utils.account.getTotalBalance.invalidate();
+            utils.transaction.list.invalidate();
+        },
     });
 
     const onSubmit = (data: PaymentForm) => {
         if (!debt) return;
+        if (availableAccounts.length === 0) {
+            toast.error('No matching account available for this debt currency.');
+            return;
+        }
 
         let finalDistributions = data.distributions;
 
         if (!data.isSplit) {
+            const fallbackAccountId = data.distributions[0]?.currencyBalanceId || availableAccounts[0]?.id;
             // If not split, use the first distribution but ensure amount matches total
-            // Also user might not have selected account if they just typed total amount?
-            // Wait, we need at least one destination.
-            if (data.distributions.length === 0 || !data.distributions[0].currencyBalanceId) {
+            if (!fallbackAccountId) {
                 toast.error("Please select an account");
                 return;
             }
             finalDistributions = [{
-                currencyBalanceId: data.distributions[0].currencyBalanceId,
+                currencyBalanceId: fallbackAccountId,
                 amount: data.amount
             }];
         } else {
@@ -155,6 +270,10 @@ export function AddDebtPaymentSheet({ debt, open, onOpenChange }: AddDebtPayment
             const sum = data.distributions.reduce((acc, curr) => acc + curr.amount, 0);
             if (Math.abs(sum - data.amount) > 0.01) {
                 toast.error(`Allocated amount (${sum}) does not match total payment (${data.amount})`);
+                return;
+            }
+            if (data.distributions.some((distribution) => !distribution.currencyBalanceId)) {
+                toast.error('Please select an account for each split distribution.');
                 return;
             }
         }
@@ -220,6 +339,7 @@ export function AddDebtPaymentSheet({ debt, open, onOpenChange }: AddDebtPayment
                                 )}
                             </div>
                             <Select
+                                value={watch('distributions.0.currencyBalanceId')}
                                 onValueChange={(val) => {
                                     setValue('distributions.0.currencyBalanceId', val);
                                     setValue('distributions.0.amount', totalAmount);
@@ -239,6 +359,14 @@ export function AddDebtPaymentSheet({ debt, open, onOpenChange }: AddDebtPayment
                                     ))}
                                 </SelectContent>
                             </Select>
+                            {errors.distributions?.[0]?.currencyBalanceId && (
+                                <p className="text-sm text-red-500">{errors.distributions[0].currencyBalanceId.message}</p>
+                            )}
+                            {availableAccounts.length === 0 && (
+                                <p className="text-sm text-red-500">
+                                    No accounts found with currency {debt.currencyBalance?.currencyCode || debt.currencyCode}.
+                                </p>
+                            )}
                         </div>
                     ) : (
                         <div className="space-y-4">

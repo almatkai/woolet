@@ -69,10 +69,9 @@ class CurrencyExchangeService {
     }
 
     /**
-     * Get USD-based rates from Cache or DB
-     * Returns rates as USD -> Currency (e.g., USD -> EUR = 0.85)
+     * Get USD-based rates from Cache or DB only (no external API call).
      */
-    private async getUsdRates(): Promise<Record<string, number>> {
+    private async getUsdRatesFromCacheOrDbOnly(): Promise<Record<string, number> | null> {
         const cacheKey = `${CACHE_KEYS.CURRENCY_RATES}:USD`;
 
         // Try redis cache
@@ -116,6 +115,19 @@ class CurrencyExchangeService {
             return rates;
         }
 
+        return null;
+    }
+
+    /**
+     * Get USD-based rates from Cache/DB with API fallback.
+     * Returns rates as USD -> Currency (e.g., USD -> EUR = 0.85)
+     */
+    private async getUsdRates(): Promise<Record<string, number>> {
+        const localRates = await this.getUsdRatesFromCacheOrDbOnly();
+        if (localRates) {
+            return localRates;
+        }
+
         // Fallback to API fetch if DB is empty (first run)
         console.log('⚠️  No rates in cache or DB, fetching from API...');
         return await this.fetchAndStoreRates();
@@ -133,13 +145,19 @@ class CurrencyExchangeService {
 
         if (!API_KEY) {
             console.error('❌ CURRENCY_API_KEY not set. Cannot fetch exchange rates.');
-            return { USD: 1 };
+            const fallback = await this.getUsdRatesFromCacheOrDbOnly();
+            return fallback ?? { USD: 1 };
         }
 
         console.log('🌐 Fetching fresh USD-based rates from exchangerate-api.com...');
         const response = await fetch(API_URL);
         if (!response.ok) {
-            throw new Error(`Failed to fetch rates: ${response.statusText}`);
+            if (response.status === 429) {
+                console.warn('⚠️  Exchange API quota exceeded (429). Falling back to cached/database rates.');
+                const fallback = await this.getUsdRatesFromCacheOrDbOnly();
+                if (fallback) return fallback;
+            }
+            throw new Error(`Failed to fetch rates (${response.status}): ${response.statusText}`);
         }
 
         const data = await response.json() as ExchangeRateResponse;

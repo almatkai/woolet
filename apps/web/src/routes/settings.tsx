@@ -74,13 +74,24 @@ export function SettingsPage() {
     const utils = trpc.useUtils();
 
     const updateSettings = trpc.settings.updateUserSettings.useMutation({
-        onSuccess: () => {
-            toast.success('Settings updated');
+        onMutate: async (variables: any) => {
+            await utils.settings.getUserSettings.cancel();
+            const previousSettings = utils.settings.getUserSettings.getData();
+
+            utils.settings.getUserSettings.setData(undefined, (current: any) => ({
+                ...current,
+                ...variables,
+            }));
+
+            return { previousSettings };
+        },
+        onError: (error: { message?: string }, _variables: any, context: any) => {
+            utils.settings.getUserSettings.setData(undefined, context?.previousSettings);
+            toast.error(error.message || 'Failed to update settings');
+        },
+        onSettled: () => {
             utils.settings.getUserSettings.invalidate();
         },
-        onError: (error: { message?: string }) => {
-            toast.error(error.message || 'Failed to update settings');
-        }
     });
 
     const deleteDataMutation = trpc.user.deleteAllData.useMutation({
@@ -793,7 +804,6 @@ export function SettingsPage() {
             </Card>
 
             <UsernameSetupDialog
-                key={`${isUsernameDialogOpen}-${me?.username ?? ''}`}
                 open={isUsernameDialogOpen}
                 onOpenChange={setIsUsernameDialogOpen}
                 initialUsername={me?.username ?? ''}

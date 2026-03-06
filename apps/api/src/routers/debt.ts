@@ -79,6 +79,7 @@ export const debtRouter = router({
             dueDate: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
+            const normalizedDueDate = input.dueDate?.trim() || null;
             // Check test mode limits
             await checkEntityLimit(ctx.db, ctx.userId!, 'debts');
 
@@ -116,7 +117,7 @@ export const debtRouter = router({
                 amount: input.amount.toString(),
                 type: input.type,
                 description: input.description,
-                dueDate: input.dueDate,
+                dueDate: normalizedDueDate,
                 userId: ctx.userId!,
                 isTest: ctx.user.testMode,
             }).returning();
@@ -329,6 +330,7 @@ export const debtRouter = router({
         }))
         .mutation(async ({ ctx, input }) => {
             const { id, ...data } = input;
+            const normalizedDueDate = data.dueDate?.trim() || undefined;
 
             const debt = await ctx.db.query.debts.findFirst({
                 where: and(
@@ -345,6 +347,9 @@ export const debtRouter = router({
                 ...data,
                 updatedAt: new Date(),
             };
+            if (data.dueDate !== undefined) {
+                updateValues.dueDate = normalizedDueDate ?? null;
+            }
 
             if (data.amount) {
                 updateValues.amount = data.amount.toString();

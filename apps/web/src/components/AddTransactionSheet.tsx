@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import posthog from 'posthog-js';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -6,6 +7,13 @@ import { z } from 'zod';
 import { Plus, Settings2, Bookmark } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
+import {
+    applyBalanceDeltas,
+    buildBalanceDeltasForTransaction,
+    captureOptimisticFinanceSnapshot,
+    restoreOptimisticFinanceSnapshot,
+    upsertTransactionAcrossCaches,
+} from '@/lib/optimistic-cache';
 import { formatAccountLabel } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ManageCategoriesSheet } from '@/components/ManageCategoriesSheet';
@@ -100,6 +108,7 @@ export function AddTransactionSheet({
     onOpenShortcut,
 }: AddTransactionSheetProps = {}) {
     const isCompactMobile = useIsMobile(470);
+    const queryClient = useQueryClient();
     const [internalOpen, setInternalOpen] = useState(false);
     const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
     const setOpen = controlledOnOpenChange || setInternalOpen;
@@ -205,9 +214,41 @@ export function AddTransactionSheet({
     const canSaveAsShortcut = !selectedShortcut;
 
     const createTransaction = trpc.transaction.create.useMutation({
+        onMutate: async (variables: any) => {
+            await Promise.all([
+                utils.transaction.list.cancel(),
+                utils.account.getTotalBalance.cancel(),
+                utils.bank.getHierarchy.cancel(),
+            ]);
+
+            const snapshot = captureOptimisticFinanceSnapshot(queryClient);
+            const currencyCodeById = new Map(currencyOptions.map((option) => [option.id, option.currencyCode]));
+            const optimisticTransaction = {
+                id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `temp-${Date.now()}`,
+                currencyBalanceId: variables.currencyBalanceId,
+                toCurrencyBalanceId: variables.toCurrencyBalanceId,
+                amount: variables.amount,
+                cashbackAmount: variables.cashbackAmount,
+                fee: variables.fee,
+                exchangeRate: variables.exchangeRate,
+                description: variables.description,
+                date: variables.date,
+                type: variables.type,
+                category: categories?.find((category: Category) => category.id === variables.categoryId) ?? null,
+                currencyBalance: selectedAccount ? {
+                    currencyCode: selectedAccount.currencyCode,
+                } : null,
+            };
+
+            upsertTransactionAcrossCaches(queryClient, optimisticTransaction);
+            applyBalanceDeltas(
+                queryClient,
+                buildBalanceDeltasForTransaction(optimisticTransaction, currencyCodeById, 1),
+            );
+
+            return { snapshot };
+        },
         onSuccess: (_data: any, variables: any) => {
-            utils.transaction.list.invalidate();
-            utils.account.getTotalBalance.invalidate();
             setOpen(false);
 
             posthog.capture('transaction_added', {
@@ -218,12 +259,17 @@ export function AddTransactionSheet({
             });
 
             reset();
-            toast.success('Transaction added successfully');
         },
-        onError: (error: unknown) => {
+        onError: (error: unknown, _variables: any, context: any) => {
+            restoreOptimisticFinanceSnapshot(queryClient, context?.snapshot);
             console.error("Failed to create transaction:", error);
             toast.error('Failed to create transaction');
-        }
+        },
+        onSettled: () => {
+            utils.transaction.list.invalidate();
+            utils.account.getTotalBalance.invalidate();
+            utils.bank.getHierarchy.invalidate();
+        },
     });
 
     const onSubmit = (data: CreateTransactionFormValues) => {

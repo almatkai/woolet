@@ -1,9 +1,9 @@
 
-import { useState, useRef, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Pencil, Trash2, MoreHorizontal, Banknote, Plus } from 'lucide-react';
+import { Pencil, Trash2, MoreHorizontal, Banknote, Plus, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -111,10 +111,13 @@ export function DebtsPage() {
     const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
     const [payingDebt, setPayingDebt] = useState<Debt | null>(null);
     const [editingPayment, setEditingPayment] = useState<{ id: string, amount: number, note: string | null, paidAt: string, debt: Debt } | null>(null);
-    const deleteTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
-    const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
+    const [detailDebt, setDetailDebt] = useState<Debt | null>(null);
+    const detailHistoryRef = useRef<HTMLDivElement | null>(null);
+    const paymentPageSize = 10;
+    const [detailPaymentsPage, setDetailPaymentsPage] = useState(1);
     const itemsPerPage = 6;
-    const [activePage, setActivePage] = useState(1);
+    const [payablesPage, setPayablesPage] = useState(1);
+    const [receivablesPage, setReceivablesPage] = useState(1);
     const [historyPage, setHistoryPage] = useState(1);
 
     // Split payment state
@@ -321,7 +324,7 @@ export function DebtsPage() {
         });
     };
 
-    const allDebts = debtsData?.debts.filter(d => !pendingDeletes.has(d.id)) || [];
+    const allDebts = debtsData?.debts || [];
     const iOweDebts = allDebts.filter(d => d.type === 'i_owe');
     const theyOweDebts = allDebts.filter(d => d.type === 'they_owe');
 
@@ -332,30 +335,62 @@ export function DebtsPage() {
     const theyOweActive = allDebts.filter(d => d.type === 'they_owe' && !isSettled(d));
     const historyDebts = allDebts.filter(d => isSettled(d));
 
-    const formatAmount = (amount: string | number, currency: string) => {
-        return Number(amount).toLocaleString('en-US', { style: 'currency', currency });
-    };
+    const detailPayments = detailDebt?.payments || [];
+    const visibleDetailPayments = detailPayments.slice(0, detailPaymentsPage * paymentPageSize);
+    const hasMoreDetailPayments = visibleDetailPayments.length < detailPayments.length;
 
-    const DebtCard = ({ debt }: { debt: Debt }) => {
+    useEffect(() => {
+        setDetailPaymentsPage(1);
+    }, [detailDebt?.id]);
+
+    useEffect(() => {
+        if (!detailDebt) return;
+        const latest = allDebts.find((debt) => debt.id === detailDebt.id);
+        if (!latest) {
+            setDetailDebt(null);
+            return;
+        }
+        setDetailDebt(latest);
+    }, [allDebts, detailDebt?.id]);
+
+    useEffect(() => {
+        const el = detailHistoryRef.current;
+        if (!el || !detailDebt) return;
+
+        const onScroll = () => {
+            if (!hasMoreDetailPayments) return;
+            const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 80;
+            if (nearBottom) {
+                setDetailPaymentsPage((prev) => prev + 1);
+            }
+        };
+
+        el.addEventListener('scroll', onScroll);
+        return () => el.removeEventListener('scroll', onScroll);
+    }, [detailDebt, hasMoreDetailPayments]);
+
+    const DebtCard = ({ debt, variant = 'active' }: { debt: Debt; variant?: 'active' | 'settled' }) => {
         const remaining = getRemaining(debt);
         const colorClass = debt.type === 'they_owe' ? 'text-green-600' : 'text-red-600';
         const currency = debt.currencyBalance?.currencyCode || debt.currencyCode || 'USD';
 
         return (
-            <div className="border rounded-lg p-4 space-y-3">
+            <div className="border rounded-lg p-3 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                        <div className="text-sm sm:text-md">{debt.personName}</div>
-                        {debt.description && (
-                            <div className="text-sm text-muted-foreground italic">
-                                {debt.description}
+                        <div className="flex items-center justify-between gap-2">
+                            <div>
+                                <div className="text-sm sm:text-md font-medium">{debt.personName}</div>
+                                <div className="text-sm text-muted-foreground">
+                                    Due: {debt.dueDate ? new Date(debt.dueDate).toLocaleDateString() : 'No due date'}
+                                </div>
                             </div>
-                        )}
-                        {debt.dueDate && (
-                            <div className="text-sm text-muted-foreground">
-                                Due: {new Date(debt.dueDate).toLocaleDateString()}
-                            </div>
-                        )}
+                            {variant === 'settled' && (
+                                <div className="text-sm font-medium whitespace-nowrap">
+                                    <CurrencyDisplay amount={debt.amount} currency={currency} />
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                         {remaining > 0.01 && (
@@ -385,6 +420,10 @@ export function DebtsPage() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setDetailDebt(debt)}>
+                                    <Info className="h-4 w-4 mr-2" />
+                                    View Details
+                                </DropdownMenuItem>
                                 {remaining > 0.01 && (
                                     <DropdownMenuItem onClick={() => handlePayment(debt)}>
                                         <Banknote className="h-4 w-4 mr-2" />
@@ -407,58 +446,15 @@ export function DebtsPage() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 text-sm border-t pt-3">
-                    <div>
-                        <div className="text-muted-foreground text-xs">Total</div>
-                        <div className="font-medium"><CurrencyDisplay amount={debt.amount} currency={currency} /></div>
-                    </div>
-                    <div className="text-right">
-                        <div className="text-muted-foreground text-xs">Paid</div>
-                        <div className="font-medium">{Number(debt.paidAmount) > 0 ? <CurrencyDisplay amount={debt.paidAmount || 0} currency={currency} /> : '-'}</div>
-                    </div>
-                    <div className="text-right">
-                        <div className="text-muted-foreground text-xs">Remaining</div>
-                        <div className={`font-medium ${colorClass}`}><CurrencyDisplay amount={remaining} currency={currency} /></div>
-                    </div>
-                </div>
-
-                {debt.payments && debt.payments.length > 0 && (
-                    <div className="border-t pt-3 space-y-2">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment History</p>
-                        <div className="space-y-1.5">
-                            {debt.payments.map(payment => (
-                                <div key={payment.id} className="flex items-center justify-between text-xs p-2 bg-muted/30 rounded">
-                                    <div className="flex-1 min-w-0">
-                                        <span className={colorClass}>
-                                            {debt.type === 'i_owe' ? '-' : '+'} <CurrencyDisplay amount={payment.amount} currency={currency} />
-                                        </span>
-                                        <span className="text-muted-foreground ml-2">{new Date(payment.paidAt).toLocaleDateString()}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-5 w-5 bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                                            onClick={() => handleEditPayment(payment, debt)}
-                                            title="Edit Payment"
-                                        >
-                                            <Pencil className="h-3 w-3" />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-5 w-5 bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                                            onClick={() => {
-                                                if (confirm('Delete this payment and revert balance?')) {
-                                                    deletePayment.mutate({ id: payment.id });
-                                                }
-                                            }}
-                                        >
-                                            <Trash2 className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
+                {variant === 'active' && (
+                    <div className="grid grid-cols-2 gap-2 text-sm border-t pt-2">
+                        <div>
+                            <div className="text-muted-foreground text-xs">Total</div>
+                            <div className="font-medium"><CurrencyDisplay amount={debt.amount} currency={currency} /></div>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-muted-foreground text-xs">Remaining</div>
+                            <div className={`font-medium ${colorClass}`}><CurrencyDisplay amount={remaining} currency={currency} /></div>
                         </div>
                     </div>
                 )}
@@ -470,16 +466,16 @@ export function DebtsPage() {
         <div className="space-y-4 md:space-y-6">
             <PageHeader
                 title="Debts"
-                subtitle="Track who owes you and who you owe"
+                subtitle="Track payables and receivables"
                 variant="one"
             >
                 <AddDebtSheet />
             </PageHeader>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-red-600">I Owe</CardTitle>
-                        <CardDescription>Money you need to pay back</CardDescription>
+                        <CardTitle className="text-red-600">Payables</CardTitle>
+                        <CardDescription>Outstanding amounts you need to repay</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {isLoading ? (
@@ -494,9 +490,9 @@ export function DebtsPage() {
                         ) : iOweActive.length === 0 ? (
                             <p className="text-muted-foreground text-center py-4">No debts to pay</p>
                         ) : (
-                            <div className="space-y-3">
+                            <div className="divide-y divide-border">
                                 {iOweActive
-                                    .slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage)
+                                    .slice((payablesPage - 1) * itemsPerPage, payablesPage * itemsPerPage)
                                     .map(debt => (
                                         <DebtCard key={debt.id} debt={debt} />
                                     ))}
@@ -505,16 +501,16 @@ export function DebtsPage() {
                         {iOweActive.length > itemsPerPage && (
                             <div className="flex flex-col items-center justify-center mt-4 gap-2">
                                 <div className="text-xs text-muted-foreground">
-                                    Showing {Math.min(iOweActive.length, (activePage - 1) * itemsPerPage + 1)}-
-                                    {Math.min(iOweActive.length, activePage * itemsPerPage)} of {iOweActive.length}
+                                    Showing {Math.min(iOweActive.length, (payablesPage - 1) * itemsPerPage + 1)}-
+                                    {Math.min(iOweActive.length, payablesPage * itemsPerPage)} of {iOweActive.length}
                                 </div>
                                 <div className="flex flex-col gap-2 w-full">
                                     <Button
                                         variant="outline"
                                         size="sm"
                                         className="h-8 text-[10px] w-full"
-                                        onClick={() => setActivePage(prev => Math.max(1, prev - 1))}
-                                        disabled={activePage === 1}
+                                        onClick={() => setPayablesPage(prev => Math.max(1, prev - 1))}
+                                        disabled={payablesPage === 1}
                                     >
                                         Previous
                                     </Button>
@@ -522,8 +518,8 @@ export function DebtsPage() {
                                         variant="outline"
                                         size="sm"
                                         className="h-8 text-[10px] w-full"
-                                        onClick={() => setActivePage(prev => Math.min(Math.ceil(iOweActive.length / itemsPerPage), prev + 1))}
-                                        disabled={activePage >= Math.ceil(iOweActive.length / itemsPerPage)}
+                                        onClick={() => setPayablesPage(prev => Math.min(Math.ceil(iOweActive.length / itemsPerPage), prev + 1))}
+                                        disabled={payablesPage >= Math.ceil(iOweActive.length / itemsPerPage)}
                                     >
                                         Next
                                     </Button>
@@ -535,8 +531,8 @@ export function DebtsPage() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-green-600">They Owe Me</CardTitle>
-                        <CardDescription>Money others need to pay you (including split bills)</CardDescription>
+                        <CardTitle className="text-green-600">Receivables</CardTitle>
+                        <CardDescription>Outstanding amounts others need to repay</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {(isLoading || isLoadingSplits) ? (
@@ -551,10 +547,10 @@ export function DebtsPage() {
                         ) : (theyOweActive.length === 0 && (!pendingSplits || pendingSplits.length === 0)) ? (
                             <p className="text-muted-foreground text-center py-4">No one owes you</p>
                         ) : (
-                            <div className="space-y-3">
+                            <div className="divide-y divide-border">
                                 {/* Regular debts */}
                                 {theyOweActive
-                                    .slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage)
+                                    .slice((receivablesPage - 1) * itemsPerPage, receivablesPage * itemsPerPage)
                                     .map(debt => (
                                         <DebtCard key={debt.id} debt={debt} />
                                     ))}
@@ -586,29 +582,25 @@ export function DebtsPage() {
                                             const pColor = participant?.color || '#6366f1';
                                             
                                             return (
-                                                <div key={split.id} className="border rounded-lg p-4 space-y-3">
+                                                <div key={split.id} className="border-t border-border p-3">
                                                     <div className="flex items-start justify-between gap-2">
                                                         <div className="flex items-center gap-3">
-                                                            <div 
-                                                                className="h-10 w-10 rounded-full flex items-center justify-center text-sm text-white font-medium shrink-0"
+                                                            <div
+                                                                className="h-9 w-9 rounded-full flex items-center justify-center text-xs text-white font-medium shrink-0"
                                                                 style={{ backgroundColor: pColor }}
                                                             >
                                                                 {pName.slice(0, 2).toUpperCase()}
                                                             </div>
                                                             <div>
-                                                                <div className="font-medium">{pName}</div>
-                                                                <div className="text-sm text-muted-foreground">
-                                                                    {description}
-                                                                </div>
-                                                                <div className="text-xs text-muted-foreground">
-                                                                    {dateDisplay}
-                                                                </div>
+                                                                <div className="font-medium text-sm">{pName}</div>
+                                                                <div className="text-xs text-muted-foreground">{description}</div>
+                                                                <div className="text-xs text-muted-foreground">{dateDisplay}</div>
                                                             </div>
                                                         </div>
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
-                                                            className="h-8 shrink-0"
+                                                            className="h-7 shrink-0"
                                                             onClick={() => {
                                                                 setSplitPaymentAmount(String(remaining));
                                                                 setRecordPaymentSplit({
@@ -622,21 +614,19 @@ export function DebtsPage() {
                                                             }}
                                                         >
                                                             <Banknote className="h-4 w-4 mr-1" />
-                                                            Record Payment
+                                                            Record
                                                         </Button>
                                                     </div>
-                                                    <div className="grid grid-cols-3 gap-2 text-sm border-t pt-3">
-                                                        <div>
-                                                            <div className="text-muted-foreground text-xs">Total</div>
-                                                            <div className="font-medium"><CurrencyDisplay amount={owed} currency={currency} /></div>
-                                                        </div>
-                                                        <div className="text-center">
-                                                            <div className="text-muted-foreground text-xs">Paid</div>
-                                                            <div className="font-medium">{paid > 0 ? <CurrencyDisplay amount={paid} currency={currency} /> : '-'}</div>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <div className="text-muted-foreground text-xs">Remaining</div>
-                                                            <div className="font-medium text-green-600"><CurrencyDisplay amount={remaining} currency={currency} /></div>
+                                                    <div className="mt-2 border-t pt-2">
+                                                        <div className="flex items-center justify-between text-xs">
+                                                            <div>
+                                                                <div className="text-muted-foreground">Total</div>
+                                                                <div className="font-medium"><CurrencyDisplay amount={owed} currency={currency} /></div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <div className="text-muted-foreground">Remaining</div>
+                                                                <div className="font-medium text-green-600"><CurrencyDisplay amount={remaining} currency={currency} /></div>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -649,16 +639,16 @@ export function DebtsPage() {
                         {theyOweActive.length > itemsPerPage && (
                             <div className="flex flex-col items-center justify-center mt-4 gap-2">
                                 <div className="text-xs text-muted-foreground">
-                                    Showing {Math.min(theyOweActive.length, (activePage - 1) * itemsPerPage + 1)}-
-                                    {Math.min(theyOweActive.length, activePage * itemsPerPage)} of {theyOweActive.length}
+                                    Showing {Math.min(theyOweActive.length, (receivablesPage - 1) * itemsPerPage + 1)}-
+                                    {Math.min(theyOweActive.length, receivablesPage * itemsPerPage)} of {theyOweActive.length}
                                 </div>
                                 <div className="flex flex-col gap-2 w-full">
                                     <Button
                                         variant="outline"
                                         size="sm"
                                         className="h-8 text-[10px] w-full"
-                                        onClick={() => setActivePage(prev => Math.max(1, prev - 1))}
-                                        disabled={activePage === 1}
+                                        onClick={() => setReceivablesPage(prev => Math.max(1, prev - 1))}
+                                        disabled={receivablesPage === 1}
                                     >
                                         Previous
                                     </Button>
@@ -666,8 +656,8 @@ export function DebtsPage() {
                                         variant="outline"
                                         size="sm"
                                         className="h-8 text-[10px] w-full"
-                                        onClick={() => setActivePage(prev => Math.min(Math.ceil(theyOweActive.length / itemsPerPage), prev + 1))}
-                                        disabled={activePage >= Math.ceil(theyOweActive.length / itemsPerPage)}
+                                        onClick={() => setReceivablesPage(prev => Math.min(Math.ceil(theyOweActive.length / itemsPerPage), prev + 1))}
+                                        disabled={receivablesPage >= Math.ceil(theyOweActive.length / itemsPerPage)}
                                     >
                                         Next
                                     </Button>
@@ -695,13 +685,13 @@ export function DebtsPage() {
                     ) : historyDebts.length === 0 ? (
                         <p className="text-muted-foreground text-center py-4">No history yet</p>
                     ) : (
-                        <div className="space-y-3">
-                            {historyDebts
-                                .slice((historyPage - 1) * itemsPerPage, historyPage * itemsPerPage)
-                                .map(debt => (
-                                    <DebtCard key={debt.id} debt={debt} />
-                                ))}
-                        </div>
+                                <div className="divide-y divide-border">
+                                    {historyDebts
+                                        .slice((historyPage - 1) * itemsPerPage, historyPage * itemsPerPage)
+                                        .map(debt => (
+                                            <DebtCard key={debt.id} debt={debt} variant="settled" />
+                                        ))}
+                                </div>
                     )}
                     {historyDebts.length > itemsPerPage && (
                         <div className="flex flex-col items-center justify-center mt-4 gap-2">
@@ -733,6 +723,149 @@ export function DebtsPage() {
                     )}
                 </CardContent>
             </Card>
+
+            <Sheet open={!!detailDebt} onOpenChange={(open) => !open && setDetailDebt(null)}>
+                <SheetContent className="sm:max-w-[560px]">
+                    <SheetHeader>
+                        <SheetTitle>{detailDebt?.personName}</SheetTitle>
+                        <SheetDescription>
+                            {detailDebt?.type === 'i_owe' ? 'Payable' : 'Receivable'} details
+                        </SheetDescription>
+                    </SheetHeader>
+                    {detailDebt && (
+                        <div className="flex h-[min(70vh,700px)] flex-col gap-4 pt-4">
+                            <div className="grid grid-cols-2 gap-2 rounded-lg border p-2">
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Type</p>
+                                    <p className="text-sm font-medium">{detailDebt.type === 'i_owe' ? 'Payable' : 'Receivable'}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs text-muted-foreground">Due Date</p>
+                                    <p className="text-sm font-medium">
+                                        {detailDebt.dueDate ? new Date(detailDebt.dueDate).toLocaleDateString() : 'No due date'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Total</p>
+                                    <p className="text-sm font-medium">
+                                        <CurrencyDisplay amount={detailDebt.amount} currency={detailDebt.currencyBalance?.currencyCode || detailDebt.currencyCode || 'USD'} />
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs text-muted-foreground">Remaining</p>
+                                    <p className={`text-sm font-medium ${detailDebt.type === 'they_owe' ? 'text-green-600' : 'text-red-600'}`}>
+                                        <CurrencyDisplay amount={getRemaining(detailDebt)} currency={detailDebt.currencyBalance?.currencyCode || detailDebt.currencyCode || 'USD'} />
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-end gap-2 border-b pb-3">
+                                {getRemaining(detailDebt) > 0.01 && (
+                                    <Button size="sm" className="h-8" onClick={() => handlePayment(detailDebt)}>
+                                        <Banknote className="h-4 w-4 mr-1" />
+                                        Repayment
+                                    </Button>
+                                )}
+                                <Button variant="outline" size="sm" className="h-8" onClick={() => handleEdit(detailDebt)}>
+                                    <Pencil className="h-4 w-4 mr-1" />
+                                    Edit
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    className="h-8"
+                                    onClick={() => handleDelete(detailDebt)}
+                                >
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    Delete
+                                </Button>
+                            </div>
+
+                            {(detailDebt.description || detailDebt.personContact) && (
+                                <div className="space-y-1 rounded-lg border p-2">
+                                    {detailDebt.description && (
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Description</p>
+                                            <p className="text-sm">{detailDebt.description}</p>
+                                        </div>
+                                    )}
+                                    {detailDebt.personContact && (
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Contact</p>
+                                            <p className="text-sm">{detailDebt.personContact}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="flex flex-1 flex-col gap-2">
+                                <div className="flex items-center justify-between border-b pb-2">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment History</p>
+                                    <span className="text-xs text-muted-foreground">
+                                        {visibleDetailPayments.length}/{detailPayments.length}
+                                    </span>
+                                </div>
+                                {detailPayments.length === 0 ? (
+                                    <div className="flex flex-1 items-center justify-center rounded-md border text-sm text-muted-foreground">
+                                        No payments recorded yet.
+                                    </div>
+                                ) : (
+                                    <div
+                                        ref={detailHistoryRef}
+                                        className="flex-1 overflow-y-auto rounded-md border"
+                                    >
+                                        <div className="space-y-1 p-2">
+                                            {visibleDetailPayments.map((payment) => (
+                                                <div key={payment.id} className="flex items-center justify-between rounded border-b border-muted/30 px-2 py-2 text-xs">
+                                                    <div className="min-w-0">
+                                                        <span className={detailDebt.type === 'they_owe' ? 'text-green-600' : 'text-red-600'}>
+                                                            {detailDebt.type === 'i_owe' ? '-' : '+'}{' '}
+                                                            <CurrencyDisplay
+                                                                amount={payment.amount}
+                                                                currency={detailDebt.currencyBalance?.currencyCode || detailDebt.currencyCode || 'USD'}
+                                                            />
+                                                        </span>
+                                                        <span className="ml-2 text-muted-foreground">
+                                                            {new Date(payment.paidAt).toLocaleDateString()}
+                                                        </span>
+                                                    </div>
+                                                    <div className="ml-2 flex items-center gap-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-6 w-6"
+                                                            onClick={() => handleEditPayment(payment, detailDebt)}
+                                                        >
+                                                            <Pencil className="h-3 w-3" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-6 w-6"
+                                                            onClick={() => {
+                                                                if (confirm('Delete this payment and revert balance?')) {
+                                                                    deletePayment.mutate({ id: payment.id });
+                                                                }
+                                                            }}
+                                                        >
+                                                            <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {hasMoreDetailPayments && (
+                                                <div className="py-2 text-center text-xs text-muted-foreground">
+                                                    Scroll to load more
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </SheetContent>
+            </Sheet>
 
             <AddDebtPaymentSheet
                 debt={payingDebt}

@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
+import {
+    applyBalanceDeltas,
+    buildBalanceDeltasForTransaction,
+    captureOptimisticFinanceSnapshot,
+    restoreOptimisticFinanceSnapshot,
+    upsertTransactionAcrossCaches,
+} from '@/lib/optimistic-cache';
 import { formatAccountLabel } from '@/lib/utils';
 import { ManageCategoriesSheet } from '@/components/ManageCategoriesSheet';
 import { SplitSelector, ManageParticipantsSheet } from '@/components/SplitBillComponents';
@@ -52,6 +60,7 @@ interface AddTransactionFormProps {
 }
 
 export function AddTransactionForm({ onSuccess, onCancel }: AddTransactionFormProps) {
+    const queryClient = useQueryClient();
     const utils = trpc.useUtils();
     const [showCategoryManager, setShowCategoryManager] = useState(false);
     const [splitEnabled, setSplitEnabled] = useState(false);
@@ -133,17 +142,54 @@ export function AddTransactionForm({ onSuccess, onCancel }: AddTransactionFormPr
     }, [categoryId, filteredCategories, setValue]);
 
     const createTransaction = trpc.transaction.create.useMutation({
+        onMutate: async (variables: any) => {
+            await Promise.all([
+                utils.transaction.list.cancel(),
+                utils.account.getTotalBalance.cancel(),
+                utils.bank.getHierarchy.cancel(),
+            ]);
+
+            const snapshot = captureOptimisticFinanceSnapshot(queryClient);
+            const currencyCodeById = new Map(currencyOptions.map((option) => [option.id, option.currencyCode]));
+            const optimisticTransaction = {
+                id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `temp-${Date.now()}`,
+                currencyBalanceId: variables.currencyBalanceId,
+                toCurrencyBalanceId: variables.toCurrencyBalanceId,
+                amount: variables.amount,
+                cashbackAmount: variables.cashbackAmount,
+                fee: variables.fee,
+                exchangeRate: variables.exchangeRate,
+                description: variables.description,
+                date: variables.date,
+                type: variables.type,
+                category: categories?.find((category: any) => category.id === variables.categoryId) ?? null,
+                currencyBalance: selectedAccount ? {
+                    currencyCode: selectedAccount.currencyCode,
+                } : null,
+            };
+
+            upsertTransactionAcrossCaches(queryClient, optimisticTransaction);
+            applyBalanceDeltas(
+                queryClient,
+                buildBalanceDeltasForTransaction(optimisticTransaction, currencyCodeById, 1),
+            );
+
+            return { snapshot };
+        },
         onSuccess: () => {
-            utils.transaction.list.invalidate();
-            utils.account.getTotalBalance.invalidate();
             reset();
             onSuccess();
-            toast.success('Transaction added successfully');
         },
-        onError: (error: unknown) => {
+        onError: (error: unknown, _variables: any, context: any) => {
+            restoreOptimisticFinanceSnapshot(queryClient, context?.snapshot);
             console.error("Failed to create transaction:", error);
             toast.error('Failed to create transaction');
-        }
+        },
+        onSettled: () => {
+            utils.transaction.list.invalidate();
+            utils.account.getTotalBalance.invalidate();
+            utils.bank.getHierarchy.invalidate();
+        },
     });
 
     const onSubmit = (data: CreateTransactionFormValues) => {

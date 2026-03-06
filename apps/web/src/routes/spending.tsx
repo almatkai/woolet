@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import posthog from 'posthog-js';
 import { useForm } from 'react-hook-form';
+import { useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Pencil, Trash2, MoreHorizontal, Star, StarOff, Bookmark, X, Plus, Check, ChevronDown, ChevronUp } from 'lucide-react';
@@ -36,6 +37,14 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { trpc } from '@/lib/trpc';
+import {
+    applyBalanceDeltas,
+    buildBalanceDeltasForTransaction,
+    captureOptimisticFinanceSnapshot,
+    removeTransactionAcrossCaches,
+    restoreOptimisticFinanceSnapshot,
+    upsertTransactionAcrossCaches,
+} from '@/lib/optimistic-cache';
 import { CurrencyDisplay, formatAmountAbbreviated } from '@/components/CurrencyDisplay';
 
 interface SplitParticipant {
@@ -117,6 +126,7 @@ const SHORTCUTS_STORAGE_KEY = 'woolet :transaction-macros'; // Keep same key for
 const FAVORITES_WIDGET_KEY = 'woolet :favorites-widget-visible';
 
 export function SpendingPage() {
+    const queryClient = useQueryClient();
     const { data: transactionsData, isLoading } = trpc.transaction.list.useQuery({ hideAdjustments: true }) as { data: { transactions: Transaction[] } | undefined, isLoading: boolean };
     const { data: banks } = trpc.bank.getHierarchy.useQuery();
     const { data: categories } = trpc.category.list.useQuery();
@@ -128,20 +138,71 @@ export function SpendingPage() {
     const [paybackDescription, setPaybackDescription] = useState('Payback');
 
     const deleteTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+    const deleteSnapshotsRef = useRef<Map<string, ReturnType<typeof captureOptimisticFinanceSnapshot>>>(new Map());
     const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
 
     const createTransaction = trpc.transaction.create.useMutation({
+        onMutate: async (variables: any) => {
+            await Promise.all([
+                utils.transaction.list.cancel(),
+                utils.account.getTotalBalance.cancel(),
+                utils.bank.getHierarchy.cancel(),
+            ]);
+
+            const snapshot = captureOptimisticFinanceSnapshot(queryClient);
+            const transactionId =
+                typeof crypto !== 'undefined' && 'randomUUID' in crypto
+                    ? crypto.randomUUID()
+                    : `temp-${Date.now()}`;
+            const optimisticTransaction = {
+                id: transactionId,
+                currencyBalanceId: variables.currencyBalanceId,
+                amount: variables.amount,
+                description: variables.description ?? paybackDescription,
+                date: variables.date,
+                type: variables.type,
+                category: categories?.find((category: any) => category.id === variables.categoryId) ?? null,
+                currencyBalance: banks
+                    ?.flatMap((bank: any) =>
+                        bank.accounts.flatMap((account: any) =>
+                            account.currencyBalances
+                                .filter((balance: any) => balance.id === variables.currencyBalanceId)
+                                .map((balance: any) => ({
+                                    currencyCode: balance.currencyCode,
+                                    account: {
+                                        id: account.id,
+                                        name: account.name,
+                                        bank: {
+                                            name: bank.name,
+                                        },
+                                    },
+                                })),
+                        ),
+                    )[0] ?? null,
+            };
+
+            upsertTransactionAcrossCaches(queryClient, optimisticTransaction);
+            applyBalanceDeltas(
+                queryClient,
+                buildBalanceDeltasForTransaction(optimisticTransaction, currencyCodeById, 1),
+            );
+
+            return { snapshot };
+        },
         onSuccess: () => {
-            utils.transaction.list.invalidate();
-            utils.account.getTotalBalance.invalidate();
-            toast.success('Payback added');
             setIsAddingPayback(false);
             setPaybackAmount('');
             setPaybackDescription('Payback');
         },
-        onError: (error: any) => {
+        onError: (error: any, _variables: any, context: any) => {
+            restoreOptimisticFinanceSnapshot(queryClient, context?.snapshot);
             toast.error(error.message || 'Failed to add payback');
-        }
+        },
+        onSettled: () => {
+            utils.transaction.list.invalidate();
+            utils.account.getTotalBalance.invalidate();
+            utils.bank.getHierarchy.invalidate();
+        },
     });
     const [transactionSheetOpen, setTransactionSheetOpen] = useState(false);
     const [selectedShortcut, setSelectedShortcut] = useState<TransactionShortcut | null>(null);
@@ -273,26 +334,70 @@ export function SpendingPage() {
 
     const deleteTransaction = trpc.transaction.delete.useMutation({
         onSuccess: () => {
-            utils.transaction.list.invalidate();
-            utils.account.getTotalBalance.invalidate();
         },
-        onError: (error: unknown) => {
+        onError: (error: unknown, variables: any) => {
+            restoreOptimisticFinanceSnapshot(queryClient, deleteSnapshotsRef.current.get(variables.id));
+            deleteSnapshotsRef.current.delete(variables.id);
             toast.error('Failed to delete transaction');
             console.error(error);
-        }
+        },
+        onSettled: (_data: any, _error: any, variables: any) => {
+            deleteSnapshotsRef.current.delete(variables.id);
+            utils.transaction.list.invalidate();
+            utils.account.getTotalBalance.invalidate();
+            utils.bank.getHierarchy.invalidate();
+        },
     });
 
     const updateTransaction = trpc.transaction.update.useMutation({
+        onMutate: async (variables: any) => {
+            await Promise.all([
+                utils.transaction.list.cancel(),
+                utils.account.getTotalBalance.cancel(),
+                utils.bank.getHierarchy.cancel(),
+            ]);
+
+            const snapshot = captureOptimisticFinanceSnapshot(queryClient);
+            const previousTransaction = transactionsData?.transactions
+                ?.flatMap((transaction) => [transaction, ...(transaction.childTransactions ?? [])])
+                .find((transaction) => transaction.id === variables.id);
+
+            if (!previousTransaction) {
+                return { snapshot };
+            }
+
+            const nextTransaction = {
+                ...previousTransaction,
+                ...variables,
+                amount: variables.amount ?? previousTransaction.amount,
+                date: variables.date ?? previousTransaction.date,
+                description: variables.description ?? previousTransaction.description,
+                category: categories?.find((category: any) => category.id === variables.categoryId)
+                    ?? previousTransaction.category,
+            };
+
+            const previousDeltas = buildBalanceDeltasForTransaction(previousTransaction, currencyCodeById, -1);
+            const nextDeltas = buildBalanceDeltasForTransaction(nextTransaction, currencyCodeById, 1);
+
+            upsertTransactionAcrossCaches(queryClient, nextTransaction);
+            applyBalanceDeltas(queryClient, [...previousDeltas, ...nextDeltas]);
+
+            return { snapshot };
+        },
         onSuccess: () => {
-            utils.transaction.list.invalidate();
-            toast.success('Transaction updated');
             setEditingTransaction(null);
             reset();
         },
-        onError: (error: unknown) => {
+        onError: (error: unknown, _variables: any, context: any) => {
+            restoreOptimisticFinanceSnapshot(queryClient, context?.snapshot);
             toast.error('Failed to update transaction');
             console.error(error);
-        }
+        },
+        onSettled: () => {
+            utils.transaction.list.invalidate();
+            utils.account.getTotalBalance.invalidate();
+            utils.bank.getHierarchy.invalidate();
+        },
     });
 
     const handleEdit = (transaction: Transaction) => {
@@ -462,7 +567,14 @@ export function SpendingPage() {
 
     const handleDelete = (transaction: Transaction) => {
         const label = transaction.description || transaction.category?.name || 'Transaction';
+        const snapshot = captureOptimisticFinanceSnapshot(queryClient);
         setPendingDeletes(prev => new Set(prev).add(transaction.id));
+        deleteSnapshotsRef.current.set(transaction.id, snapshot);
+        removeTransactionAcrossCaches(queryClient, transaction.id);
+        applyBalanceDeltas(
+            queryClient,
+            buildBalanceDeltasForTransaction(transaction, currencyCodeById, -1),
+        );
 
         toast(`"${label}" deleted`, {
             action: {
@@ -478,7 +590,8 @@ export function SpendingPage() {
                         next.delete(transaction.id);
                         return next;
                     });
-                    toast.success('Transaction restored');
+                    restoreOptimisticFinanceSnapshot(queryClient, deleteSnapshotsRef.current.get(transaction.id));
+                    deleteSnapshotsRef.current.delete(transaction.id);
                 },
             },
             duration: 5000,
