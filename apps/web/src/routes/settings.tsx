@@ -13,7 +13,8 @@ import {
     MoonStar,
     Sun,
     Eclipse,
-    FlaskConical,
+    CircleUserRound,
+    SlidersHorizontal,
     Trash2,
     AlertTriangle,
     Calendar,
@@ -47,17 +48,20 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Bell, BellRing } from 'lucide-react';
-import { SignOutButton } from '@clerk/clerk-react';
+import { SignOutButton, useUser } from '@clerk/clerk-react';
 import { CurrencySelector } from '@/components/ui/currency-selector';
+import { UsernameSetupDialog } from '@/components/UsernameSetupDialog';
 
 export function SettingsPage() {
     const { theme, setTheme } = useTheme();
-    trpc.user.me.useQuery();
+    const { data: me } = trpc.user.me.useQuery();
+    const { user } = useUser();
     const { data: settings } = trpc.settings.getUserSettings.useQuery();
     const [isExporting, setIsExporting] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [pushSettingsOpen, setPushSettingsOpen] = useState(false);
+    const [isUsernameDialogOpen, setIsUsernameDialogOpen] = useState(false);
     const [emailNotificationAddress, setEmailNotificationAddress] = useState('');
 
     const { isSupported, isSubscribed, isLoading, isUpdating, vapidPublicKey, vapidKeyError, error: pushError, subscribe, unsubscribe } = usePushNotifications();
@@ -191,15 +195,48 @@ export function SettingsPage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6 overflow-x-hidden">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold">General Settings</h1>
-                    <p className="hidden sm:block text-muted-foreground">Manage your application preferences and appearance.</p>
+                    <h1 className="text-2xl sm:text-2xl font-bold">General Settings</h1>
+                    <p className="hidden sm:block text-muted-foreground text-sm">Manage your application preferences and appearance.</p>
                 </div>
             </div>
 
             <PushNotificationSettings open={pushSettingsOpen} onOpenChange={setPushSettingsOpen} />
+
+            {/* Profile */}
+            <Card className="bg-card/30 backdrop-blur-sm border-border/50">
+                <CardHeader>
+                    <CardTitle className="text-xl font-bold flex items-center gap-2">
+                        <CircleUserRound className="size-5 text-primary" />
+                        Profile
+                    </CardTitle>
+                    <CardDescription className="hidden sm:block">View your account data and update your username</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 sm:space-y-4 sm:px-6 px-4">
+                    <div className="p-3 sm:p-4 rounded-2xl bg-background/50 border border-border/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide">Username</p>
+                        <p className="mt-1 text-base sm:text-lg font-semibold">
+                            {me?.username ? `@${me.username}` : 'Not set'}
+                        </p>
+                    </div>
+
+                    <div className="p-3 sm:p-4 rounded-2xl bg-background/50 border border-border/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide">Email</p>
+                        <p className="mt-1 text-sm sm:text-base font-medium break-all">
+                            {user?.primaryEmailAddress?.emailAddress || 'No email available'}
+                        </p>
+                    </div>
+
+                    <Button
+                        onClick={() => setIsUsernameDialogOpen(true)}
+                        className="w-full sm:w-auto rounded-xl"
+                    >
+                        {me?.username ? 'Update username' : 'Set username'}
+                    </Button>
+                </CardContent>
+            </Card>
 
             {/* Theme Settings */}
             <Card className="bg-card/30 backdrop-blur-sm border-border/50">
@@ -208,9 +245,9 @@ export function SettingsPage() {
                         <Eclipse className="size-5 text-primary" />
                         Appearance
                     </CardTitle>
-                    <CardDescription>Customize the look and feel of the application</CardDescription>
+                    <CardDescription className="hidden sm:block">Customize the look and feel of the application</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-3 sm:space-y-6">
                     <div className="flex flex-wrap gap-4">
                         <button
                             onClick={() => setTheme('light')}
@@ -246,37 +283,37 @@ export function SettingsPage() {
                 </CardContent>
             </Card>
 
-            {/* Profile Preferences */}
+            {/* Preferences */}
             <Card className="bg-card/30 backdrop-blur-sm border-border/50">
                 <CardHeader>
                     <CardTitle className="text-xl font-bold flex items-center gap-2">
-                        <FlaskConical className="size-5 text-primary" />
-                        Profile
+                        <SlidersHorizontal className="size-5 text-primary" />
+                        Preferences
                     </CardTitle>
-                    <CardDescription>Update your profile settings</CardDescription>
+                    <CardDescription className="hidden sm:block">Configure your app behavior and financial defaults</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-3 sm:space-y-6 sm:px-6 px-4">
                     <div className="flex items-center justify-between p-4 rounded-2xl bg-background/50 border border-border/50">
                         <div className="space-y-1">
                             <div className="flex items-center gap-2">
                                 <AlertTriangle className="size-4 text-orange-500" />
-                                <Label className="text-base font-semibold">Test Mode</Label>
+                                <Label className="text-sm sm:text-base font-semibold">Test Mode</Label>
                             </div>
-                            <p className="text-sm text-muted-foreground">Enable lower limits for testing features with minimal data</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground">Enable lower limits for testing features with minimal data</p>
                         </div>
                         <Switch />
                     </div>
 
-                    <div className="flex items-center justify-between p-4 rounded-2xl bg-background/50 border border-border/50">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-2xl bg-background/50 border border-border/50 gap-3">
                         <div className="space-y-1">
                             <div className="flex items-center gap-2">
                                 <Calendar className="size-4 text-blue-500" />
-                                <Label className="text-base font-semibold">Week Starts On</Label>
+                                <Label className="text-sm sm:text-base font-semibold">Week Starts On</Label>
                             </div>
-                            <p className="text-sm text-muted-foreground">Choose which day marks the beginning of a new week</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground">Choose which day marks the beginning of a new week</p>
                         </div>
                         <Select defaultValue="monday">
-                            <SelectTrigger className="w-[180px] bg-background border-border">
+                            <SelectTrigger className="w-full sm:w-[180px] bg-background border-border">
                                 <SelectValue placeholder="Select day" />
                             </SelectTrigger>
                             <SelectContent>
@@ -286,13 +323,13 @@ export function SettingsPage() {
                         </Select>
                     </div>
 
-                    <div className="flex items-center justify-between p-4 rounded-2xl bg-background/50 border border-border/50">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-2xl bg-background/50 border border-border/50 gap-3">
                         <div className="space-y-1">
                             <div className="flex items-center gap-2">
                                 <DollarSign className="size-4 text-emerald-500" />
-                                <Label className="text-base font-semibold">Default Currency</Label>
+                                <Label className="text-sm sm:text-base font-semibold">Default Currency</Label>
                             </div>
-                            <p className="text-sm text-muted-foreground">Currency exchange rates will be shown relative to this currency</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground">Currency exchange rates will be shown relative to this currency</p>
                         </div>
                         <CurrencySelector
                             value={settings?.defaultCurrency || 'USD'}
@@ -300,20 +337,20 @@ export function SettingsPage() {
                         />
                     </div>
 
-                    <div className="flex flex-col gap-4 p-4 rounded-2xl bg-background/50 border border-border/50">
-                        <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-3 sm:gap-4 p-3 sm:p-4 rounded-2xl bg-background/50 border border-border/50">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">
                                     <ListChecks className="size-4 text-sky-500" />
-                                    <Label className="text-base font-semibold">Payment Status Rules</Label>
+                                    <Label className="text-sm sm:text-base font-semibold">Payment Status Rules</Label>
                                 </div>
-                                <p className="text-sm text-muted-foreground">How paid/unpaid is calculated</p>
+                                <p className="text-xs sm:text-sm text-muted-foreground">How paid/unpaid is calculated</p>
                             </div>
                             <Select
                                 value={globalStatusLogic}
                                 onValueChange={(val: 'monthly' | 'period') => updateSettings.mutate({ paymentStatusLogic: val })}
                             >
-                                <SelectTrigger className="w-[180px] bg-background border-border">
+                                <SelectTrigger className="w-full sm:w-[180px] bg-background border-border text-sm">
                                     <SelectValue placeholder="Select logic" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -324,9 +361,9 @@ export function SettingsPage() {
                         </div>
 
                         {globalStatusLogic === 'period' && (
-                            <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-3 sm:pt-4 border-t border-border/50">
                                 <div className="space-y-1">
-                                    <Label className="text-sm font-medium">Due Warning Threshold</Label>
+                                    <Label className="text-xs sm:text-sm font-medium">Due Warning Threshold</Label>
                                     <p className="text-xs text-muted-foreground">Show "Unpaid" if due date is within these many days</p>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -334,7 +371,7 @@ export function SettingsPage() {
                                         value={globalStatusPeriod}
                                         onValueChange={(val: string) => updateSettings.mutate({ paymentStatusPeriod: val })}
                                     >
-                                        <SelectTrigger className="w-[100px] bg-background border-border">
+                                        <SelectTrigger className="w-[100px] bg-background border-border text-sm">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -351,20 +388,20 @@ export function SettingsPage() {
                             </div>
                         )}
 
-                        <div className="pt-4 border-t border-border/50">
-                            <div className="text-sm font-semibold">Per-type overrides</div>
-                            <div className="mt-3 space-y-3">
-                                <div className="flex items-center justify-between">
+                        <div className="pt-3 sm:pt-4 border-t border-border/50">
+                            <div className="text-sm sm:text-base font-semibold">Per-type overrides</div>
+                            <div className="mt-2 sm:mt-3 space-y-3">
+                                <div className="flex flex-col gap-2">
                                     <div className="space-y-1">
-                                        <Label className="text-sm font-medium">Credits</Label>
+                                        <Label className="text-xs sm:text-sm font-medium">Credits</Label>
                                         <p className="text-xs text-muted-foreground">Use global or override</p>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-col sm:flex-row gap-2">
                                         <Select
                                             value={creditStatusLogic}
                                             onValueChange={(val: 'global' | 'monthly' | 'period') => updateSettings.mutate({ creditStatusLogic: val === 'global' ? null : val })}
                                         >
-                                            <SelectTrigger className="w-[180px] bg-background border-border">
+                                            <SelectTrigger className="w-full sm:w-[180px] bg-background border-border text-sm">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -378,7 +415,7 @@ export function SettingsPage() {
                                             onValueChange={(val: string) => updateSettings.mutate({ creditStatusPeriod: val === 'global' ? null : val })}
                                             disabled={creditStatusLogic !== 'period'}
                                         >
-                                            <SelectTrigger className="w-[100px] bg-background border-border">
+                                            <SelectTrigger className="w-full sm:w-[100px] bg-background border-border text-sm">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -395,17 +432,17 @@ export function SettingsPage() {
                                     </div>
                                 </div>
 
-                                <div className="flex items-center justify-between">
+                                <div className="flex flex-col gap-2">
                                     <div className="space-y-1">
-                                        <Label className="text-sm font-medium">Mortgages</Label>
+                                        <Label className="text-xs sm:text-sm font-medium">Mortgages</Label>
                                         <p className="text-xs text-muted-foreground">Use global or override</p>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-col sm:flex-row gap-2">
                                         <Select
                                             value={mortgageStatusLogic}
                                             onValueChange={(val: 'global' | 'monthly' | 'period') => updateSettings.mutate({ mortgageStatusLogic: val === 'global' ? null : val })}
                                         >
-                                            <SelectTrigger className="w-[180px] bg-background border-border">
+                                            <SelectTrigger className="w-full sm:w-[180px] bg-background border-border text-sm">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -419,7 +456,7 @@ export function SettingsPage() {
                                             onValueChange={(val: string) => updateSettings.mutate({ mortgageStatusPeriod: val === 'global' ? null : val })}
                                             disabled={mortgageStatusLogic !== 'period'}
                                         >
-                                            <SelectTrigger className="w-[100px] bg-background border-border">
+                                            <SelectTrigger className="w-full sm:w-[100px] bg-background border-border text-sm">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -436,17 +473,17 @@ export function SettingsPage() {
                                     </div>
                                 </div>
 
-                                <div className="flex items-center justify-between">
+                                <div className="flex flex-col gap-2">
                                     <div className="space-y-1">
-                                        <Label className="text-sm font-medium">Subscriptions</Label>
+                                        <Label className="text-xs sm:text-sm font-medium">Subscriptions</Label>
                                         <p className="text-xs text-muted-foreground">Use global or override</p>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-col sm:flex-row gap-2">
                                         <Select
                                             value={subscriptionStatusLogic}
                                             onValueChange={(val: 'global' | 'monthly' | 'period') => updateSettings.mutate({ subscriptionStatusLogic: val === 'global' ? null : val })}
                                         >
-                                            <SelectTrigger className="w-[180px] bg-background border-border">
+                                            <SelectTrigger className="w-full sm:w-[180px] bg-background border-border text-sm">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -460,7 +497,7 @@ export function SettingsPage() {
                                             onValueChange={(val: string) => updateSettings.mutate({ subscriptionStatusPeriod: val === 'global' ? null : val })}
                                             disabled={subscriptionStatusLogic !== 'period'}
                                         >
-                                            <SelectTrigger className="w-[100px] bg-background border-border">
+                                            <SelectTrigger className="w-full sm:w-[100px] bg-background border-border text-sm">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -484,20 +521,20 @@ export function SettingsPage() {
 
             {/* Push Notifications */}
             <Card className="bg-card/30 backdrop-blur-sm border-border/50">
-                <CardHeader>
+                <CardHeader className='pb-2'>
                     <CardTitle className="text-xl font-bold flex items-center gap-2">
                         <Bell className="size-5 text-primary" />
                         Notification Preferences
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="hidden sm:block">
                         Configure channels and reminder timing for unpaid subscription, credit, and mortgage payments.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">
+                <CardContent className="space-y-3 sm:space-y-6">
+                    <div className="flex items-center justify-between p-3 sm:p-4 rounded-xl bg-background/50 border border-border/50">
                         <div>
-                            <Label className="text-base font-semibold">Enable Notifications</Label>
-                            <p className="text-sm text-muted-foreground">Master switch for all reminders and alerts</p>
+                            <Label className="text-sm sm:text-base font-semibold">Enable Notifications</Label>
+                            <p className="text-xs sm:text-sm text-muted-foreground">Master switch for all reminders and alerts</p>
                         </div>
                         <Switch
                             checked={notificationsEnabled}
@@ -505,10 +542,10 @@ export function SettingsPage() {
                         />
                     </div>
 
-                    <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">
+                    <div className="flex items-center justify-between p-3 sm:p-4 rounded-xl bg-background/50 border border-border/50">
                         <div>
-                            <Label className="text-base font-semibold">Browser Push Channel</Label>
-                            <p className="text-sm text-muted-foreground">Send reminders to browser notifications</p>
+                            <Label className="text-sm sm:text-base font-semibold">Browser Push Channel</Label>
+                            <p className="text-xs sm:text-sm text-muted-foreground">Send reminders to browser notifications</p>
                         </div>
                         <Switch
                             checked={browserNotificationsEnabled}
@@ -517,11 +554,11 @@ export function SettingsPage() {
                         />
                     </div>
 
-                    <div className="space-y-3">
-                        <Label className="text-base font-semibold">Reminder Window (days before due date)</Label>
-                        <div className="grid gap-3 md:grid-cols-3">
-                            <div className="space-y-2">
-                                <Label className="text-sm text-muted-foreground">Subscriptions</Label>
+                    <div className="space-y-2 sm:space-y-3">
+                        <Label className="text-sm sm:text-base font-semibold">Reminder Window (days before due date)</Label>
+                        <div className="grid gap-2 sm:gap-3 sm:grid-cols-3">
+                            <div className="space-y-1 sm:space-y-2">
+                                <Label className="text-xs sm:text-sm text-muted-foreground">Subscriptions</Label>
                                 <Select
                                     value={subscriptionReminderDays}
                                     onValueChange={(value) => updateSettings.mutate({ subscriptionReminderDays: Number(value) })}
@@ -543,8 +580,8 @@ export function SettingsPage() {
                                 </Select>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label className="text-sm text-muted-foreground">Credits</Label>
+                            <div className="space-y-1 sm:space-y-2">
+                                <Label className="text-xs sm:text-sm text-muted-foreground">Credits</Label>
                                 <Select
                                     value={creditReminderDays}
                                     onValueChange={(value) => updateSettings.mutate({ creditReminderDays: Number(value) })}
@@ -566,8 +603,8 @@ export function SettingsPage() {
                                 </Select>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label className="text-sm text-muted-foreground">Mortgages</Label>
+                            <div className="space-y-1 sm:space-y-2">
+                                <Label className="text-xs sm:text-sm text-muted-foreground">Mortgages</Label>
                                 <Select
                                     value={mortgageReminderDays}
                                     onValueChange={(value) => updateSettings.mutate({ mortgageReminderDays: Number(value) })}
@@ -596,29 +633,29 @@ export function SettingsPage() {
             {/* Push Notifications */}
             <Card className="bg-card/30 backdrop-blur-sm border-border/50">
                 <CardHeader>
-                    <CardTitle className="text-xl font-bold flex items-center gap-2">
+                    <CardTitle className="text-lg sm:text-xl font-bold flex items-center gap-2">
                         <Bell className="size-5 text-primary" />
                         Browser Push Setup
                     </CardTitle>
-                    <CardDescription>Connect this browser to receive push notifications</CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">Connect this browser to receive push notifications</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">
-                            <div className="flex items-center gap-3">
+                <CardContent className="space-y-3 sm:space-y-4 sm:px-6 px-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-xl bg-background/50 border border-border/50 gap-3">
+                            <div className="flex items-center gap-2 sm:gap-3">
                             {isSubscribed || hasBrowserPermission ? (
                                 <BellRing className="size-5 text-green-500" />
                             ) : (
                                 <Bell className="size-5 text-muted-foreground" />
                             )}
                             <div>
-                                <p className="font-medium">
+                                <p className="font-medium text-sm sm:text-base">
                                     {isSubscribed
                                         ? 'Notifications Enabled'
                                         : hasBrowserPermission
                                             ? 'Setup Required'
                                             : 'Browser Notifications'}
                                 </p>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-xs sm:text-sm text-muted-foreground">
                                     {isSubscribed
                                         ? 'You will receive push notifications'
                                         : needsInAppSetup
@@ -653,11 +690,11 @@ export function SettingsPage() {
             {/* Data Management */}
             <Card className="bg-card/30 backdrop-blur-sm border-border/50 overflow-hidden">
                 <CardHeader>
-                    <CardTitle className="text-xl font-bold flex items-center gap-2">
+                    <CardTitle className="text-lg sm:text-xl font-bold flex items-center gap-2">
                         <Download className="size-5 text-primary" />
                         Export Data
                     </CardTitle>
-                    <CardDescription>Download a backup of all your financial data.</CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">Download a backup of all your financial data.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Button
@@ -672,11 +709,11 @@ export function SettingsPage() {
 
                 <div className="border-t border-border/50">
                     <CardHeader>
-                        <CardTitle className="text-xl font-bold flex items-center gap-2">
+                        <CardTitle className="text-lg sm:text-xl font-bold flex items-center gap-2">
                             <Upload className="size-5 text-primary" />
                             Import Data
                         </CardTitle>
-                        <CardDescription>
+                        <CardDescription className="text-xs sm:text-sm">
                             Restore data from a backup file.
                             <span className="text-destructive font-bold ml-1">Warning: This will completely replace all your current data!</span>
                         </CardDescription>
@@ -697,14 +734,14 @@ export function SettingsPage() {
                                     variant="outline"
                                     disabled={isImporting}
                                     onClick={() => document.getElementById('import-file')?.click()}
-                                    className="w-full h-24 border-dashed border-2 bg-background/50 hover:bg-background hover:border-primary transition-all rounded-2xl flex flex-col gap-2"
+                                    className="w-full h-20 sm:h-24 border-dashed border-2 bg-background/50 hover:bg-background hover:border-primary transition-all rounded-2xl flex flex-col gap-1 sm:gap-2"
                                 >
                                     {isImporting ? (
-                                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                        <Loader2 className="h-6 sm:h-8 w-6 sm:w-8 animate-spin text-primary" />
                                     ) : (
                                         <>
-                                            <FileJson className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors" />
-                                            <span className="text-sm font-medium">Click to select backup file</span>
+                                            <FileJson className="h-6 sm:h-8 w-6 sm:w-8 text-muted-foreground group-hover:text-primary transition-colors" />
+                                            <span className="text-xs sm:text-sm font-medium">Click to select backup file</span>
                                         </>
                                     )}
                                 </Button>
@@ -715,11 +752,11 @@ export function SettingsPage() {
 
                 <div className="border-t border-border/50 bg-destructive/5">
                     <CardHeader>
-                        <CardTitle className="text-xl font-bold flex items-center gap-2 text-destructive">
+                        <CardTitle className="text-lg sm:text-xl font-bold flex items-center gap-2 text-destructive">
                             <AlertTriangle className="size-5" />
                             Danger Zone
                         </CardTitle>
-                        <CardDescription>Irreversible actions that will permanently delete your data.</CardDescription>
+                        <CardDescription className="text-xs sm:text-sm">Irreversible actions that will permanently delete your data.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <AlertDialog open={isDeleting} onOpenChange={setIsDeleting}>
@@ -754,7 +791,15 @@ export function SettingsPage() {
                     </CardContent>
                 </div>
             </Card>
-            <div className="pt-8 border-t border-border/50 flex justify-end">
+
+            <UsernameSetupDialog
+                key={`${isUsernameDialogOpen}-${me?.username ?? ''}`}
+                open={isUsernameDialogOpen}
+                onOpenChange={setIsUsernameDialogOpen}
+                initialUsername={me?.username ?? ''}
+            />
+
+            <div className="pt-4 sm:pt-8 border-t border-border/50 flex justify-end">
                 <SignOutButton>
                     <Button>
                         <LogOut className="size-4" />

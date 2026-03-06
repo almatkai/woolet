@@ -118,7 +118,13 @@ function RootLayout() {
                             </header>
                         )}
                     </SignedIn>
-                    <main className={cn("flex-1 w-full overflow-y-auto overflow-x-hidden", isSignedIn && !isSettingsRoute && !isAuthRoute ? "p-3 md:p-6" : "p-0", "max-[470px]:pb-24")}>
+                    <main
+                        className={cn(
+                            "flex-1 w-full overflow-y-auto overflow-x-hidden",
+                            isSignedIn && !isAuthRoute && !isSettingsRoute ? "p-3 md:p-6" : "p-0",
+                            !isAuthRoute && !isSettingsRoute && "max-[470px]:pb-24"
+                        )}
+                    >
                         <Outlet />
                     </main>
                 </SidebarInset>

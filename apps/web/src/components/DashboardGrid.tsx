@@ -402,6 +402,7 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
         const [hiddenWidgets, setHiddenWidgets] = useState<string[]>([]);
         const [currentBreakpoint, setCurrentBreakpoint] = useState<Breakpoint>('lg');
         const [isLayoutReady, setIsLayoutReady] = useState(false);
+        const isMobileBreakpoint = currentBreakpoint === 'sm' || currentBreakpoint === 'xs';
         const utils = trpc.useUtils();
 
         const { data: savedLayout, isLoading } = trpc.dashboard.getLayout.useQuery(undefined, {
@@ -410,7 +411,9 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
 
         const saveLayoutMutation = trpc.dashboard.saveLayout.useMutation({
             onSuccess: () => {
-                toast.success('Dashboard layout saved');
+                if (!isMobileBreakpoint) {
+                    toast.success('Dashboard layout saved');
+                }
                 onEditingChange(false);
                 utils.dashboard.getLayout.invalidate();
             },

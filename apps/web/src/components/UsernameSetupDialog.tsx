@@ -124,12 +124,12 @@ function LEDBoard({ word }: { word: string }) {
 
     return (
         <div
-            className="group p-3 sm:p-6 flex flex-1 items-center justify-center bg-gradient-to-bl from-zinc-950/80 via-zinc-900/90 to-zinc-950 overflow-hidden"
+            className="group p-3 sm:p-6 flex flex-1 items-center justify-center bg-gradient-to-bl from-zinc-100/80 via-zinc-50/90 to-zinc-100 dark:from-zinc-950/80 dark:via-zinc-900/90 dark:to-zinc-950 overflow-hidden"
             onMouseEnter={() => setHovering(true)}
             onMouseLeave={() => setHovering(false)}
         >
             <svg
-                className="w-full h-auto text-zinc-700 max-h-full"
+                className="w-full h-auto text-zinc-400 dark:text-zinc-700 max-h-full"
                 viewBox={`0 0 ${LED_COLS} ${LED_ROWS}`}
             >
                 {matrix.map((row, ri) =>
@@ -152,9 +152,9 @@ function LEDBoard({ word }: { word: string }) {
                                     pulse ? 'animate-led-pulse' : '',
                                     lit
                                         ? hovering
-                                            ? 'fill-purple-400'
-                                            : 'fill-zinc-400'
-                                        : 'fill-zinc-800',
+                                            ? 'fill-purple-500 dark:fill-purple-400'
+                                            : 'fill-zinc-600 dark:fill-zinc-400'
+                                        : 'fill-zinc-200 dark:fill-zinc-800',
                                 ].join(' ')}
                             />
                         );
@@ -166,21 +166,38 @@ function LEDBoard({ word }: { word: string }) {
 }
 
 // ─── Main dialog ──────────────────────────────────────────────────────────────
-export function UsernameSetupDialog() {
+interface UsernameSetupDialogProps {
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    initialUsername?: string;
+}
+
+export function UsernameSetupDialog({ 
+    open: controlledOpen, 
+    onOpenChange: controlledOnOpenChange, 
+    initialUsername = '' 
+}: UsernameSetupDialogProps = {}) {
     const utils = trpc.useUtils();
     const { data: me, isLoading } = trpc.user.me.useQuery();
-    const [username, setUsername] = useState('');
+    const [username, setUsername] = useState(initialUsername);
     const [focused, setFocused] = useState(false);
     const [dismissed, setDismissed] = useState(false);
 
+    const isControlled = typeof controlledOpen !== 'undefined';
+
     const open = useMemo(() => {
+        if (isControlled) return controlledOpen;
         if (isLoading || dismissed) return false;
         return !!me && !me.username;
-    }, [isLoading, me, dismissed]);
+    }, [isLoading, me, dismissed, isControlled, controlledOpen]);
 
     const updateUser = trpc.user.update.useMutation({
         onSuccess: async () => {
             await utils.user.me.invalidate();
+            toast.success(initialUsername ? 'Username updated' : 'Username saved');
+            if (controlledOnOpenChange) {
+                controlledOnOpenChange(false);
+            }
         },
         onError: (error: unknown) => {
             const message =
@@ -211,15 +228,21 @@ export function UsernameSetupDialog() {
     const ledWord = username.trim() ? username.trim() : 'WOOLET';
 
     return (
-        <Dialog open={open} onOpenChange={(val) => !val && setDismissed(true)}>
+        <Dialog 
+            open={open} 
+            onOpenChange={(val) => {
+                if (!val && !isControlled) setDismissed(true);
+                if (controlledOnOpenChange) controlledOnOpenChange(val);
+            }}
+        >
             <DialogContent
                 className="p-0 overflow-hidden border-border bg-card gap-0 sm:max-w-[680px] w-[calc(100%-2.5rem)] mx-auto rounded-2xl sm:rounded-3xl !top-auto !bottom-4 !translate-y-0 sm:!top-[50%] sm:!bottom-auto sm:!-translate-y-1/2 flex flex-col max-h-[85vh] sm:max-h-none min-h-[300px] sm:min-h-[480px]"
             >
                 {/* inline keyframes */}
                 <style>{`
                     @keyframes led-pulse-kf {
-                        0%, 100% { fill: currentColor; filter: brightness(1); }
-                        50% { fill: #a855f7; filter: brightness(5); }
+                        0%, 100% { fill: currentColor; }
+                        50% { fill: #a855f7; filter: drop-shadow(0 0 2px rgba(168,85,247,0.4)); }
                     }
                     .animate-led-pulse { animation: led-pulse-kf 2s ease-in-out; }
                 `}</style>
@@ -252,7 +275,7 @@ export function UsernameSetupDialog() {
                                         letterSpacing: '-0.03em',
                                     }}
                                 >
-                                    Let's get username
+                                    {initialUsername ? 'Update username' : "Let's get username"}
                                 </h2>
                                 <p
                                     className="text-muted-foreground mt-1"
