@@ -15,10 +15,15 @@ import {
     userSettings,
     creditPayments,
     mortgagePayments,
-    notifications
+    notifications,
+    splitParticipants,
+    transactionSplits,
+    splitPayments,
+    users,
 } from '../db/schema';
 import { checkEntityLimit } from '../lib/limits';
 import { deliverNotificationChannels } from '../services/notification-delivery-service';
+import { quickSplitSchema } from '@woolet/shared';
 
 export const subscriptionRouter = router({
     // List all subscriptions with optional type filter
@@ -314,6 +319,7 @@ export const subscriptionRouter = router({
             paidAt: z.string().optional(), // defaults to now
             note: z.string().optional(),
             dueDate: z.string().optional(),
+            split: quickSplitSchema.optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             // 1. Verify subscription ownership
@@ -350,6 +356,46 @@ export const subscriptionRouter = router({
                 });
             }
 
+            // Validate and precompute split settings before creating records
+            let splitParticipantsForPayment: Awaited<ReturnType<typeof ctx.db.query.splitParticipants.findMany>> = [];
+            let splitAmounts: { participantId: string; amount: number; paybackCurrencyBalanceId?: string }[] = [];
+
+            const splitInput = input.split;
+            if (splitInput && splitInput.participantIds.length > 0) {
+                splitParticipantsForPayment = await ctx.db.query.splitParticipants.findMany({
+                    where: and(
+                        inArray(splitParticipants.id, splitInput.participantIds),
+                        eq(splitParticipants.userId, ctx.userId!)
+                    ),
+                });
+
+                if (splitParticipantsForPayment.length !== splitInput.participantIds.length) {
+                    throw new TRPCError({ code: 'BAD_REQUEST', message: 'One or more split participants not found' });
+                }
+
+                if (splitInput.equalSplit) {
+                    const totalParticipants = splitInput.includeSelf
+                        ? splitInput.participantIds.length + 1
+                        : splitInput.participantIds.length;
+                    const perPersonAmount = input.amount / totalParticipants;
+
+                    splitAmounts = splitInput.participantIds.map((id) => {
+                        const override = splitInput.amounts?.find((a) => a.participantId === id);
+                        return {
+                            participantId: id,
+                            amount: Math.round(perPersonAmount * 100) / 100,
+                            paybackCurrencyBalanceId: override?.paybackCurrencyBalanceId,
+                        };
+                    });
+                } else if (splitInput.amounts) {
+                    splitAmounts = splitInput.amounts.map((a) => ({
+                        participantId: a.participantId,
+                        amount: a.amount,
+                        paybackCurrencyBalanceId: a.paybackCurrencyBalanceId,
+                    }));
+                }
+            }
+
             // 3. Find or create 'Subscription' category
             let subscriptionCategory = await ctx.db.query.categories.findFirst({
                 where: (c, { ilike }) => ilike(c.name, '%subscription%')
@@ -374,6 +420,96 @@ export const subscriptionRouter = router({
                 date: paidAt.toISOString().split('T')[0],
                 type: 'expense',
             }).returning();
+
+            // 4.1 Optional split handling for subscription payment
+            if (splitAmounts.length > 0) {
+                    const createdSplits = await ctx.db.insert(transactionSplits).values(
+                        splitAmounts.map((s) => {
+                            const participantSetting = splitInput?.amounts?.find((a) => a.participantId === s.participantId);
+                            const paybackBalanceId = participantSetting?.paybackCurrencyBalanceId || splitInput?.paybackCurrencyBalanceId;
+                            const isInstantlyPaid = splitInput?.instantMoneyBack && paybackBalanceId && paybackBalanceId !== '';
+
+                            return {
+                                transactionId: transaction.id,
+                                participantId: s.participantId,
+                                owedAmount: String(s.amount),
+                                status: isInstantlyPaid ? ('settled' as const) : ('pending' as const),
+                                paidAmount: isInstantlyPaid ? String(s.amount) : '0',
+                            };
+                        })
+                    ).returning();
+
+                    if (splitInput?.instantMoneyBack) {
+                        for (const split of createdSplits) {
+                            const participantSetting = splitInput?.amounts?.find((a) => a.participantId === split.participantId);
+                            const paybackBalanceId = participantSetting?.paybackCurrencyBalanceId || splitInput?.paybackCurrencyBalanceId;
+
+                            if (!paybackBalanceId || paybackBalanceId === '') continue;
+
+                            const [paybackTx] = await ctx.db.insert(transactions).values({
+                                currencyBalanceId: paybackBalanceId,
+                                categoryId: transaction.categoryId,
+                                amount: split.owedAmount,
+                                type: 'income',
+                                date: transaction.date,
+                                description: `Payback from ${splitParticipantsForPayment.find((p) => p.id === split.participantId)?.name || 'friend'} for ${subscription.name}`,
+                                parentTransactionId: transaction.id,
+                            }).returning();
+
+                            await ctx.db.insert(splitPayments).values({
+                                splitId: split.id,
+                                amount: split.owedAmount,
+                                receivedToCurrencyBalanceId: paybackBalanceId,
+                                linkedTransactionId: paybackTx.id,
+                                paidAt: new Date(),
+                            });
+
+                            const paybackBalance = await ctx.db.query.currencyBalances.findFirst({
+                                where: eq(currencyBalances.id, paybackBalanceId),
+                            });
+                            if (paybackBalance) {
+                                await ctx.db.update(currencyBalances)
+                                    .set({ balance: (Number(paybackBalance.balance) + Number(split.owedAmount)).toString() })
+                                    .where(eq(currencyBalances.id, paybackBalanceId));
+                            }
+                        }
+                    }
+
+                    const currentUserProfile = await ctx.db.query.users.findFirst({
+                        where: eq(users.id, ctx.userId!),
+                        columns: { name: true, username: true },
+                    });
+                    const senderLabel = currentUserProfile?.name || currentUserProfile?.username || 'A friend';
+
+                    const pendingNotifications = createdSplits
+                        .map((split) => {
+                            const participant = splitParticipantsForPayment.find((p) => p.id === split.participantId);
+                            if (!participant?.linkedUserId) return null;
+                            if (split.status !== 'pending') return null;
+                            return {
+                                userId: participant.linkedUserId,
+                                type: 'general' as const,
+                                title: 'New split request',
+                                message: `${senderLabel} added you to subscription split: ${Number(split.owedAmount).toFixed(2)}.`,
+                                priority: 'medium' as const,
+                                links: { web: '/spending', mobile: 'woolet://spending', universal: 'https://woolet.app/spending' },
+                                entityType: 'transaction',
+                                entityId: transaction.id,
+                                metadata: {
+                                    splitId: split.id,
+                                    participantId: split.participantId,
+                                    fromUserId: ctx.userId,
+                                    transactionId: transaction.id,
+                                    source: 'subscription_payment',
+                                },
+                            };
+                        })
+                        .filter((n): n is NonNullable<typeof n> => !!n);
+
+                    if (pendingNotifications.length > 0) {
+                        await ctx.db.insert(notifications).values(pendingNotifications);
+                    }
+            }
 
             // 5. Deduct from account
             await ctx.db.update(currencyBalances)

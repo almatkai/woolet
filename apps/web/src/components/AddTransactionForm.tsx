@@ -7,8 +7,6 @@ import { Plus, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
 import {
-    applyBalanceDeltas,
-    buildBalanceDeltasForTransaction,
     captureOptimisticFinanceSnapshot,
     restoreOptimisticFinanceSnapshot,
     upsertTransactionAcrossCaches,
@@ -60,6 +58,20 @@ interface AddTransactionFormProps {
 }
 
 export function AddTransactionForm({ onSuccess, onCancel }: AddTransactionFormProps) {
+    const parseMutationErrorMessage = (error: unknown): string => {
+        if (!error) return 'Failed to create transaction';
+        const candidate =
+            (error as any)?.shape?.message ??
+            (error as any)?.data?.message ??
+            (error as any)?.message;
+
+        if (typeof candidate !== 'string' || candidate.trim().length === 0) {
+            return 'Failed to create transaction';
+        }
+
+        return candidate.replace(/^TRPCClientError:\s*/i, '').trim();
+    };
+
     const queryClient = useQueryClient();
     const utils = trpc.useUtils();
     const [showCategoryManager, setShowCategoryManager] = useState(false);
@@ -111,10 +123,19 @@ export function AddTransactionForm({ onSuccess, onCancel }: AddTransactionFormPr
     const transactionType = watch('type');
     const currencyBalanceId = watch('currencyBalanceId');
     const toCurrencyBalanceId = watch('toCurrencyBalanceId');
+    const amountValue = Number(watch('amount')) || 0;
+    const feeValue = transactionType === 'transfer' ? (Number(watch('fee')) || 0) : 0;
+    const requiredAmount = amountValue + feeValue;
 
     const selectedAccount = useMemo(() =>
         currencyOptions.find(o => o.id === currencyBalanceId),
         [currencyOptions, currencyBalanceId]);
+    const hasInsufficientFunds = Boolean(
+        selectedAccount &&
+        (transactionType === 'expense' || transactionType === 'transfer') &&
+        requiredAmount > 0 &&
+        requiredAmount > selectedAccount.balance
+    );
 
     const selectedToAccount = useMemo(() =>
         currencyOptions.find(o => o.id === toCurrencyBalanceId),
@@ -150,7 +171,6 @@ export function AddTransactionForm({ onSuccess, onCancel }: AddTransactionFormPr
             ]);
 
             const snapshot = captureOptimisticFinanceSnapshot(queryClient);
-            const currencyCodeById = new Map(currencyOptions.map((option) => [option.id, option.currencyCode]));
             const optimisticTransaction = {
                 id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `temp-${Date.now()}`,
                 currencyBalanceId: variables.currencyBalanceId,
@@ -169,10 +189,6 @@ export function AddTransactionForm({ onSuccess, onCancel }: AddTransactionFormPr
             };
 
             upsertTransactionAcrossCaches(queryClient, optimisticTransaction);
-            applyBalanceDeltas(
-                queryClient,
-                buildBalanceDeltasForTransaction(optimisticTransaction, currencyCodeById, 1),
-            );
 
             return { snapshot };
         },
@@ -183,7 +199,7 @@ export function AddTransactionForm({ onSuccess, onCancel }: AddTransactionFormPr
         onError: (error: unknown, _variables: any, context: any) => {
             restoreOptimisticFinanceSnapshot(queryClient, context?.snapshot);
             console.error("Failed to create transaction:", error);
-            toast.error('Failed to create transaction');
+            toast.error(parseMutationErrorMessage(error));
         },
         onSettled: () => {
             utils.transaction.list.invalidate();
@@ -193,6 +209,21 @@ export function AddTransactionForm({ onSuccess, onCancel }: AddTransactionFormPr
     });
 
     const onSubmit = (data: CreateTransactionFormValues) => {
+        const amount = Number(data.amount) || 0;
+        const fee = data.type === 'transfer' ? (Number(data.fee) || 0) : 0;
+        const required = amount + fee;
+
+        if (
+            selectedAccount &&
+            (data.type === 'expense' || data.type === 'transfer') &&
+            required > selectedAccount.balance
+        ) {
+            toast.error(
+                `Insufficient funds. Available: ${selectedAccount.balance.toLocaleString()} ${selectedAccount.currencyCode}, Required: ${required.toLocaleString()} ${selectedAccount.currencyCode}`
+            );
+            return;
+        }
+
         let finalCashback = 0;
 
         if (data.type === 'expense') {
@@ -377,6 +408,11 @@ export function AddTransactionForm({ onSuccess, onCancel }: AddTransactionFormPr
                     </span>
                 </div>
                 {errors.amount && <p className="text-xs text-red-500">{errors.amount.message}</p>}
+                {hasInsufficientFunds && selectedAccount && (
+                    <p className="text-xs text-red-500">
+                        Insufficient funds. Available: {selectedAccount.balance.toLocaleString()} {selectedAccount.currencyCode}, Required: {requiredAmount.toLocaleString()} {selectedAccount.currencyCode}
+                    </p>
+                )}
             </div>
 
             {transactionType === 'expense' && (
@@ -477,7 +513,7 @@ export function AddTransactionForm({ onSuccess, onCancel }: AddTransactionFormPr
                 <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
                     Cancel
                 </Button>
-                <Button type="submit" disabled={createTransaction.isLoading} className="flex-1 gap-2">
+                <Button type="submit" disabled={createTransaction.isLoading || hasInsufficientFunds} className="flex-1 gap-2">
                     {!createTransaction.isLoading && <Plus className="h-4 w-4" />}
                     {createTransaction.isLoading ? 'Adding...' : 'Add Transaction'}
                 </Button>

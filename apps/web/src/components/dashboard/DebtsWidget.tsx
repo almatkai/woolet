@@ -137,7 +137,7 @@ export function DebtsWidget({ gridParams }: { gridParams?: GridParams }) {
                         )}
                         {theyOweDebts.length > 0 && (
                             <div className="space-y-1">
-                                <p className="dashboard-widget__meta font-medium text-green-600">They Owe ({theyOweDebts.length})</p>
+                                <p className="dashboard-widget__meta font-medium text-green-600">Lend ({theyOweDebts.length})</p>
                                 <div className="space-y-0.5">
                                     {theyOweDebts.slice(0, maxItems).map((debt: any) => (
                                         <div key={debt.id} className="dashboard-widget__item flex items-center justify-between gap-2">

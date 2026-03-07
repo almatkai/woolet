@@ -164,6 +164,9 @@ const userPreferencesSchema = z.object({
         excludedCategories: z.array(z.string().uuid()).optional(),
         period: z.string().optional(),
     }).optional(),
+    splitBill: z.object({
+        allowAccountSharing: z.boolean().optional(),
+    }).optional(),
 }).optional();
 
 type ExportTierLimits = {
@@ -210,6 +213,55 @@ export const userRouter = router({
             limit: z.number().min(1).max(20).default(8),
         }))
         .query(async ({ ctx, input }) => {
+            const normalizeForSearch = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+            const levenshteinDistance = (a: string, b: string): number => {
+                if (a === b) return 0;
+                if (a.length === 0) return b.length;
+                if (b.length === 0) return a.length;
+
+                const matrix: number[][] = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+                for (let i = 0; i <= a.length; i += 1) matrix[i][0] = i;
+                for (let j = 0; j <= b.length; j += 1) matrix[0][j] = j;
+
+                for (let i = 1; i <= a.length; i += 1) {
+                    for (let j = 1; j <= b.length; j += 1) {
+                        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j - 1] + cost
+                        );
+                    }
+                }
+
+                return matrix[a.length][b.length];
+            };
+
+            const isLooseSubsequence = (needle: string, haystack: string) => {
+                if (!needle || !haystack) return false;
+                let n = 0;
+                for (let h = 0; h < haystack.length && n < needle.length; h += 1) {
+                    if (haystack[h] === needle[n]) n += 1;
+                }
+                return n === needle.length;
+            };
+
+            const scoreMatch = (queryNorm: string, candidate: string) => {
+                if (!queryNorm || !candidate) return 0;
+                if (candidate === queryNorm) return 1;
+                if (candidate.startsWith(queryNorm)) return 0.97;
+                if (candidate.includes(queryNorm)) return 0.92;
+                if (queryNorm.startsWith(candidate)) return 0.88;
+                if (isLooseSubsequence(queryNorm, candidate)) return 0.82;
+
+                const distance = levenshteinDistance(queryNorm, candidate);
+                const maxLen = Math.max(queryNorm.length, candidate.length);
+                return maxLen > 0 ? Math.max(0, 1 - distance / maxLen) : 0;
+            };
+
+            const queryNorm = normalizeForSearch(input.query);
+
             const results = await ctx.db
                 .select({
                     id: users.id,
@@ -218,12 +270,31 @@ export const userRouter = router({
                 })
                 .from(users)
                 .where(and(
-                    ilike(users.username, `${input.query.toLowerCase()}%`),
+                    or(
+                        ilike(users.username, `%${input.query.toLowerCase()}%`),
+                        ilike(users.name, `%${input.query}%`)
+                    ),
                     ne(users.id, ctx.userId)
                 ))
-                .limit(input.limit);
+                .limit(120);
 
-            return results.filter((u) => !!u.username);
+            return results
+                .filter((u) => !!u.username)
+                .map((u) => {
+                    const usernameNorm = normalizeForSearch(u.username || '');
+                    const nameNorm = normalizeForSearch(u.name || '');
+                    const usernameScore = scoreMatch(queryNorm, usernameNorm);
+                    const nameScore = scoreMatch(queryNorm, nameNorm) * 0.85;
+                    const score = Math.max(usernameScore, nameScore);
+                    return { ...u, _score: score };
+                })
+                .filter((u) => u._score >= 0.55)
+                .sort((a, b) => {
+                    if (b._score !== a._score) return b._score - a._score;
+                    return (a.username || '').localeCompare(b.username || '');
+                })
+                .slice(0, input.limit)
+                .map(({ _score, ...u }) => u);
         }),
 
     getLimits: protectedProcedure.query(async ({ ctx }) => {

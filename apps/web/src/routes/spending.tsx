@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Pencil, Trash2, MoreHorizontal, Star, StarOff, Bookmark, X, Plus, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Pencil, Trash2, MoreHorizontal, Star, StarOff, Bookmark, X, Plus, Check, ChevronDown, ChevronUp, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn, formatAccountLabel } from '@/lib/utils';
 import { PageHeader } from '@/components/PageHeader';
@@ -30,6 +30,16 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -128,6 +138,8 @@ const FAVORITES_WIDGET_KEY = 'woolet :favorites-widget-visible';
 export function SpendingPage() {
     const queryClient = useQueryClient();
     const { data: transactionsData, isLoading } = trpc.transaction.list.useQuery({ hideAdjustments: true }) as { data: { transactions: Transaction[] } | undefined, isLoading: boolean };
+    const { data: incomingSplitRequests } = trpc.splitBill.listIncomingRequests.useQuery({ limit: 10 });
+    const { data: pendingIncomingReceipts } = trpc.splitBill.listPendingIncomingReceipts.useQuery({ limit: 10 });
     const { data: banks } = trpc.bank.getHierarchy.useQuery();
     const { data: categories } = trpc.category.list.useQuery();
     const utils = trpc.useUtils();
@@ -182,10 +194,6 @@ export function SpendingPage() {
             };
 
             upsertTransactionAcrossCaches(queryClient, optimisticTransaction);
-            applyBalanceDeltas(
-                queryClient,
-                buildBalanceDeltasForTransaction(optimisticTransaction, currencyCodeById, 1),
-            );
 
             return { snapshot };
         },
@@ -243,6 +251,13 @@ export function SpendingPage() {
     const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
     const [paymentAccountId, setPaymentAccountId] = useState('');
     const [expandedSplits, setExpandedSplits] = useState<Set<string>>(new Set());
+    const [respondingSplitId, setRespondingSplitId] = useState<string | null>(null);
+    const [payNowRequest, setPayNowRequest] = useState<any | null>(null);
+    const [payNowAmount, setPayNowAmount] = useState('');
+    const [payNowPayerAccountId, setPayNowPayerAccountId] = useState('');
+    const [payNowReceiverAccountId, setPayNowReceiverAccountId] = useState('__manual__');
+    const [showOverpayConfirm, setShowOverpayConfirm] = useState(false);
+    const [receiptAccountSelections, setReceiptAccountSelections] = useState<Record<string, string>>({});
 
     const toggleSplitExpand = (txId: string) => {
         setExpandedSplits(prev => {
@@ -267,6 +282,80 @@ export function SpendingPage() {
         },
         onError: (error: any) => {
             toast.error(error.message || 'Failed to record payment');
+        }
+    });
+
+    const respondToIncomingSplit = trpc.splitBill.respondToIncomingRequest.useMutation({
+        onSuccess: (result: any) => {
+            utils.splitBill.listIncomingRequests.invalidate();
+            utils.splitBill.getPendingSplits.invalidate();
+            utils.transaction.list.invalidate();
+            utils.debt.list.invalidate();
+            utils.notification.list.invalidate();
+            if (result?.outcome === 'debt') {
+                toast.success('Split approved as debt');
+            } else if (result?.outcome === 'instant_payment') {
+                toast.success('Split approved and settled');
+            } else {
+                toast.success('Split request declined');
+            }
+            setRespondingSplitId(null);
+        },
+        onError: (error: any) => {
+            toast.error(error.message || 'Failed to process split request');
+            setRespondingSplitId(null);
+        }
+    });
+
+    const payIncomingNow = trpc.splitBill.payIncomingRequestNow.useMutation({
+        onSuccess: (result: any) => {
+            utils.splitBill.listIncomingRequests.invalidate();
+            utils.splitBill.getPendingSplits.invalidate();
+            utils.transaction.list.invalidate();
+            utils.debt.list.invalidate();
+            utils.account.list.invalidate();
+            utils.account.getTotalBalance.invalidate();
+            utils.bank.getHierarchy.invalidate();
+            utils.notification.list.invalidate();
+            if (result?.outcome === 'pay_now_partial_to_debt') {
+                toast.success('Paid now. Remaining amount moved to debt.');
+            } else {
+                toast.success('Split paid successfully.');
+            }
+            setPayNowRequest(null);
+            setPayNowAmount('');
+            setPayNowPayerAccountId('');
+            setPayNowReceiverAccountId('__manual__');
+            setShowOverpayConfirm(false);
+        },
+        onError: (error: any) => {
+            toast.error(error.message || 'Failed to process payment');
+        }
+    });
+
+    const importIncomingCategory = trpc.splitBill.importIncomingSplitCategory.useMutation({
+        onSuccess: () => {
+            utils.splitBill.listIncomingRequests.invalidate();
+            utils.category.list.invalidate();
+            toast.success('Category added to your list');
+        },
+        onError: (error: any) => {
+            toast.error(error.message || 'Failed to import category');
+        }
+    });
+
+    const assignIncomingReceipt = trpc.splitBill.assignIncomingReceipt.useMutation({
+        onSuccess: () => {
+            utils.splitBill.listPendingIncomingReceipts.invalidate();
+            utils.transaction.list.invalidate();
+            utils.account.list.invalidate();
+            utils.account.getTotalBalance.invalidate();
+            utils.bank.getHierarchy.invalidate();
+            utils.notification.list.invalidate();
+            toast.success('Incoming payment assigned to account');
+        },
+        onError: (error: any) => {
+            toast.error(error.message || 'Failed to assign incoming payment');
         }
     });
 
@@ -447,7 +536,7 @@ export function SpendingPage() {
 
     const currencyOptions = useMemo(() => {
         if (!banks) return [];
-        const options: { id: string; label: string; currencyCode: string }[] = [];
+        const options: { id: string; label: string; currencyCode: string; balance: number }[] = [];
         banks.forEach((bank: { name: string; accounts: Array<{ name: string; currencyBalances: Array<{ id: string; balance: string | number; currencyCode: string }> }> }) => {
             bank.accounts.forEach((acc) => {
                 acc.currencyBalances.forEach((cb) => {
@@ -455,6 +544,7 @@ export function SpendingPage() {
                         id: cb.id,
                         label: `[${bank.name}] ${acc.name} `,
                         currencyCode: cb.currencyCode,
+                        balance: Number(cb.balance),
                     });
                 });
             });
@@ -466,6 +556,12 @@ export function SpendingPage() {
     const categoryLabelById = useMemo(() => {
         return new Map<string, string>((categories || []).map((cat: { id: string; name: string; icon: string }) => [cat.id, `${cat.icon} ${cat.name} `]));
     }, [categories]);
+
+    const payNowRequestedAmount = Number(payNowAmount) || 0;
+    const payNowOriginalRemaining = Number(payNowRequest?.remainingAmount || 0);
+    const payNowRemainingAfter = Math.max(payNowOriginalRemaining - payNowRequestedAmount, 0);
+    const isPayNowOverpay = payNowRequestedAmount > payNowOriginalRemaining && payNowOriginalRemaining > 0;
+    const selectedPayNowAccount = currencyOptions.find((opt) => opt.id === payNowPayerAccountId);
 
     const currencyCodeById = useMemo(() => {
         const map = new Map<string, string>();
@@ -663,8 +759,164 @@ export function SpendingPage() {
                     />
             </PageHeader>
 
+            {incomingSplitRequests && incomingSplitRequests.length > 0 && (
+                <Card className="border-primary/20 bg-primary/5">
+                    <CardContent className="p-3 sm:p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                            <UserCheck className="h-4 w-4 text-primary" />
+                            <p className="text-sm font-semibold">
+                                Split Requests ({incomingSplitRequests.length})
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            {incomingSplitRequests.map((request: any) => (
+                                <div key={request.id} className="rounded-lg border bg-background p-3">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-medium truncate">
+                                                {request.fromUser?.name || request.fromUser?.username || request.participant?.name || 'Friend'}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground truncate">
+                                                {request.transaction?.description || 'Split bill request'}
+                                            </p>
+                                        </div>
+                                        <CurrencyDisplay
+                                            amount={Number(request.remainingAmount || 0)}
+                                            currency={request.transaction?.currencyBalance?.currencyCode}
+                                            className="text-sm font-semibold"
+                                        />
+                                    </div>
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={respondToIncomingSplit.isPending && respondingSplitId === request.id}
+                                            onClick={() => {
+                                                setRespondingSplitId(request.id);
+                                                respondToIncomingSplit.mutate({
+                                                    splitId: request.id,
+                                                    decision: 'approve',
+                                                    settlement: 'debt',
+                                                });
+                                            }}
+                                        >
+                                            Approve as Debt
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            disabled={respondToIncomingSplit.isPending && respondingSplitId === request.id}
+                                            onClick={() => {
+                                                const matchingPayer = currencyOptions.find(
+                                                    (opt) => opt.currencyCode === request.transaction?.currencyBalance?.currencyCode
+                                                );
+                                                setPayNowRequest(request);
+                                                setPayNowAmount(String(Number(request.remainingAmount || 0)));
+                                                setPayNowPayerAccountId(matchingPayer?.id || '');
+                                                setPayNowReceiverAccountId('__manual__');
+                                            }}
+                                        >
+                                            Pay now
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="text-destructive hover:text-destructive"
+                                            disabled={respondToIncomingSplit.isPending && respondingSplitId === request.id}
+                                            onClick={() => {
+                                                setRespondingSplitId(request.id);
+                                                respondToIncomingSplit.mutate({
+                                                    splitId: request.id,
+                                                    decision: 'disapprove',
+                                                });
+                                            }}
+                                        >
+                                            Decline
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {pendingIncomingReceipts && pendingIncomingReceipts.length > 0 && (
+                <Card className="border-emerald-500/20 bg-emerald-500/5">
+                    <CardContent className="p-3 sm:p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                            <UserCheck className="h-4 w-4 text-emerald-600" />
+                            <p className="text-sm font-semibold">
+                                Incoming Payments To Assign ({pendingIncomingReceipts.length})
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            {pendingIncomingReceipts.map((receipt: any) => (
+                                <div key={receipt.paymentId} className="rounded-lg border bg-background p-3">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-medium truncate">
+                                                From {receipt.fromUser?.name || receipt.fromUser?.username || 'Friend'}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground truncate">
+                                                {receipt.transactionDescription || 'Split payment'}
+                                            </p>
+                                        </div>
+                                        <CurrencyDisplay
+                                            amount={Number(receipt.amount || 0)}
+                                            currency={receipt.currencyCode}
+                                            className="text-sm font-semibold text-emerald-600"
+                                        />
+                                    </div>
+                                    <div className="mt-2 flex flex-wrap items-end gap-2">
+                                        <div className="min-w-[260px] flex-1 space-y-1">
+                                            <Label className="text-xs text-muted-foreground">Receive to account</Label>
+                                            <Select
+                                                value={receiptAccountSelections[receipt.paymentId]}
+                                                onValueChange={(val) => {
+                                                    setReceiptAccountSelections((prev) => ({
+                                                        ...prev,
+                                                        [receipt.paymentId]: val,
+                                                    }));
+                                                }}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select account" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {currencyOptions
+                                                        .filter((opt) => opt.currencyCode === receipt.currencyCode)
+                                                        .map((opt) => (
+                                                            <SelectItem key={opt.id} value={opt.id}>
+                                                                {opt.label} ({opt.currencyCode})
+                                                            </SelectItem>
+                                                        ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            disabled={!receiptAccountSelections[receipt.paymentId] || assignIncomingReceipt.isPending}
+                                            onClick={() => {
+                                                const currencyBalanceId = receiptAccountSelections[receipt.paymentId];
+                                                if (!currencyBalanceId) return;
+                                                assignIncomingReceipt.mutate({
+                                                    paymentId: receipt.paymentId,
+                                                    currencyBalanceId,
+                                                });
+                                            }}
+                                        >
+                                            Assign
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
             <Card className="border-none sm:border shadow-none sm:shadow-sm">
-                <CardContent className="p-0 sm:p-6">
+                <CardContent className="p-0">
                     {isLoading ? (
                         <p className="text-muted-foreground text-center py-8">Loading transactions...</p>
                     ) : visibleTransactions.length === 0 ? (
@@ -1073,6 +1325,155 @@ export function SpendingPage() {
                     </form>
                 </SheetContent>
             </Sheet>
+
+            {/* Incoming Split Pay Now Sheet */}
+            <Sheet open={!!payNowRequest} onOpenChange={(open) => {
+                if (!open) {
+                    setPayNowRequest(null);
+                    setShowOverpayConfirm(false);
+                }
+            }}>
+                <SheetContent>
+                    <SheetHeader>
+                        <SheetTitle>Pay Split Now</SheetTitle>
+                        <SheetDescription>
+                            Pay part now. Remaining amount will be moved to debt.
+                        </SheetDescription>
+                    </SheetHeader>
+                    <div className="space-y-4 pt-6">
+                        <div className="space-y-2">
+                            <Label>Amount ({payNowRequest?.transaction?.currencyBalance?.currencyCode})</Label>
+                            <Input
+                                type="number"
+                                value={payNowAmount}
+                                onChange={(e) => setPayNowAmount(e.target.value)}
+                                placeholder={`Remaining: ${payNowRequest?.remainingAmount || ''}`}
+                            />
+                            {payNowRemainingAfter > 0 && (
+                                <div className="text-xs text-muted-foreground">
+                                    Remaining after payment: <CurrencyDisplay amount={payNowRemainingAfter} currency={payNowRequest?.transaction?.currencyBalance?.currencyCode} />
+                                </div>
+                            )}
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Paid from your account</Label>
+                            <Select value={payNowPayerAccountId} onValueChange={setPayNowPayerAccountId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select your account" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {currencyOptions
+                                        .filter((opt) => opt.currencyCode === payNowRequest?.transaction?.currencyBalance?.currencyCode)
+                                        .map((opt) => (
+                                            <SelectItem key={opt.id} value={opt.id}>
+                                                {opt.label} ({opt.currencyCode})
+                                            </SelectItem>
+                                        ))}
+                                </SelectContent>
+                            </Select>
+                            {selectedPayNowAccount && (
+                                <div className="text-xs text-muted-foreground">
+                                    Balance: <CurrencyDisplay amount={selectedPayNowAccount.balance} currency={selectedPayNowAccount.currencyCode} />
+                                </div>
+                            )}
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Receiver account (optional)</Label>
+                            <Select
+                                value={payNowReceiverAccountId}
+                                onValueChange={setPayNowReceiverAccountId}
+                                disabled={payNowRequest?.receivingAccountSharingEnabled === false}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder={payNowRequest?.receivingAccountSharingEnabled === false ? 'Receiver disabled account sharing' : 'Select receiver account'} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="__manual__">Manual receive (owner chooses later)</SelectItem>
+                                    {(payNowRequest?.receivingAccounts || []).map((opt: any) => (
+                                        <SelectItem key={opt.id} value={opt.id}>
+                                            {opt.label} ({opt.currencyCode})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {payNowRequest?.sourceCategory && (
+                            <div className="rounded-md border p-2">
+                                <div className="text-xs text-muted-foreground">
+                                    Source category: <span className="font-medium text-foreground">{payNowRequest.sourceCategory.name}</span>
+                                </div>
+                                {!payNowRequest?.hasCategoryInMyList && (
+                                    <div className="mt-2 flex items-center justify-between gap-2">
+                                        <p className="text-xs text-amber-600">You don&apos;t have this category. This payment will use Unknown.</p>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={importIncomingCategory.isPending}
+                                            onClick={() => {
+                                                if (!payNowRequest?.id) return;
+                                                importIncomingCategory.mutate({ splitId: payNowRequest.id });
+                                            }}
+                                        >
+                                            Bring Category
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        {payNowRequest?.receivingAccountSharingEnabled === false && (
+                            <p className="text-xs text-muted-foreground">
+                                Receiver has hidden account sharing, so they will assign receiving account manually.
+                            </p>
+                        )}
+                        <Button
+                            className="w-full"
+                            disabled={!payNowAmount || !payNowPayerAccountId || payIncomingNow.isPending}
+                            onClick={() => {
+                                if (!payNowRequest || !payNowAmount || !payNowPayerAccountId) return;
+                                if (isPayNowOverpay) {
+                                    setShowOverpayConfirm(true);
+                                    return;
+                                }
+                                payIncomingNow.mutate({
+                                    splitId: payNowRequest.id,
+                                    amountNow: Number(payNowAmount),
+                                    payerCurrencyBalanceId: payNowPayerAccountId,
+                                    receiverCurrencyBalanceId: payNowReceiverAccountId !== '__manual__' ? payNowReceiverAccountId : undefined,
+                                });
+                            }}
+                        >
+                            {payIncomingNow.isPending ? 'Processing...' : 'Pay now'}
+                        </Button>
+                    </div>
+                </SheetContent>
+            </Sheet>
+
+            <AlertDialog open={showOverpayConfirm} onOpenChange={setShowOverpayConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Amount Is Higher Than Needed</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            You entered more than the remaining split amount. Continue and pay only the remaining amount?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                if (!payNowRequest || !payNowPayerAccountId) return;
+                                payIncomingNow.mutate({
+                                    splitId: payNowRequest.id,
+                                    amountNow: payNowOriginalRemaining,
+                                    payerCurrencyBalanceId: payNowPayerAccountId,
+                                    receiverCurrencyBalanceId: payNowReceiverAccountId !== '__manual__' ? payNowReceiverAccountId : undefined,
+                                });
+                            }}
+                        >
+                            Pay Remaining Amount
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {/* Create/Edit Shortcut Sheet */}
             <Sheet open={shortcutSheetOpen} onOpenChange={(open) => {

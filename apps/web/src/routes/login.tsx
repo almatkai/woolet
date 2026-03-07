@@ -2,8 +2,14 @@ import { AuthLayout } from '../components/AuthLayout';
 import { CustomSignInForm } from '../components/CustomSignInForm';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { Navigate } from '@tanstack/react-router';
+import { useEffect } from 'react';
+import posthog from 'posthog-js';
 
 export function LoginPage() {
+    useEffect(() => {
+        posthog.capture('auth_signin_page_opened');
+    }, []);
+
     return (
         <AuthLayout
             title="Welcome Back"

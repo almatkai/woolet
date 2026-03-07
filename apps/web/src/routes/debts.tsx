@@ -48,6 +48,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface Debt {
     id: string;
     personName: string;
+    linkedUser?: {
+        id: string;
+        username: string | null;
+        name: string | null;
+    } | null;
     personContact?: string | null;
     amount: string | number;
     type: 'i_owe' | 'they_owe';
@@ -381,6 +386,9 @@ export function DebtsPage() {
                         <div className="flex items-center justify-between gap-2">
                             <div>
                                 <div className="text-sm sm:text-md font-medium">{debt.personName}</div>
+                                {debt.linkedUser?.username && (
+                                    <div className="text-xs text-muted-foreground">@{debt.linkedUser.username}</div>
+                                )}
                                 <div className="text-sm text-muted-foreground">
                                     Due: {debt.dueDate ? new Date(debt.dueDate).toLocaleDateString() : 'No due date'}
                                 </div>
@@ -474,7 +482,7 @@ export function DebtsPage() {
             <div className="grid gap-3 md:grid-cols-2">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-red-600">Payables</CardTitle>
+                        <CardTitle className="text-red-600">Borrowed</CardTitle>
                         <CardDescription>Outstanding amounts you need to repay</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -531,7 +539,7 @@ export function DebtsPage() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-green-600">Receivables</CardTitle>
+                        <CardTitle className="text-green-600">Lends</CardTitle>
                         <CardDescription>Outstanding amounts others need to repay</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -670,7 +678,6 @@ export function DebtsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>History</CardTitle>
-                    <CardDescription>Settled debts (remaining $0)</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (

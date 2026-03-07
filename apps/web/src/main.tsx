@@ -44,7 +44,7 @@ if (!VITE_CLERK_PUBLISHABLE_KEY) {
     console.warn('Missing VITE_CLERK_PUBLISHABLE_KEY - Using demo mode');
 }
 
-// Initialize Error Tracking (GlitchTip)
+// Initialize Error Tracking (PostHog)
 initErrorTracking();
 
 // Create query client

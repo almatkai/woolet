@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, HelpCircle } from 'lucide-react';
+import { Plus, HelpCircle, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
 import { cn, formatAccountLabel } from '@/lib/utils';
@@ -42,6 +42,7 @@ const createDebtSchema = z.object({
     currencyBalanceId: z.string().uuid().optional().nullable(),
     currencyCode: z.string().optional().nullable(),
     personName: z.string().min(1, "Person name is required").max(100),
+    linkedUserId: z.string().optional().nullable(),
     personContact: z.string().optional(),
     amount: z.coerce.number().positive("Amount must be positive"),
     type: z.enum(['i_owe', 'they_owe']),
@@ -70,6 +71,12 @@ interface AddDebtSheetProps {
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
 }
+
+type UsernameSearchResult = {
+    id: string;
+    username: string | null;
+    name: string | null;
+};
 
 export function AddDebtSheet({ open: controlledOpen, onOpenChange: controlledOnOpenChange }: AddDebtSheetProps = {}) {
     const isCompactMobile = useIsMobile(470);
@@ -105,6 +112,7 @@ export function AddDebtSheet({ open: controlledOpen, onOpenChange: controlledOnO
         defaultValues: {
             isExternal: false,
             personName: '',
+            linkedUserId: null,
             amount: 0,
             type: 'i_owe',
         }
@@ -112,9 +120,19 @@ export function AddDebtSheet({ open: controlledOpen, onOpenChange: controlledOnO
 
     const isExternal = watch('isExternal');
     const currencyBalanceId = watch('currencyBalanceId');
+    const personNameValue = watch('personName');
+    const linkedUserId = watch('linkedUserId');
     const selectedAccount = useMemo(() =>
         currencyOptions.find(o => o.id === currencyBalanceId),
         [currencyOptions, currencyBalanceId]);
+
+    const normalizedUsernameQuery = (personNameValue || '').trim().replace(/^@/, '').toLowerCase();
+    const { data: usernameMatches, isLoading: isSearchingUsername } = trpc.user.searchByUsername.useQuery(
+        { query: normalizedUsernameQuery, limit: 5 },
+        {
+            enabled: normalizedUsernameQuery.length >= 2 && !linkedUserId,
+        }
+    );
 
     const createDebt = trpc.debt.create.useMutation({
         onSuccess: () => {
@@ -142,6 +160,7 @@ export function AddDebtSheet({ open: controlledOpen, onOpenChange: controlledOnO
             description: data.description?.trim() || undefined,
             personContact: data.personContact?.trim() || undefined,
             dueDate: data.dueDate?.trim() || undefined,
+            linkedUserId: data.linkedUserId || undefined,
         };
         createDebt.mutate(normalizedData);
     };
@@ -258,7 +277,57 @@ export function AddDebtSheet({ open: controlledOpen, onOpenChange: controlledOnO
 
                     <div className="space-y-2">
                         <Label htmlFor="personName">Person/Entity Name</Label>
-                        <Input id="personName" placeholder="e.g. John Doe or Bank" {...register('personName')} />
+                        <Input
+                            id="personName"
+                            placeholder="e.g. John Doe, Bank, or @username"
+                            value={personNameValue || ''}
+                            onChange={(e) => {
+                                setValue('personName', e.target.value, { shouldValidate: true });
+                                if (linkedUserId) {
+                                    setValue('linkedUserId', null, { shouldValidate: true });
+                                }
+                            }}
+                        />
+                        {linkedUserId && (
+                            <p className="text-xs text-muted-foreground flex items-center justify-between gap-2 rounded-md border px-2 py-1.5">
+                                <span className="flex items-center gap-1">
+                                    <Check className="h-3 w-3 text-green-600" />
+                                    Assigned to Woolet user
+                                </span>
+                                <button
+                                    type="button"
+                                    className="inline-flex items-center gap-1 hover:text-foreground"
+                                    onClick={() => setValue('linkedUserId', null, { shouldValidate: true })}
+                                >
+                                    <X className="h-3 w-3" />
+                                    Clear
+                                </button>
+                            </p>
+                        )}
+                        {!linkedUserId && normalizedUsernameQuery.length >= 2 && (
+                            <div className="rounded-md border p-2 space-y-1 max-h-32 overflow-y-auto">
+                                {isSearchingUsername && (
+                                    <p className="text-xs text-muted-foreground">Searching users...</p>
+                                )}
+                                {!isSearchingUsername && usernameMatches?.length === 0 && (
+                                    <p className="text-xs text-muted-foreground">No matching usernames found.</p>
+                                )}
+                                {usernameMatches?.map((u: UsernameSearchResult) => (
+                                    <button
+                                        key={u.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setValue('linkedUserId', u.id, { shouldValidate: true });
+                                            setValue('personName', u.name || `@${u.username}`, { shouldValidate: true });
+                                        }}
+                                        className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted"
+                                    >
+                                        <span className="font-medium">@{u.username}</span>
+                                        {u.name && <span className="text-muted-foreground"> · {u.name}</span>}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         {errors.personName && <p className="text-sm text-red-500">{errors.personName.message}</p>}
                     </div>
 
@@ -273,7 +342,7 @@ export function AddDebtSheet({ open: controlledOpen, onOpenChange: controlledOnO
                                     watch('type') === 'i_owe' && "bg-red-600 hover:bg-red-700"
                                 )}
                             >
-                                I Owe (Payable)
+                                Borrow
                             </Button>
                             <Button
                                 type="button"
@@ -283,7 +352,7 @@ export function AddDebtSheet({ open: controlledOpen, onOpenChange: controlledOnO
                                     watch('type') === 'they_owe' && "bg-green-600 hover:bg-green-700"
                                 )}
                             >
-                                They Owe (Receivable)
+                                Lend (Receivable)
                             </Button>
                         </div>
                         {errors.type && <p className="text-sm text-red-500">{errors.type.message}</p>}

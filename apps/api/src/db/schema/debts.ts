@@ -10,6 +10,7 @@ export const debts = pgTable('debts', {
     currencyBalanceId: uuid('currency_balance_id').references(() => currencyBalances.id, { onDelete: 'cascade' }),
     currencyCode: text('currency_code'),
     personName: text('person_name').notNull(),
+    linkedUserId: text('linked_user_id').references(() => users.id, { onDelete: 'set null' }),
     personContact: text('person_contact'),
     amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
     paidAmount: decimal('paid_amount', { precision: 12, scale: 2 }).default('0').notNull(),
@@ -26,6 +27,7 @@ export const debts = pgTable('debts', {
     currencyBalanceIdIdx: index('debts_currency_balance_id_idx').on(table.currencyBalanceId),
     statusIdx: index('debts_status_idx').on(table.status),
     userIdIdx: index('debts_user_id_idx').on(table.userId),
+    linkedUserIdIdx: index('debts_linked_user_id_idx').on(table.linkedUserId),
 }));
 
 export const debtPayments = pgTable('debt_payments', {
@@ -43,6 +45,10 @@ export const debtsRelations = relations(debts, ({ one, many }) => ({
     }),
     user: one(users, {
         fields: [debts.userId],
+        references: [users.id],
+    }),
+    linkedUser: one(users, {
+        fields: [debts.linkedUserId],
         references: [users.id],
     }),
     payments: many(debtPayments),

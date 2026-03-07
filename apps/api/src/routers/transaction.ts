@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { eq, desc, and, gte, lte, sql, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../lib/trpc';
-import { transactions, currencyBalances, categories, banks, accounts, transactionSplits, splitParticipants, splitPayments } from '../db/schema';
+import { transactions, currencyBalances, categories, banks, accounts, transactionSplits, splitParticipants, splitPayments, notifications, users } from '../db/schema';
 import { checkEntityLimit } from '../lib/limits';
 import { quickSplitSchema } from '@woolet/shared';
 
@@ -345,6 +345,43 @@ export const transactionRouter = router({
                                     .where(eq(currencyBalances.id, paybackBalanceId));
                             }
                         }
+                    }
+
+                    // Notify linked users for approval when the split is still pending
+                    const currentUserProfile = await ctx.db.query.users.findFirst({
+                        where: eq(users.id, ctx.userId!),
+                        columns: { name: true, username: true },
+                    });
+                    const senderLabel = currentUserProfile?.name || currentUserProfile?.username || 'A friend';
+
+                    const pendingNotifications = createdSplits
+                        .map((split) => {
+                            const participant = participants.find((p) => p.id === split.participantId);
+                            if (!participant?.linkedUserId) return null;
+                            if (split.status !== 'pending') return null;
+
+                            return {
+                                userId: participant.linkedUserId,
+                                type: 'general' as const,
+                                title: 'New split request',
+                                message: `${senderLabel} added you to a split: ${Number(split.owedAmount).toFixed(2)}.`,
+                                priority: 'medium' as const,
+                                links: { web: '/spending', mobile: 'woolet://spending', universal: 'https://woolet.app/spending' },
+                                entityType: 'transaction',
+                                entityId: transaction.id,
+                                metadata: {
+                                    splitId: split.id,
+                                    participantId: split.participantId,
+                                    fromUserId: ctx.userId,
+                                    transactionId: transaction.id,
+                                    instantMoneyBack: Boolean(input.split?.instantMoneyBack),
+                                },
+                            };
+                        })
+                        .filter((n): n is NonNullable<typeof n> => !!n);
+
+                    if (pendingNotifications.length > 0) {
+                        await ctx.db.insert(notifications).values(pendingNotifications);
                     }
                 }
             }

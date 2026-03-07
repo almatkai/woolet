@@ -4,7 +4,19 @@ import { eq, sql } from 'drizzle-orm';
 import { generateTextWithFallback } from '../../lib/ai';
 
 export class AnomalyService {
-    async detectSpendingAnomalies(userId: string) {
+    private formatCurrencyAmount(amount: number, currency: string): string {
+        try {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency,
+                maximumFractionDigits: 0,
+            }).format(amount);
+        } catch {
+            return `${currency} ${Math.round(amount).toLocaleString('en-US')}`;
+        }
+    }
+
+    async detectSpendingAnomalies(userId: string, defaultCurrency = 'USD') {
         // 1. Get current month stats
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
@@ -90,20 +102,30 @@ export class AnomalyService {
 
         if (anomalies.length === 0) return null;
 
+        const currency = (defaultCurrency || 'USD').toUpperCase();
+        const anomaliesForPrompt = anomalies.map((item) => ({
+            category: item.category,
+            current: this.formatCurrencyAmount(item.current, currency),
+            average: this.formatCurrencyAmount(item.average, currency),
+            percentage: Number(item.percentage.toFixed(1)),
+        }));
+
         // Use AI to generate insights
         const prompt = `
 You are a financial analyst for Woolet .
 The user has some spending anomalies this month compared to their 3-month average.
+The user's preferred currency is ${currency}.
 
 Anomalies:
-${JSON.stringify(anomalies, null, 2)}
+${JSON.stringify(anomaliesForPrompt, null, 2)}
 
 Task:
-1. Generate a friendly, non-judgmental alert.
+1. Generate a friendly, non-judgmental alert in plain language.
 2. Point out the biggest increases.
-3. Offer a generic tip for reducing spend in these specific categories (e.g. for "Dining Out", suggest cooking at home).
-4. Keep it short (max 3 sentences per anomaly).
+3. Offer a practical tip for reducing spend in these specific categories.
+4. Keep it short (2-4 sentences total).
 5. Format as Markdown.
+6. Never use "$" unless the preferred currency is USD. Reuse the provided formatted amounts exactly.
 `;
 
         const { text } = await generateTextWithFallback({

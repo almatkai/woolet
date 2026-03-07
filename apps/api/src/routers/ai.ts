@@ -385,7 +385,10 @@ export const aiRouter = router({
 
     getSpendingAnomalies: protectedProcedure
         .query(async ({ ctx }) => {
-            return await anomalyService.detectSpendingAnomalies(ctx.userId!);
+            return await anomalyService.detectSpendingAnomalies(
+                ctx.userId!,
+                ctx.user?.defaultCurrency || 'USD'
+            );
         }),
 
     getChatUsage: protectedProcedure

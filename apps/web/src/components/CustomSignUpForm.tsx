@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSignUp } from '@clerk/clerk-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from '@tanstack/react-router';
+import posthog from 'posthog-js';
 
 export function CustomSignUpForm() {
     const { signUp, setActive, isLoaded } = useSignUp();
@@ -34,6 +35,7 @@ export function CustomSignUpForm() {
 
         setIsLoading(true);
         setErrors({});
+        posthog.capture('auth_signup_submitted', { method: 'password' });
 
         try {
             await signUp.create({
@@ -50,10 +52,15 @@ export function CustomSignUpForm() {
             // In production, you'd redirect to a verification page
             if (signUp.createdSessionId) {
                 await setActive({ session: signUp.createdSessionId });
+                posthog.capture('auth_signup_succeeded', { method: 'password' });
                 navigate({ to: '/' });
             }
         } catch (err: any) {
             console.error('Sign up error:', err);
+            posthog.capture('auth_signup_failed', {
+                method: 'password',
+                error_code: err?.errors?.[0]?.code ?? 'unknown',
+            });
             const errorMessages: Record<string, string> = {};
 
             if (err.errors) {
@@ -74,6 +81,8 @@ export function CustomSignUpForm() {
     const handleGoogleSignUp = async () => {
         if (!isLoaded) return;
         setIsGoogleLoading(true);
+        posthog.capture('auth_signup_submitted', { method: 'google_oauth' });
+        sessionStorage.setItem('pending_oauth_auth_flow', 'sign_up');
 
         try {
             await signUp.authenticateWithRedirect({
@@ -83,6 +92,10 @@ export function CustomSignUpForm() {
             });
         } catch (err) {
             console.error('Google sign up error:', err);
+            posthog.capture('auth_signup_failed', {
+                method: 'google_oauth',
+            });
+            sessionStorage.removeItem('pending_oauth_auth_flow');
             setIsGoogleLoading(false);
         }
     };

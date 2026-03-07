@@ -94,6 +94,29 @@ export function SettingsPage() {
         },
     });
 
+    const updateUserProfile = trpc.user.update.useMutation({
+        onMutate: async (variables: any) => {
+            await utils.user.me.cancel();
+            const previousMe = utils.user.me.getData();
+            utils.user.me.setData(undefined, (current: any) => ({
+                ...current,
+                ...variables,
+                preferences: {
+                    ...(current?.preferences || {}),
+                    ...(variables.preferences || {}),
+                },
+            }));
+            return { previousMe };
+        },
+        onError: (error: { message?: string }, _variables: any, context: any) => {
+            utils.user.me.setData(undefined, context?.previousMe);
+            toast.error(error.message || 'Failed to update profile preferences');
+        },
+        onSettled: () => {
+            utils.user.me.invalidate();
+        },
+    });
+
     const deleteDataMutation = trpc.user.deleteAllData.useMutation({
         onSuccess: () => {
             toast.success('All data deleted successfully');
@@ -128,6 +151,7 @@ export function SettingsPage() {
     const subscriptionReminderDays = String(settings?.subscriptionReminderDays ?? 3);
     const creditReminderDays = String(settings?.creditReminderDays ?? 3);
     const mortgageReminderDays = String(settings?.mortgageReminderDays ?? 3);
+    const isSplitAccountSharingBlocked = (me as any)?.preferences?.splitBill?.allowAccountSharing === false;
 
     useEffect(() => {
         setEmailNotificationAddress(settings?.emailNotificationAddress || '');
@@ -218,79 +242,36 @@ export function SettingsPage() {
 
             {/* Profile */}
             <Card className="bg-card/30 backdrop-blur-sm border-border/50">
-                <CardHeader>
-                    <CardTitle className="text-xl font-bold flex items-center gap-2">
-                        <CircleUserRound className="size-5 text-primary" />
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-lg font-bold flex items-center gap-2">
+                        <CircleUserRound className="size-4 text-primary" />
                         Profile
                     </CardTitle>
-                    <CardDescription className="hidden sm:block">View your account data and update your username</CardDescription>
+                    <CardDescription className="hidden sm:block text-xs">View and update account info</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3 sm:space-y-4 sm:px-6 px-4">
-                    <div className="p-3 sm:p-4 rounded-2xl bg-background/50 border border-border/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide">Username</p>
-                        <p className="mt-1 text-base sm:text-lg font-semibold">
-                            {me?.username ? `@${me.username}` : 'Not set'}
-                        </p>
-                    </div>
+                <CardContent className="space-y-2.5 sm:px-6 px-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div className="p-2.5 rounded-xl bg-background/50 border border-border/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide">Username</p>
+                            <p className="mt-0.5 text-sm font-semibold">
+                                {me?.username ? `@${me.username}` : 'Not set'}
+                            </p>
+                        </div>
 
-                    <div className="p-3 sm:p-4 rounded-2xl bg-background/50 border border-border/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide">Email</p>
-                        <p className="mt-1 text-sm sm:text-base font-medium break-all">
-                            {user?.primaryEmailAddress?.emailAddress || 'No email available'}
-                        </p>
+                        <div className="p-2.5 rounded-xl bg-background/50 border border-border/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide">Email</p>
+                            <p className="mt-0.5 text-xs font-medium break-all">
+                                {user?.primaryEmailAddress?.emailAddress || 'No email available'}
+                            </p>
+                        </div>
                     </div>
 
                     <Button
                         onClick={() => setIsUsernameDialogOpen(true)}
-                        className="w-full sm:w-auto rounded-xl"
+                        className="w-full sm:w-auto rounded-xl text-sm h-9"
                     >
                         {me?.username ? 'Update username' : 'Set username'}
                     </Button>
-                </CardContent>
-            </Card>
-
-            {/* Theme Settings */}
-            <Card className="bg-card/30 backdrop-blur-sm border-border/50">
-                <CardHeader>
-                    <CardTitle className="text-xl font-bold flex items-center gap-2">
-                        <Eclipse className="size-5 text-primary" />
-                        Appearance
-                    </CardTitle>
-                    <CardDescription className="hidden sm:block">Customize the look and feel of the application</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3 sm:space-y-6">
-                    <div className="flex flex-wrap gap-4">
-                        <button
-                            onClick={() => setTheme('light')}
-                            className={`flex flex-1 min-w-[120px] items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all ${theme === 'light'
-                                ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-border/50 hover:border-border text-muted-foreground'
-                                }`}
-                        >
-                            <Sun className="size-4" />
-                            <span className="font-medium">Light</span>
-                        </button>
-                        <button
-                            onClick={() => setTheme('dark')}
-                            className={`flex flex-1 min-w-[120px] items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all ${theme === 'dark'
-                                ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-border/50 hover:border-border text-muted-foreground'
-                                }`}
-                        >
-                            <Moon className="size-4" />
-                            <span className="font-medium">Dark</span>
-                        </button>
-                        <button
-                            onClick={() => setTheme('super-dark')}
-                            className={`flex flex-1 min-w-[120px] items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all ${theme === 'super-dark'
-                                ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-border/50 hover:border-border text-muted-foreground'
-                                }`}
-                        >
-                            <MoonStar className="size-4" />
-                            <span className="font-medium">Super Dark</span>
-                        </button>
-                    </div>
                 </CardContent>
             </Card>
 
@@ -304,6 +285,41 @@ export function SettingsPage() {
                     <CardDescription className="hidden sm:block">Configure your app behavior and financial defaults</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 sm:space-y-6 sm:px-6 px-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-2xl bg-background/50 border border-border/50 gap-3">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                <Eclipse className="size-4 text-purple-500" />
+                                <Label className="text-sm sm:text-base font-semibold">Theme</Label>
+                            </div>
+                            <p className="text-xs sm:text-sm text-muted-foreground">Choose your preferred color scheme</p>
+                        </div>
+                        <Select value={theme} onValueChange={(value) => setTheme(value as 'light' | 'dark' | 'super-dark')}>
+                            <SelectTrigger className="w-full sm:w-[180px] bg-background border-border">
+                                <SelectValue placeholder="Select theme" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="light">
+                                    <div className="flex items-center gap-2">
+                                        <Sun className="size-4" />
+                                        <span>Light</span>
+                                    </div>
+                                </SelectItem>
+                                <SelectItem value="dark">
+                                    <div className="flex items-center gap-2">
+                                        <Moon className="size-4" />
+                                        <span>Dark</span>
+                                    </div>
+                                </SelectItem>
+                                <SelectItem value="super-dark">
+                                    <div className="flex items-center gap-2">
+                                        <MoonStar className="size-4" />
+                                        <span>Super Dark</span>
+                                    </div>
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     <div className="flex items-center justify-between p-4 rounded-2xl bg-background/50 border border-border/50">
                         <div className="space-y-1">
                             <div className="flex items-center gap-2">
@@ -345,6 +361,33 @@ export function SettingsPage() {
                         <CurrencySelector
                             value={settings?.defaultCurrency || 'USD'}
                             onValueChange={(val: string) => updateSettings.mutate({ defaultCurrency: val })}
+                        />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 rounded-2xl bg-background/50 border border-border/50">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                <DollarSign className="size-4 text-indigo-500" />
+                                <Label className="text-sm sm:text-base font-semibold">Block Others From Seeing My Accounts</Label>
+                            </div>
+                            <p className="text-xs sm:text-sm text-muted-foreground">
+                                When enabled, other users cannot choose your receiving account in split payments.
+                            </p>
+                        </div>
+                        <Switch
+                            checked={isSplitAccountSharingBlocked}
+                            onCheckedChange={(checked) => {
+                                const currentPrefs = ((me as any)?.preferences || {});
+                                updateUserProfile.mutate({
+                                    preferences: {
+                                        ...currentPrefs,
+                                        splitBill: {
+                                            ...(currentPrefs.splitBill || {}),
+                                            allowAccountSharing: checked !== true,
+                                        },
+                                    },
+                                });
+                            }}
                         />
                     </div>
 

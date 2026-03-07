@@ -22,8 +22,6 @@
         "@hono/clerk-auth": "^2.0.1",
         "@hono/trpc-server": "^0.3.4",
         "@openrouter/sdk": "^0.5.1",
-        "@sentry/bun": "^10.38.0",
-        "@sentry/node": "7.120.3",
         "@trpc/server": "^10.45.4",
         "@types/node-notifier": "^8.0.5",
         "@woolet/shared": "workspace:*",
@@ -38,6 +36,7 @@
         "openai": "^6.17.0",
         "pino": "^10.3.0",
         "postgres": "^3.4.8",
+        "posthog-node": "^5.28.0",
         "superjson": "^2.2.6",
         "web-push": "^3.6.7",
         "zod": "^3.25.76"

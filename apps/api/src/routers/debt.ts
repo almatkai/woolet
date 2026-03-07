@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { eq, desc, sql, and, lt, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../lib/trpc';
-import { debts, currencyBalances, debtPayments, transactions, categories } from '../db/schema';
+import { debts, currencyBalances, debtPayments, transactions, categories, users } from '../db/schema';
 import { checkEntityLimit } from '../lib/limits';
 
 export const debtRouter = router({
@@ -31,6 +31,13 @@ export const debtRouter = router({
                 ),
                 orderBy: [desc(debts.createdAt)],
                 with: {
+                    linkedUser: {
+                        columns: {
+                            id: true,
+                            username: true,
+                            name: true,
+                        }
+                    },
                     currencyBalance: {
                         with: {
                             account: {
@@ -73,6 +80,7 @@ export const debtRouter = router({
             currencyBalanceId: z.string().uuid().optional().nullable(),
             currencyCode: z.string().optional().nullable(),
             personName: z.string().min(1),
+            linkedUserId: z.string().optional().nullable(),
             amount: z.number().positive(),
             type: z.enum(['i_owe', 'they_owe']),
             description: z.string().optional(),
@@ -89,6 +97,27 @@ export const debtRouter = router({
                     code: 'BAD_REQUEST',
                     message: 'Either an account or a currency must be selected.'
                 });
+            }
+
+            if (input.linkedUserId) {
+                if (input.linkedUserId === ctx.userId) {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: 'You cannot assign a debt to yourself.'
+                    });
+                }
+
+                const linkedUser = await ctx.db.query.users.findFirst({
+                    where: eq(users.id, input.linkedUserId),
+                    columns: { id: true },
+                });
+
+                if (!linkedUser) {
+                    throw new TRPCError({
+                        code: 'NOT_FOUND',
+                        message: 'Assigned user was not found.'
+                    });
+                }
             }
 
             // Check balance if lending money and tracked
@@ -114,6 +143,7 @@ export const debtRouter = router({
                 currencyBalanceId: input.currencyBalanceId,
                 currencyCode: input.currencyCode,
                 personName: input.personName,
+                linkedUserId: input.linkedUserId,
                 amount: input.amount.toString(),
                 type: input.type,
                 description: input.description,
@@ -284,8 +314,8 @@ export const debtRouter = router({
             for (const dist of input.distributions) {
                 // Update Balance
                 // Update Balance
-                // If I owe (i_owe), I am paying OUT, so balance DECREASES.
-                // If they owe me (they_owe), I am receiving money, so balance INCREASES.
+                // If Borrow(i_owe), I am paying OUT, so balance DECREASES.
+                // If Lend me (they_owe), I am receiving money, so balance INCREASES.
                 const balanceChange = debt.type === 'they_owe'
                     ? sql`${currencyBalances.balance} + ${dist.amount}`
                     : sql`${currencyBalances.balance} - ${dist.amount}`;
@@ -532,7 +562,7 @@ export const debtRouter = router({
             for (const tx of linkedTransactions) {
                 const amount = Number(tx.amount);
                 // If it was income (I owed), revert by subtracting.
-                // If it was expense (They owed), revert by adding.
+                // If it was expense (Lendd), revert by adding.
                 const balanceChange = tx.type === 'income'
                     ? sql`${currencyBalances.balance} - ${amount}`
                     : sql`${currencyBalances.balance} + ${amount}`;

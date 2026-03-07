@@ -294,7 +294,7 @@ export default function DebtsScreen() {
                     <ListSkeleton count={3} />
                 ) : (
                     <>
-                        {/* I Owe */}
+                        {/* Borrow*/}
                         <View style={styles.sectionCard}>
                             <Text style={[styles.sectionTitle, styles.sectionTitleRed]}>I Owe</Text>
                             {iOweDebts.length === 0 ? (
@@ -306,9 +306,9 @@ export default function DebtsScreen() {
                             )}
                         </View>
 
-                        {/* They Owe Me */}
+                        {/* Lend Me */}
                         <View style={styles.sectionCard}>
-                            <Text style={[styles.sectionTitle, styles.sectionTitleGreen]}>They Owe Me</Text>
+                            <Text style={[styles.sectionTitle, styles.sectionTitleGreen]}>Lend Me</Text>
                             {theyOweDebts.length === 0 ? (
                                 <Text style={styles.emptyText}>No one owes you</Text>
                             ) : (

@@ -15,7 +15,7 @@ import { logger } from './lib/logger';
 import { initErrorTracking, GlitchTip } from './lib/error-tracking';
 import { runMigrations } from './db/migrate';
 
-// Initialize Error Tracking (GlitchTip)
+// Initialize Error Tracking (PostHog)
 initErrorTracking();
 
 // Run migrations on startup
@@ -51,7 +51,7 @@ app.onError((err, c) => {
         method: c.req.method,
     }, '❌ Application Error');
 
-    // Capture exception in GlitchTip
+    // Capture exception in PostHog
     GlitchTip.captureException(err, {
         extra: {
             path: c.req.path,

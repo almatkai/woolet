@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -24,6 +24,9 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { CreditCard, Wallet } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { SplitSelector } from '@/components/SplitBillComponents';
+import { formatAccountLabel } from '@/lib/utils';
 
 const paymentSchema = z.object({
     currencyBalanceId: z.string().min(1, 'Account is required'),
@@ -52,6 +55,14 @@ interface SubscriptionPaymentSheetProps {
 export function SubscriptionPaymentSheet({ open, onOpenChange, subscription }: SubscriptionPaymentSheetProps) {
     const utils = trpc.useUtils();
     const { data: accountsData } = trpc.account.list.useQuery({});
+    const [splitEnabled, setSplitEnabled] = useState(false);
+    const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
+    const [equalSplit, setEqualSplit] = useState(true);
+    const [customAmounts, setCustomAmounts] = useState<{ participantId: string; amount: number }[]>([]);
+    const [participantAccounts, setParticipantAccounts] = useState<{ participantId: string; paybackCurrencyBalanceId: string }[]>([]);
+    const [includeSelf, setIncludeSelf] = useState(false);
+    const [instantMoneyBack, setInstantMoneyBack] = useState(false);
+    const [paybackCurrencyBalanceId, setPaybackCurrencyBalanceId] = useState<string>('');
 
     const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<PaymentFormData>({
         resolver: zodResolver(paymentSchema),
@@ -81,6 +92,18 @@ export function SubscriptionPaymentSheet({ open, onOpenChange, subscription }: S
     const selectedAccount = useMemo(() => {
         return availableAccounts.find(acc => acc.id === selectedCurrencyBalanceId);
     }, [availableAccounts, selectedCurrencyBalanceId]);
+
+    const allCurrencyOptions = useMemo(() => {
+        if (!accountsData) return [];
+        return (accountsData as any[]).flatMap((acc) =>
+            (acc.currencyBalances as any[]).map((cb) => ({
+                id: cb.id,
+                label: formatAccountLabel(acc.bank?.name || 'Bank', acc.name, acc.last4Digits),
+                balance: Number(cb.balance),
+                currencyCode: cb.currencyCode
+            }))
+        );
+    }, [accountsData]);
 
     useEffect(() => {
         if (subscription && open) {
@@ -119,12 +142,38 @@ export function SubscriptionPaymentSheet({ open, onOpenChange, subscription }: S
             amount: data.amount,
             paidAt: data.paidAt,
             note: data.note,
+            ...(splitEnabled && selectedParticipants.length > 0 && {
+                split: {
+                    participantIds: selectedParticipants,
+                    equalSplit,
+                    amounts: selectedParticipants.map((pid) => {
+                        const participantAccount = participantAccounts.find((a) => a.participantId === pid)?.paybackCurrencyBalanceId;
+                        return {
+                            participantId: pid,
+                            amount: !equalSplit ? (customAmounts.find((a) => a.participantId === pid)?.amount || 0) : 1,
+                            paybackCurrencyBalanceId: participantAccount && participantAccount !== '__none__' ? participantAccount : undefined,
+                        };
+                    }),
+                    includeSelf,
+                    instantMoneyBack,
+                    paybackCurrencyBalanceId: instantMoneyBack && paybackCurrencyBalanceId && paybackCurrencyBalanceId !== '__none__'
+                        ? paybackCurrencyBalanceId
+                        : undefined,
+                },
+            })
         });
     };
 
     const handleClose = () => {
         onOpenChange(false);
         reset();
+        setSplitEnabled(false);
+        setSelectedParticipants([]);
+        setCustomAmounts([]);
+        setParticipantAccounts([]);
+        setIncludeSelf(false);
+        setInstantMoneyBack(false);
+        setPaybackCurrencyBalanceId('');
     };
 
     const formatCurrency = (amount: number, currency: string = 'USD') => {
@@ -234,6 +283,37 @@ export function SubscriptionPaymentSheet({ open, onOpenChange, subscription }: S
                             type="date"
                             {...register('paidAt')}
                         />
+                    </div>
+
+                    {/* Split subscription payment */}
+                    <div className="space-y-3 rounded-lg border p-3">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-sm font-medium">Split this subscription</Label>
+                            <Switch
+                                checked={splitEnabled}
+                                onCheckedChange={(checked) => setSplitEnabled(Boolean(checked))}
+                            />
+                        </div>
+                        {splitEnabled && (
+                            <SplitSelector
+                                selectedParticipants={selectedParticipants}
+                                onSelectionChange={setSelectedParticipants}
+                                equalSplit={equalSplit}
+                                onEqualSplitChange={setEqualSplit}
+                                customAmounts={customAmounts}
+                                onCustomAmountsChange={setCustomAmounts}
+                                participantAccounts={participantAccounts}
+                                onParticipantAccountsChange={setParticipantAccounts}
+                                transactionAmount={Number(watch('amount') || 0)}
+                                includeSelf={includeSelf}
+                                onIncludeSelfChange={setIncludeSelf}
+                                instantMoneyBack={instantMoneyBack}
+                                onInstantMoneyBackChange={setInstantMoneyBack}
+                                paybackCurrencyBalanceId={paybackCurrencyBalanceId}
+                                onPaybackCurrencyBalanceIdChange={setPaybackCurrencyBalanceId}
+                                currencyOptions={allCurrencyOptions}
+                            />
+                        )}
                     </div>
 
                     {/* Note */}

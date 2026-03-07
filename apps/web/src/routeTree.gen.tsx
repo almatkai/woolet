@@ -63,6 +63,7 @@ import { Bitcoin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PostHogPageviewTracker, PostHogUserIdentifier } from './components/PostHogProvider';
 import { UsernameSetupDialog } from '@/components/UsernameSetupDialog';
+import { PostHogSurveyTrigger } from '@/components/PostHogSurveyTrigger';
 
 // Root layout with sidebar
 function RootLayout() {
@@ -132,6 +133,7 @@ function RootLayout() {
                     {!isAuthRoute && (
                         <>
                             <UsernameSetupDialog />
+                            <PostHogSurveyTrigger />
                             <AiChatFloatingItem />
                             <MobileBottomNav />
                         </>

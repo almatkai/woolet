@@ -57,6 +57,13 @@
       "when": 1772639929402,
       "tag": "0007_split_participant_user_link",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1772870400000,
+      "tag": "0008_debt_linked_user",
+      "breakpoints": true
     }
   ]
 }
