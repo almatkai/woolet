@@ -109,6 +109,8 @@ function AccountCard({
     const [cardScale, setCardScale] = useState(1);
     const hasInitialized = useRef(false);
     const prevIsActive = useRef(isActive);
+    const isAnimating = useRef(false);
+    const isHovering = useRef(false);
     const normalizedLast4 = (account.last4Digits ?? '').replace(/\D/g, '').slice(-4);
 
     const mouseX = useMotionValue(0);
@@ -135,15 +137,37 @@ function AccountCard({
     };
 
     const handleMouseEnter = () => {
-        if (!isActive) return;
-        isHovered.set(1);
+        isHovering.current = true;
+        if (isActive) {
+            isHovered.set(1);
+            return;
+        }
+        if (!isAnimating.current) {
+            void controls.start({
+                y: stackRandom.y - 22,
+                rotateX: -20,
+                scale: 1.04,
+                transition: { type: 'spring', stiffness: 400, damping: 30 },
+            });
+        }
     };
 
     const handleMouseLeave = () => {
-        if (!isActive) return;
-        mouseX.set(0);
-        mouseY.set(0);
-        isHovered.set(0);
+        isHovering.current = false;
+        if (isActive) {
+            mouseX.set(0);
+            mouseY.set(0);
+            isHovered.set(0);
+            return;
+        }
+        if (!isAnimating.current) {
+            void controls.start({
+                y: stackRandom.y,
+                rotateX: 0,
+                scale: 1,
+                transition: { type: 'spring', stiffness: 400, damping: 30 },
+            });
+        }
     };
 
     useLayoutEffect(() => {
@@ -167,21 +191,25 @@ function AccountCard({
         }
 
         if (prevIsActive.current === isActive) {
-            controls.set({
-                x: isActive ? 0 : stackRandom.x,
-                y: isActive ? activeY : stackRandom.y,
-                rotateZ: isActive ? 0 : stackRandom.rotateZ,
-                scale: 1,
-            });
+            if (!isAnimating.current) {
+                controls.set({
+                    x: isActive ? 0 : stackRandom.x,
+                    y: isActive ? activeY : stackRandom.y,
+                    rotateZ: isActive ? 0 : stackRandom.rotateZ,
+                    scale: 1,
+                });
+            }
             return;
         }
 
         prevIsActive.current = isActive;
-        const liftY = - CARD_H + 10 ;
+        const liftY = -CARD_H + 10;
         let cancelled = false;
 
         const runAnimation = async () => {
+            isAnimating.current = true;
             if (isActive) {
+                isHovering.current = false;
                 await controls.start({
                     x: [stackRandom.x, stackRandom.x, 0],
                     y: [stackRandom.y, -CARD_H + 30, activeY],
@@ -193,6 +221,7 @@ function AccountCard({
                         times: [0, 0.5, 1]
                     },
                 });
+                isAnimating.current = false;
                 return;
             }
 
@@ -208,6 +237,7 @@ function AccountCard({
             });
 
             if (cancelled) {
+                isAnimating.current = false;
                 return;
             }
             setCardScale(1);
@@ -223,13 +253,24 @@ function AccountCard({
                 },
             });
 
+            isAnimating.current = false;
+
+            // If cursor is still over the card after deactivation, show hover state
+            if (isHovering.current) {
+                void controls.start({
+                    y: stackRandom.y - 22,
+                    rotateX: -20,
+                    scale: 1.04,
+                    transition: { type: 'spring', stiffness: 400, damping: 30 },
+                });
+            }
         };
 
         void runAnimation();
 
         return () => {
             cancelled = true;
-            controls.stop();
+            // Don't stop controls — let animation reach its final position naturally
         };
     }, [activeY, baseZIndex, controls, isActive, ACTIVE_CARD_Z_INDEX, stackRandom]);
 
@@ -245,9 +286,12 @@ function AccountCard({
             onMouseLeave={handleMouseLeave}
             initial={false}
             animate={controls}
+            transformTemplate={(transforms, generated) =>
+                !isActive ? `perspective(600px) ${generated}` : generated
+            }
             className={cn(
                 "absolute flex flex-col justify-between text-white overflow-hidden rounded-2xl p-5",
-                isActive ? "shadow-2xl" : "cursor-pointer transition-all hover:brightness-110 hover:translate-y-[-8px] hover:[transform:perspective(600px)_rotateX(-20deg)_translateY(-8px)]"
+                isActive ? "shadow-2xl" : "cursor-pointer hover:brightness-110"
             )}
             style={{
                 width: isActive ? CARD_W_ACTIVE : CARD_W,
