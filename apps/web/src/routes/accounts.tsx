@@ -1,6 +1,7 @@
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import posthog from 'posthog-js';
+import { motion, useAnimation } from 'framer-motion';
 import { DeleteConfirm } from '@/components/DeleteConfirm';
 import { AddBankSheet } from '@/components/AddBankSheet';
 import { AddAccountSheet } from '@/components/AddAccountSheet';
@@ -14,7 +15,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Trash2, Pencil, Plus, CircleDollarSign, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { SettingsBankSheet } from '@/components/SettingsBankSheet';
-import { TiltCard } from '@/components/ui/cursor-wander-card';
 import { cn } from '@/lib/utils';
 
 interface CurrencyBalance {
@@ -56,6 +56,179 @@ function getCardColor(index: number): string {
     return CARD_COLORS[index % CARD_COLORS.length];
 }
 
+function AccountCard({
+    account,
+    index,
+    totalCards,
+    isActive,
+    onTabClick,
+    onClose,
+    onDeleteAccount,
+    onSelectAccount,
+}: {
+    account: Account;
+    index: number;
+    totalCards: number;
+    isActive: boolean;
+    onTabClick: () => void;
+    onClose: () => void;
+    onDeleteAccount: (id: string) => void;
+    onSelectAccount: (account: Account) => void;
+}) {
+    const CARD_W = 328;
+    const CARD_W_ACTIVE = 312;
+    const CARD_H = 180;
+    const TAB_TRANSFORM_Y = 38;
+
+    const baseZIndex = totalCards - index;
+    const inactiveBottom = index * TAB_TRANSFORM_Y;
+    const activeY = (totalCards - 1) * TAB_TRANSFORM_Y - inactiveBottom + 20;
+
+    const controls = useAnimation();
+    const isInitialMount = useRef(true);
+
+    useEffect(() => {
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            // set initial state without animation
+            controls.set({
+                y: isActive ? activeY : 0,
+                scale: isActive ? 1 : 1,
+                zIndex: isActive ? 100 : baseZIndex,
+            });
+            return;
+        }
+
+        if (isActive) {
+            controls.start({
+                y: [0, -CARD_H - 10, activeY],
+                scale: [1, 1.05, 1],
+                zIndex: [100, 100, 100],
+            });
+        } else {
+            controls.start({
+                y: [activeY, -CARD_H - 10, 0],
+                scale: [1, 1.05, 1],
+                zIndex: [100, 100, baseZIndex],
+            });
+        }
+    }, [isActive, activeY, baseZIndex, controls]);
+
+    // Inactive position is relative to its regular spot in the flex stack
+    // Active position needs to sit neatly over the wallet.
+    // The wallet is right below the card wrapper.
+
+    return (
+        <motion.div
+            onClick={!isActive ? onTabClick : undefined}
+            animate={controls}
+            transition={{
+                duration: 0.6,
+                times: [0, 0.5, 1],
+                ease: "easeInOut",
+                zIndex: { duration: 0.01 },
+            }}
+            className={cn(
+                "absolute flex flex-col justify-between text-white overflow-hidden rounded-2xl p-5",
+                isActive ? "shadow-2xl" : "cursor-pointer transition-all hover:brightness-110 hover:translate-y-[-8px] hover:[transform:perspective(600px)_rotateX(-20deg)_translateY(-8px)]"
+            )}
+            style={{
+                width: CARD_W_ACTIVE,
+                height: CARD_H,
+                backgroundColor: getCardColor(index),
+                bottom: inactiveBottom,
+                zIndex: baseZIndex, // fallback
+                boxShadow: isActive ? '0 20px 40px -8px rgba(0,0,0,0.35)' : undefined,
+            }}
+        >
+            {/* Top row: name + actions, visible fully when active or partially when inactive */}
+            <div className="flex items-start justify-between relative z-10">
+                <h3 className={cn("font-bold leading-tight", isActive ? "text-lg" : "text-sm mt-[-4px]")}>
+                    {account.name}
+                    {account.last4Digits && (
+                        <span className="ml-1.5 font-normal opacity-80">{account.last4Digits}</span>
+                    )}
+                </h3>
+                
+                <div
+                    className={cn(
+                        "flex items-center gap-0.5 transition-opacity duration-300",
+                        isActive ? "opacity-100" : "opacity-0 pointer-events-none"
+                    )}
+                >
+                    <DeleteConfirm
+                        title="Delete this account?"
+                        description={`This will permanently delete "${account.name}". This action cannot be undone.`}
+                        onConfirm={() => {
+                            onDeleteAccount(account.id);
+                            onClose();
+                        }}
+                        trigger={
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20">
+                                <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                        }
+                    />
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectAccount(account);
+                        }}
+                        className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20"
+                    >
+                        <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <AddCurrencyBalanceSheet
+                        accountId={account.id}
+                        accountName={account.name}
+                        trigger={
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20">
+                                <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                        }
+                    />
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onClose();
+                        }}
+                        className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20 ml-1"
+                    >
+                        <X className="h-3.5 w-3.5" />
+                    </Button>
+                </div>
+            </div>
+
+            {/* Currency balances - fade out when inactive so they don't peek out weirdly */}
+            <div
+                className={cn(
+                    "flex flex-col gap-0.5 mt-auto transition-opacity duration-300",
+                    isActive ? "opacity-100" : "opacity-0 pointer-events-none"
+                )}
+            >
+                {account.currencyBalances.map((cb) => (
+                    <TransferSheet
+                        key={cb.id}
+                        preselectedSenderId={cb.id}
+                        trigger={
+                            <button
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-left text-sm font-medium text-white/90 hover:text-white transition-colors cursor-pointer"
+                            >
+                                {cb.currencyCode} {Number(cb.balance).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                            </button>
+                        }
+                    />
+                ))}
+            </div>
+        </motion.div>
+    );
+}
+
 function WalletBank({
     bank,
     onDeleteBank,
@@ -68,7 +241,6 @@ function WalletBank({
     onSelectAccount: (account: Account) => void;
 }) {
     const [activeCardId, setActiveCardId] = useState<string | null>(null);
-    const activeAccount = bank.visibleAccounts.find((a) => a.id === activeCardId) ?? null;
 
     const handleCardTabClick = (accountId: string) => {
         setActiveCardId((prev) => (prev === accountId ? null : accountId));
@@ -76,9 +248,7 @@ function WalletBank({
 
     const CARD_W = 328;
     const CARD_H = 180;
-    const TAB_H = 110;
-    const TAB_OVERLAP = 112;
-    const TAB_STACK_OFFSET = 18;
+    const TAB_H = 164;
     const TAB_TRANSFORM_Y = 34;
 
     return (
@@ -94,31 +264,19 @@ function WalletBank({
                             marginBottom: `-${TAB_H - TAB_TRANSFORM_Y}px`,
                         }}
                     >
-                        {bank.visibleAccounts.map((account, index) => {
-                            const N = bank.visibleAccounts.length;
-                            const isActive = account.id === activeCardId;
-                            return (
-                                <button
-                                    key={account.id}
-                                    onClick={() => handleCardTabClick(account.id)}
-                                    className={cn(
-                                        "absolute flex w-full text-left rounded-t-xl px-4 py-1 text-sm font-medium text-white transition-all cursor-pointer",
-                                        isActive ? "opacity-40" : "hover:brightness-110 hover:translate-y-[-8px] hover:[transform:perspective(600px)_rotateX(-20deg)_translateY(-8px)]",
-                                    )}
-                                    style={{
-                                        backgroundColor: getCardColor(index),
-                                        zIndex: N - index,
-                                        bottom: `${index * TAB_TRANSFORM_Y}px`,
-                                        minHeight: `${TAB_H}px`,
-                                    }}
-                                >
-                                    {account.name}
-                                    {account.last4Digits && (
-                                        <span className="ml-1.5 opacity-80">{account.last4Digits}</span>
-                                    )}
-                                </button>
-                            );
-                        })}
+                        {bank.visibleAccounts.map((account, index) => (
+                            <AccountCard
+                                key={account.id}
+                                account={account}
+                                index={index}
+                                totalCards={bank.visibleAccounts.length}
+                                isActive={account.id === activeCardId}
+                                onTabClick={() => handleCardTabClick(account.id)}
+                                onClose={() => setActiveCardId(null)}
+                                onDeleteAccount={onDeleteAccount}
+                                onSelectAccount={onSelectAccount}
+                            />
+                        ))}
                     </div>
                 )}
 
@@ -157,7 +315,7 @@ function WalletBank({
                     </div>
 
                     {/* Bank name & aggregated balances in a horizontal stack */}
-                    <div className="flex items-end justify-between mt-auto">
+                    <div className="flex items-end justify-between mt-auto z-10 relative">
                         <h3 className="font-bold text-lg text-foreground leading-tight">{bank.name}</h3>
                         <div className="text-right">
                             {aggregateBalances(bank.visibleAccounts).map(({ code, total }) => (
@@ -174,89 +332,6 @@ function WalletBank({
                         </p>
                     )}
                 </div>
-
-                {/* Pulled-out card — overlays on top of wallet */}
-                {activeAccount && (
-                    <div
-                        className="absolute left-0 right-0 flex justify-center"
-                        style={{ bottom: 0, zIndex: 20 }}
-                    >
-                        <TiltCard maxTilt={10} className="drop-shadow-2xl">
-                            <div
-                                className="rounded-2xl p-5 flex flex-col justify-between text-white relative overflow-hidden"
-                                style={{
-                                    width: CARD_W,
-                                    height: CARD_H,
-                                    backgroundColor: getCardColor(bank.visibleAccounts.indexOf(activeAccount)),
-                                    boxShadow: '0 20px 40px -8px rgba(0,0,0,0.35)',
-                                }}
-                            >
-                                {/* Top row: name + actions */}
-                                <div className="flex items-start justify-between">
-                                    <h3 className="font-bold text-lg leading-tight">
-                                        {activeAccount.name}
-                                        {activeAccount.last4Digits && (
-                                            <span className="ml-1.5 font-normal opacity-80">{activeAccount.last4Digits}</span>
-                                        )}
-                                    </h3>
-                                    <div className="flex items-center gap-0.5">
-                                        <DeleteConfirm
-                                            title="Delete this account?"
-                                            description={`This will permanently delete "${activeAccount.name}". This action cannot be undone.`}
-                                            onConfirm={() => {
-                                                onDeleteAccount(activeAccount.id);
-                                                setActiveCardId(null);
-                                            }}
-                                            trigger={
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20">
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                            }
-                                        />
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => onSelectAccount(activeAccount)}
-                                            className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20"
-                                        >
-                                            <Pencil className="h-3.5 w-3.5" />
-                                        </Button>
-                                        <AddCurrencyBalanceSheet accountId={activeAccount.id} accountName={activeAccount.name}
-                                            trigger={
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20">
-                                                    <Plus className="h-3.5 w-3.5" />
-                                                </Button>
-                                            }
-                                        />
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => setActiveCardId(null)}
-                                            className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20 ml-1"
-                                        >
-                                            <X className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                {/* Currency balances */}
-                                <div className="flex flex-col gap-0.5">
-                                    {activeAccount.currencyBalances.map((cb) => (
-                                        <TransferSheet
-                                            key={cb.id}
-                                            preselectedSenderId={cb.id}
-                                            trigger={
-                                                <button className="text-left text-sm font-medium text-white/90 hover:text-white transition-colors cursor-pointer">
-                                                    {cb.currencyCode} {Number(cb.balance).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                                                </button>
-                                            }
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        </TiltCard>
-                    </div>
-                )}
             </div>
         </div>
     );
