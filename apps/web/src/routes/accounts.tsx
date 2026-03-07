@@ -8,14 +8,14 @@ import { AddCurrencyBalanceSheet } from '@/components/AddCurrencyBalanceSheet';
 import { AccountActionSheet } from '@/components/AccountActionSheet';
 import { PageHeader } from '@/components/PageHeader';
 import { TransferSheet } from '@/components/TransferSheet';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { trpc } from '@/lib/trpc';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trash2, Pencil, History, CircleDollarSign } from 'lucide-react';
+import { Trash2, Pencil, Plus, CircleDollarSign, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { SettingsBankSheet } from '@/components/SettingsBankSheet';
-import { IconDisplay } from '@/components/IconDisplay';
+import { TiltCard } from '@/components/ui/cursor-wander-card';
+import { cn } from '@/lib/utils';
 
 interface CurrencyBalance {
     id: string;
@@ -40,27 +40,257 @@ interface Bank {
     accounts: Account[];
 }
 
+// Predefined card colors for accounts within a bank
+const CARD_COLORS = [
+    '#8B5CF6', // purple
+    '#06B6D4', // cyan
+    '#EC4899', // pink
+    '#F59E0B', // amber
+    '#10B981', // emerald
+    '#3B82F6', // blue
+    '#EF4444', // red
+    '#6366F1', // indigo
+];
+
+function getCardColor(index: number): string {
+    return CARD_COLORS[index % CARD_COLORS.length];
+}
+
+function WalletBank({
+    bank,
+    onDeleteBank,
+    onDeleteAccount,
+    onSelectAccount,
+}: {
+    bank: Bank & { visibleAccounts: Account[] };
+    onDeleteBank: () => void;
+    onDeleteAccount: (id: string) => void;
+    onSelectAccount: (account: Account) => void;
+}) {
+    const [activeCardId, setActiveCardId] = useState<string | null>(null);
+    const activeAccount = bank.visibleAccounts.find((a) => a.id === activeCardId) ?? null;
+
+    const handleCardTabClick = (accountId: string) => {
+        setActiveCardId((prev) => (prev === accountId ? null : accountId));
+    };
+
+    const CARD_W = 328;
+    const CARD_H = 180;
+    const TAB_H = 110;
+    const TAB_OVERLAP = 112;
+    const TAB_STACK_OFFSET = 18;
+    const TAB_TRANSFORM_Y = 34;
+
+    return (
+        <div className="flex flex-col items-center w-full max-w-[368px] mx-auto">
+            {/* Wallet wrapper — card overlays on top */}
+            <div className="relative w-[328px]">
+                {/* Card tabs peeking out from top of wallet */}
+                {bank.visibleAccounts.length > 0 && (
+                    <div
+                        className="relative ml-2 mr-2"
+                        style={{
+                            height: `${TAB_H + (bank.visibleAccounts.length - 1) * TAB_TRANSFORM_Y}px`,
+                            marginBottom: `-${TAB_H - TAB_TRANSFORM_Y}px`,
+                        }}
+                    >
+                        {bank.visibleAccounts.map((account, index) => {
+                            const N = bank.visibleAccounts.length;
+                            const isActive = account.id === activeCardId;
+                            return (
+                                <button
+                                    key={account.id}
+                                    onClick={() => handleCardTabClick(account.id)}
+                                    className={cn(
+                                        "absolute flex w-full text-left rounded-t-xl px-4 py-1 text-sm font-medium text-white transition-all cursor-pointer",
+                                        isActive ? "opacity-40" : "hover:brightness-110 hover:translate-y-[-8px] hover:[transform:perspective(600px)_rotateX(-20deg)_translateY(-8px)]",
+                                    )}
+                                    style={{
+                                        backgroundColor: getCardColor(index),
+                                        zIndex: N - index,
+                                        bottom: `${index * TAB_TRANSFORM_Y}px`,
+                                        minHeight: `${TAB_H}px`,
+                                    }}
+                                >
+                                    {account.name}
+                                    {account.last4Digits && (
+                                        <span className="ml-1.5 opacity-80">{account.last4Digits}</span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* Wallet body */}
+                <div
+                    className="flex flex-col relative rounded-2xl bg-muted border border-border shadow-lg p-5 pt-4"
+                    style={{ width: CARD_W, minHeight: CARD_H, zIndex: 20 }}
+                >
+                    {/* Bank actions */}
+                    <div className="flex items-center justify-end gap-0.5 mb-2">
+                        <DeleteConfirm
+                            title="Delete this institution?"
+                            description={`This will permanently delete "${bank.name}" and all its ${bank.accounts.length} accounts. This action cannot be undone.`}
+                            onConfirm={onDeleteBank}
+                            trigger={
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-500">
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            }
+                        />
+                        <SettingsBankSheet
+                            bank={bank}
+                            trigger={
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
+                                    <Pencil className="h-4 w-4" />
+                                </Button>
+                            }
+                        />
+                        <AddAccountSheet bankId={bank.id} bankName={bank.name}
+                            trigger={
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
+                                    <Plus className="h-4 w-4" />
+                                </Button>
+                            }
+                        />
+                    </div>
+
+                    {/* Bank name & aggregated balances in a horizontal stack */}
+                    <div className="flex items-end justify-between mt-auto">
+                        <h3 className="font-bold text-lg text-foreground leading-tight">{bank.name}</h3>
+                        <div className="text-right">
+                            {aggregateBalances(bank.visibleAccounts).map(({ code, total }) => (
+                                <p key={code} className="text-base font-bold text-foreground">
+                                    {Number(total).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}{code}
+                                </p>
+                            ))}
+                        </div>
+                    </div>
+
+                    {bank.visibleAccounts.length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center mt-4">
+                            No accounts yet. Add one to get started.
+                        </p>
+                    )}
+                </div>
+
+                {/* Pulled-out card — overlays on top of wallet */}
+                {activeAccount && (
+                    <div
+                        className="absolute left-0 right-0 flex justify-center"
+                        style={{ bottom: 0, zIndex: 20 }}
+                    >
+                        <TiltCard maxTilt={10} className="drop-shadow-2xl">
+                            <div
+                                className="rounded-2xl p-5 flex flex-col justify-between text-white relative overflow-hidden"
+                                style={{
+                                    width: CARD_W,
+                                    height: CARD_H,
+                                    backgroundColor: getCardColor(bank.visibleAccounts.indexOf(activeAccount)),
+                                    boxShadow: '0 20px 40px -8px rgba(0,0,0,0.35)',
+                                }}
+                            >
+                                {/* Top row: name + actions */}
+                                <div className="flex items-start justify-between">
+                                    <h3 className="font-bold text-lg leading-tight">
+                                        {activeAccount.name}
+                                        {activeAccount.last4Digits && (
+                                            <span className="ml-1.5 font-normal opacity-80">{activeAccount.last4Digits}</span>
+                                        )}
+                                    </h3>
+                                    <div className="flex items-center gap-0.5">
+                                        <DeleteConfirm
+                                            title="Delete this account?"
+                                            description={`This will permanently delete "${activeAccount.name}". This action cannot be undone.`}
+                                            onConfirm={() => {
+                                                onDeleteAccount(activeAccount.id);
+                                                setActiveCardId(null);
+                                            }}
+                                            trigger={
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20">
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            }
+                                        />
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => onSelectAccount(activeAccount)}
+                                            className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20"
+                                        >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <AddCurrencyBalanceSheet accountId={activeAccount.id} accountName={activeAccount.name}
+                                            trigger={
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20">
+                                                    <Plus className="h-3.5 w-3.5" />
+                                                </Button>
+                                            }
+                                        />
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => setActiveCardId(null)}
+                                            className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20 ml-1"
+                                        >
+                                            <X className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                {/* Currency balances */}
+                                <div className="flex flex-col gap-0.5">
+                                    {activeAccount.currencyBalances.map((cb) => (
+                                        <TransferSheet
+                                            key={cb.id}
+                                            preselectedSenderId={cb.id}
+                                            trigger={
+                                                <button className="text-left text-sm font-medium text-white/90 hover:text-white transition-colors cursor-pointer">
+                                                    {cb.currencyCode} {Number(cb.balance).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                                </button>
+                                            }
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </TiltCard>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function aggregateBalances(accounts: Account[]) {
+    const map = new Map<string, number>();
+    for (const acc of accounts) {
+        for (const cb of acc.currencyBalances) {
+            map.set(cb.currencyCode, (map.get(cb.currencyCode) ?? 0) + Number(cb.balance));
+        }
+    }
+    return Array.from(map.entries()).map(([code, total]) => ({ code, total }));
+}
+
 export function AccountsPage() {
-    // Fetch hierarchy
     const { data: banks, isLoading } = trpc.bank.getHierarchy.useQuery(undefined, {
         staleTime: 1000 * 60,
-    }) as { data: Bank[] | undefined, isLoading: boolean };
+    }) as { data: Bank[] | undefined; isLoading: boolean };
 
     useEffect(() => {
         if (banks) {
             const totalAccounts = banks.reduce((acc, bank) => acc + bank.accounts.length, 0);
             posthog.setPersonProperties({
                 bank_count: banks.length,
-                account_count: totalAccounts
+                account_count: totalAccounts,
             });
             posthog.capture('accounts_viewed', {
                 bank_count: banks.length,
-                account_count: totalAccounts
+                account_count: totalAccounts,
             });
         }
     }, [banks]);
 
-    // Show all banks with all accounts
     const banksWithAccounts = useMemo(() => {
         if (!banks) return [];
         return banks.map((bank) => ({
@@ -77,7 +307,7 @@ export function AccountsPage() {
             utils.bank.getHierarchy.invalidate();
             toast.success('Bank deleted');
         },
-        onError: () => toast.error('Failed to delete bank')
+        onError: () => toast.error('Failed to delete bank'),
     });
 
     const deleteAccount = trpc.account.delete.useMutation({
@@ -85,7 +315,7 @@ export function AccountsPage() {
             utils.bank.getHierarchy.invalidate();
             toast.success('Account deleted');
         },
-        onError: () => toast.error('Failed to delete account')
+        onError: () => toast.error('Failed to delete account'),
     });
 
     if (isLoading) {
@@ -109,12 +339,14 @@ export function AccountsPage() {
                 subtitle="Manage your banks and asset accounts"
                 variant="two-with-text"
             >
-                <TransferSheet trigger={
-                    <Button variant="secondary" className="gap-2 flex-1 sm:flex-none">
-                        <CircleDollarSign className="h-4 w-4" />
-                        Transfer
-                    </Button>
-                } />
+                <TransferSheet
+                    trigger={
+                        <Button variant="secondary" className="gap-2 flex-1 sm:flex-none">
+                            <CircleDollarSign className="h-4 w-4" />
+                            Transfer
+                        </Button>
+                    }
+                />
                 <AddBankSheet />
             </PageHeader>
 
@@ -130,132 +362,15 @@ export function AccountsPage() {
                     <p>Add a bank or brokerage (like Freedom, Interactive Brokers) to get started!</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
                     {banksWithAccounts.map((bank) => (
-                        <Card key={bank.id} className="overflow-hidden border-2">
-                            <div
-                                className="h-2 w-full"
-                                style={{ backgroundColor: bank.color || '#000000' }}
-                            />
-                            <CardHeader className="flex flex-row items-center justify-between bg-muted/30 pb-3 md:pb-4">
-                                <div className="flex items-center gap-2 md:gap-3">
-                                    <div className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-lg bg-white shadow-sm text-lg md:text-xl border">
-                                        <IconDisplay icon={bank.icon} fallback="🏦" className="h-4 w-4 md:h-6 md:w-6 text-black" />
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <CardTitle className="text-lg md:text-xl">{bank.name}</CardTitle>
-                                        <SettingsBankSheet
-                                            bank={bank}
-                                            trigger={
-                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary">
-                                                    <Pencil className="h-3 w-3" />
-                                                </Button>
-                                            }
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <AddAccountSheet bankId={bank.id} bankName={bank.name} />
-                                    <DeleteConfirm
-                                        title="Delete this institution?"
-                                        description={`This will permanently delete "${bank.name}" and all its ${bank.accounts.length} accounts. This action cannot be undone.`}
-                                        onConfirm={() => deleteBank.mutate({ id: bank.id })}
-                                        trigger={
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="text-muted-foreground hover:text-red-500"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        }
-                                    />
-                                </div>
-                            </CardHeader>
-                            <CardContent className="p-0">
-                                {bank.visibleAccounts.length === 0 ? (
-                                    <div className="p-8 text-center text-muted-foreground text-sm">
-                                        No accounts yet. Add one to get started.
-                                    </div>
-                                ) : (
-                                    <div className="divide-y">
-                                        {bank.visibleAccounts.map((account) => (
-                                            <div key={account.id} className="flex items-start justify-between p-3 md:p-4 hover:bg-muted/10 transition-colors group">
-                                                <div className="flex gap-3 md:gap-4">
-                                                    <div className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full bg-muted text-base md:text-lg">
-                                                        <IconDisplay icon={account.icon} fallback="💳" className="h-4 w-4 md:h-5 md:w-5" />
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="font-semibold text-sm md:text-base">
-                                                            {account.name}
-                                                            {account.last4Digits && (
-                                                                <span className="ml-2 text-xs text-muted-foreground font-normal">
-                                                                    ({account.last4Digits})
-                                                                </span>
-                                                            )}
-                                                        </h4>
-                                                        <p className="text-xs text-muted-foreground capitalize mb-2">{account.type}</p>
-
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {account.currencyBalances.map((cb) => (
-                                                                <TransferSheet
-                                                                    key={cb.id}
-                                                                    preselectedSenderId={cb.id}
-                                                                    trigger={
-                                                                        <button
-                                                                            className="inline-flex items-center px-2 py-1 rounded bg-secondary text-xs font-mono hover:bg-secondary/80 transition-colors cursor-pointer border border-transparent hover:border-primary/20"
-                                                                            title="Click to transfer"
-                                                                        >
-                                                                            <span className="font-bold mr-1">{cb.currencyCode}</span>
-                                                                            {Number(cb.balance).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                                                                        </button>
-                                                                    }
-                                                                />
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => setSelectedAccount(account)}
-                                                        title="History & Actions"
-                                                        className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                                    >
-                                                        <History className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => setSelectedAccount(account)}
-                                                        title="Edit Account"
-                                                        className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                                    >
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Button>
-                                                    <AddCurrencyBalanceSheet accountId={account.id} accountName={account.name} />
-                                                    <DeleteConfirm
-                                                        title="Delete this account?"
-                                                        description={`This will permanently delete "${account.name}". This action cannot be undone.`}
-                                                        onConfirm={() => deleteAccount.mutate({ id: account.id })}
-                                                        trigger={
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-8 w-8 text-muted-foreground hover:text-red-500"
-                                                            >
-                                                                <Trash2 className="h-3 w-3" />
-                                                            </Button>
-                                                        }
-                                                    />
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                        <WalletBank
+                            key={bank.id}
+                            bank={bank}
+                            onDeleteBank={() => deleteBank.mutate({ id: bank.id })}
+                            onDeleteAccount={(id) => deleteAccount.mutate({ id })}
+                            onSelectAccount={setSelectedAccount}
+                        />
                     ))}
                 </div>
             )}

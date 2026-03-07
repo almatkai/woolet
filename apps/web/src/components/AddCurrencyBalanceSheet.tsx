@@ -31,9 +31,10 @@ type AddCurrencyForm = z.infer<typeof addCurrencySchema>;
 interface AddCurrencyBalanceSheetProps {
     accountId: string;
     accountName: string;
+    trigger?: React.ReactNode;
 }
 
-export function AddCurrencyBalanceSheet({ accountId, accountName }: AddCurrencyBalanceSheetProps) {
+export function AddCurrencyBalanceSheet({ accountId, accountName, trigger }: AddCurrencyBalanceSheetProps) {
     const [open, setOpen] = useState(false);
     const utils = trpc.useUtils();
 
@@ -68,9 +69,11 @@ export function AddCurrencyBalanceSheet({ accountId, accountName }: AddCurrencyB
     return (
         <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6">
-                    <Plus className="h-3 w-3" />
-                </Button>
+                {trigger || (
+                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                        <Plus className="h-3 w-3" />
+                    </Button>
+                )}
             </SheetTrigger>
             <SheetContent>
                 <SheetHeader>

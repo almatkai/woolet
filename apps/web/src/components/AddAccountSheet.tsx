@@ -39,9 +39,10 @@ type CreateAccountForm = z.infer<typeof createAccountSchema>;
 interface AddAccountSheetProps {
     bankId: string;
     bankName: string;
+    trigger?: React.ReactNode;
 }
 
-export function AddAccountSheet({ bankId, bankName }: AddAccountSheetProps) {
+export function AddAccountSheet({ bankId, bankName, trigger }: AddAccountSheetProps) {
     const [open, setOpen] = useState(false);
     const utils = trpc.useUtils();
 
@@ -77,10 +78,12 @@ export function AddAccountSheet({ bankId, bankName }: AddAccountSheetProps) {
     return (
         <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1">
-                    <Plus className="h-3 w-3" />
-                    Add Account
-                </Button>
+                {trigger || (
+                    <Button variant="outline" size="sm" className="gap-1">
+                        <Plus className="h-3 w-3" />
+                        Add Account
+                    </Button>
+                )}
             </SheetTrigger>
             <SheetContent>
                 <SheetHeader>
