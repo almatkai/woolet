@@ -131,4 +131,54 @@ describe("Account Router", () => {
         expect(mockDb.insert).toHaveBeenCalled(); // Transaction
         expect(mockDb.update).toHaveBeenCalled(); // Balance update
     });
+
+    test("delete should clean dependent split and transfer references before removing account", async () => {
+        const txDeleteWhere = mock(() => Promise.resolve());
+        const txUpdateWhere = mock(() => Promise.resolve());
+        const selectWhereMock = mock()
+            .mockResolvedValueOnce([{ id: balanceId }])
+            .mockResolvedValueOnce([{ id: "tx-1" }])
+            .mockResolvedValueOnce([{ id: "split-1" }]);
+
+        const tx = {
+            select: mock(() => ({
+                from: mock(() => ({
+                    where: selectWhereMock,
+                })),
+            })),
+            update: mock(() => ({
+                set: mock(() => ({
+                    where: txUpdateWhere,
+                })),
+            })),
+            delete: mock(() => ({
+                where: txDeleteWhere,
+            })),
+        };
+
+        const mockDb = {
+            query: {
+                users: {
+                    findFirst: mock(() => Promise.resolve(mockUser)),
+                },
+                accounts: {
+                    findFirst: mock(() => Promise.resolve({
+                        id: accountId,
+                        bank: { userId: mockUser.id },
+                    })),
+                },
+            },
+            transaction: mock(async (fn: (tx: typeof tx) => Promise<void>) => fn(tx)),
+        };
+
+        const ctx = createMockContext({ db: mockDb as any });
+        const caller = accountRouter.createCaller(ctx);
+
+        const result = await caller.delete({ id: accountId });
+
+        expect(result.success).toBe(true);
+        expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+        expect(tx.update).toHaveBeenCalledTimes(4);
+        expect(tx.delete).toHaveBeenCalledTimes(4);
+    });
 });

@@ -691,22 +691,23 @@ export function AccountsPage() {
                     <p>Add a bank or brokerage (like Freedom, Interactive Brokers) to get started!</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+                <div className="columns-1 md:columns-2 md:gap-12">
                     {banksWithAccounts.map((bank) => (
-                        <WalletBank
-                            key={bank.id}
-                            bank={bank}
-                            onDeleteBank={() => deleteBank.mutate({ id: bank.id })}
-                            activeCardId={activeCardId}
-                            onActiveCardChange={setActiveCardId}
-                            onDeleteAccount={(id) => {
-                                if (activeCardId === id) {
-                                    setActiveCardId(null);
-                                }
-                                deleteAccount.mutate({ id });
-                            }}
-                            onSelectAccount={setSelectedAccount}
-                        />
+                        <div key={bank.id} className="mb-8 break-inside-avoid md:mb-12">
+                            <WalletBank
+                                bank={bank}
+                                onDeleteBank={() => deleteBank.mutate({ id: bank.id })}
+                                activeCardId={activeCardId}
+                                onActiveCardChange={setActiveCardId}
+                                onDeleteAccount={(id) => {
+                                    if (activeCardId === id) {
+                                        setActiveCardId(null);
+                                    }
+                                    deleteAccount.mutate({ id });
+                                }}
+                                onSelectAccount={setSelectedAccount}
+                            />
+                        </div>
                     ))}
                 </div>
             )}

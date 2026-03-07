@@ -1,9 +1,9 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import type { Context as HonoContext } from 'hono';
 import { getAuth } from '@hono/clerk-auth';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '../db';
-import { users, banks, accounts, currencyBalances, admins } from '../db/schema';
+import { users, admins } from '../db/schema';
 import superjson from 'superjson';
 import { GlitchTip } from './error-tracking';
 
@@ -216,95 +216,6 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
         } catch (error) {
             console.error('Failed to sync subscription tier:', error);
         }
-    }
-
-    // Ensure default Cash bank/account exists for current mode
-    try {
-        let cashBank = await ctx.db.query.banks.findFirst({
-            where: and(
-                eq(banks.userId, ctx.userId),
-                eq(banks.isTest, user.testMode),
-                eq(banks.name, 'Cash')
-            ),
-            with: {
-                accounts: {
-                    with: {
-                        currencyBalances: true,
-                    },
-                },
-            },
-        });
-
-        if (!cashBank) {
-            try {
-                const [newBank] = await ctx.db.insert(banks).values({
-                    userId: ctx.userId,
-                    name: 'Cash',
-                    icon: '💵',
-                    color: '#16a34a',
-                    isTest: user.testMode,
-                }).returning();
-
-                cashBank = { ...newBank, accounts: [] };
-            } catch (bankErr) {
-                // Another request might have created the bank simultaneously
-                console.log(`Cash bank for ${ctx.userId} already exists or creation failed:`, bankErr);
-                cashBank = await ctx.db.query.banks.findFirst({
-                    where: and(
-                        eq(banks.userId, ctx.userId),
-                        eq(banks.isTest, user.testMode),
-                        eq(banks.name, 'Cash')
-                    ),
-                    with: { accounts: { with: { currencyBalances: true } } },
-                });
-            }
-        }
-
-        if (cashBank) {
-            let cashAccount = cashBank.accounts?.find((acc) => acc.type === 'cash');
-
-            if (!cashAccount) {
-                try {
-                    const [newAccount] = await ctx.db.insert(accounts).values({
-                        bankId: cashBank.id,
-                        name: 'Cash',
-                        type: 'cash',
-                        icon: '💵',
-                    }).returning();
-
-                    cashAccount = { ...newAccount, currencyBalances: [] };
-                } catch (accErr) {
-                    console.log(`Cash account for bank ${cashBank.id} already exists or creation failed:`, accErr);
-                    // Refresh from DB
-                    const refreshedBank = await ctx.db.query.banks.findFirst({
-                        where: eq(banks.id, cashBank.id),
-                        with: { accounts: { with: { currencyBalances: true } } },
-                    });
-                    cashAccount = refreshedBank?.accounts?.find((acc) => acc.type === 'cash');
-                }
-            }
-
-            if (cashAccount) {
-                const defaultCurrency = (user.defaultCurrency || 'USD').toUpperCase();
-                const hasDefaultBalance = cashAccount.currencyBalances?.some(
-                    (cb) => cb.currencyCode === defaultCurrency
-                );
-
-                if (!hasDefaultBalance) {
-                    try {
-                        await ctx.db.insert(currencyBalances).values({
-                            accountId: cashAccount.id,
-                            currencyCode: defaultCurrency,
-                            balance: '0',
-                        });
-                    } catch (cbErr) {
-                        console.log(`Default balance for account ${cashAccount.id} already exists:`, cbErr);
-                    }
-                }
-            }
-        }
-    } catch (err) {
-        console.error('Failed to ensure Cash infrastructure:', err);
     }
 
     return next({

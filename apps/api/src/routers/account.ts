@@ -1,8 +1,17 @@
 import { z } from 'zod';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../lib/trpc';
-import { accounts, banks, currencyBalances, transactions, categories } from '../db/schema';
+import {
+    accounts,
+    banks,
+    currencyBalances,
+    transactions,
+    categories,
+    transactionSplits,
+    splitPayments,
+    subscriptionPayments,
+} from '../db/schema';
 import { checkEntityLimit } from '../lib/limits';
 
 export const accountRouter = router({
@@ -117,7 +126,64 @@ export const accountRouter = router({
                 throw new TRPCError({ code: 'FORBIDDEN', message: 'Account not found' });
             }
 
-            await ctx.db.delete(accounts).where(eq(accounts.id, input.id));
+            await ctx.db.transaction(async (tx) => {
+                const balanceRows = await tx
+                    .select({ id: currencyBalances.id })
+                    .from(currencyBalances)
+                    .where(eq(currencyBalances.accountId, input.id));
+
+                const balanceIds = balanceRows.map((row) => row.id);
+
+                if (balanceIds.length > 0) {
+                    await tx.update(splitPayments)
+                        .set({ receivedToCurrencyBalanceId: null })
+                        .where(inArray(splitPayments.receivedToCurrencyBalanceId, balanceIds));
+
+                    await tx.update(transactions)
+                        .set({
+                            toCurrencyBalanceId: null,
+                            updatedAt: new Date(),
+                        })
+                        .where(inArray(transactions.toCurrencyBalanceId, balanceIds));
+
+                    const transactionRows = await tx
+                        .select({ id: transactions.id })
+                        .from(transactions)
+                        .where(inArray(transactions.currencyBalanceId, balanceIds));
+
+                    const transactionIds = transactionRows.map((row) => row.id);
+
+                    if (transactionIds.length > 0) {
+                        const splitRows = await tx
+                            .select({ id: transactionSplits.id })
+                            .from(transactionSplits)
+                            .where(inArray(transactionSplits.transactionId, transactionIds));
+
+                        const splitIds = splitRows.map((row) => row.id);
+
+                        await tx.update(splitPayments)
+                            .set({ linkedTransactionId: null })
+                            .where(inArray(splitPayments.linkedTransactionId, transactionIds));
+
+                        await tx.update(subscriptionPayments)
+                            .set({ transactionId: null })
+                            .where(inArray(subscriptionPayments.transactionId, transactionIds));
+
+                        if (splitIds.length > 0) {
+                            await tx.delete(splitPayments)
+                                .where(inArray(splitPayments.splitId, splitIds));
+                        }
+
+                        await tx.delete(transactionSplits)
+                            .where(inArray(transactionSplits.transactionId, transactionIds));
+
+                        await tx.delete(transactions)
+                            .where(inArray(transactions.id, transactionIds));
+                    }
+                }
+
+                await tx.delete(accounts).where(eq(accounts.id, input.id));
+            });
             return { success: true };
         }),
 
