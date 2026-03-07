@@ -16,6 +16,7 @@ import { Trash2, Pencil, Plus, CircleDollarSign, X, Wifi } from 'lucide-react';
 import { toast } from 'sonner';
 import { SettingsBankSheet } from '@/components/SettingsBankSheet';
 import { cn } from '@/lib/utils';
+import Leather from '../../public/assets/leather.webp';
 
 interface CurrencyBalance {
     id: string;
@@ -56,6 +57,13 @@ function getCardColor(index: number): string {
     return CARD_COLORS[index % CARD_COLORS.length];
 }
 
+/** Deterministic 0–1 from seed so each card gets stable random tilt/shift. */
+function seededRandom(seed: string): number {
+    let h = 0;
+    for (let i = 0; i < seed.length; i++) h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
+    return (Math.abs(h) % 1e6) / 1e6;
+}
+
 function AccountCard({
     account,
     index,
@@ -85,11 +93,23 @@ function AccountCard({
     const baseZIndex = totalCards - index;
     const inactiveBottom = index * TAB_TRANSFORM_Y;
     const activeY = (index + 1) * TAB_TRANSFORM_Y ;
+    // Per-card random tilt (max 1.5°) and shift (1–6px any direction), stable via account.id
+    const stackRandom = useMemo(() => {
+        const r1 = seededRandom(account.id + 'r');
+        const r2 = seededRandom(account.id + 'x');
+        const r3 = seededRandom(account.id + 'y');
+        return {
+            rotateZ: (r1 - 0.5) * 3,
+            x: (r2 - 0.5) * 12,
+            y: (r3 - 0.5) * 12,
+        };
+    }, [account.id]);
 
     const controls = useAnimation();
     const [cardScale, setCardScale] = useState(1);
     const hasInitialized = useRef(false);
     const prevIsActive = useRef(isActive);
+    const normalizedLast4 = (account.last4Digits ?? '').replace(/\D/g, '').slice(-4);
 
     const mouseX = useMotionValue(0);
     const mouseY = useMotionValue(0);
@@ -134,10 +154,12 @@ function AccountCard({
         hasInitialized.current = true;
         prevIsActive.current = isActive;
         controls.set({
-            y: isActive ? activeY : 0,
+            x: isActive ? 0 : stackRandom.x,
+            y: isActive ? activeY : stackRandom.y,
+            rotateZ: isActive ? 0 : stackRandom.rotateZ,
             scale: 1,
         });
-    }, [activeY, baseZIndex, controls, isActive, ACTIVE_CARD_Z_INDEX]);
+    }, [activeY, baseZIndex, controls, isActive, ACTIVE_CARD_Z_INDEX, stackRandom]);
 
     useEffect(() => {
         if (!hasInitialized.current) {
@@ -146,7 +168,9 @@ function AccountCard({
 
         if (prevIsActive.current === isActive) {
             controls.set({
-                y: isActive ? activeY : 0,
+                x: isActive ? 0 : stackRandom.x,
+                y: isActive ? activeY : stackRandom.y,
+                rotateZ: isActive ? 0 : stackRandom.rotateZ,
                 scale: 1,
             });
             return;
@@ -159,7 +183,9 @@ function AccountCard({
         const runAnimation = async () => {
             if (isActive) {
                 await controls.start({
-                    y: [0, -CARD_H + 30, activeY],
+                    x: [stackRandom.x, stackRandom.x, 0],
+                    y: [stackRandom.y, -CARD_H + 30, activeY],
+                    rotateZ: [stackRandom.rotateZ, stackRandom.rotateZ, 0],
                     scale: [1, 1.25, 1],
                     zIndex: [baseZIndex, ACTIVE_CARD_Z_INDEX, ACTIVE_CARD_Z_INDEX],
                     transition: {
@@ -171,7 +197,9 @@ function AccountCard({
             }
 
             await controls.start({
+                x: stackRandom.x,
                 y: liftY,
+                rotateZ: stackRandom.rotateZ,
                 scale: 1.25,
                 transition: {
                     duration: 0.2,
@@ -184,7 +212,9 @@ function AccountCard({
             }
             setCardScale(1);
             await controls.start({
-                y: 0,
+                x: stackRandom.x,
+                y: stackRandom.y,
+                rotateZ: stackRandom.rotateZ,
                 scale: 1,
                 zIndex: baseZIndex,
                 transition: {
@@ -201,7 +231,7 @@ function AccountCard({
             cancelled = true;
             controls.stop();
         };
-    }, [activeY, baseZIndex, controls, isActive, ACTIVE_CARD_Z_INDEX]);
+    }, [activeY, baseZIndex, controls, isActive, ACTIVE_CARD_Z_INDEX, stackRandom]);
 
     // Inactive position is relative to its regular spot in the flex stack
     // Active position needs to sit neatly over the wallet.
@@ -257,22 +287,24 @@ function AccountCard({
                 <Wifi className="w-5 h-5 opacity-60 rotate-90" />
             </motion.div>
 
-            {/* Fake Card Number */}
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: isActive ? 1 : 0 }}
-                className="absolute left-5 bottom-[4.5rem] font-mono text-[1.1rem] tracking-[0.15em] opacity-90 flex items-center gap-3 z-10 pointer-events-none drop-shadow-sm"
-            >
-                <span className="text-[12px] pt-[2px] opacity-80">•••• •••• ••••</span>
-                <span>{account.last4Digits || '0000'}</span>
-            </motion.div>
+            {/* Card Number from account data (no fake fallback). */}
+            {normalizedLast4 && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: isActive ? 1 : 0 }}
+                    className="absolute left-5 bottom-[4.5rem] font-mono text-[1.1rem] tracking-[0.15em] opacity-90 flex items-center gap-3 z-10 pointer-events-none drop-shadow-sm"
+                >
+                    <span className="text-[12px] pt-[2px] opacity-80">•••• •••• ••••</span>
+                    <span>{normalizedLast4}</span>
+                </motion.div>
+            )}
 
             {/* Top row: name + actions, visible fully when active or partially when inactive */}
             <div className="flex items-start justify-between relative z-20">
                 <h3 className={cn("font-bold leading-tight", isActive ? "text-lg drop-shadow-sm" : "text-sm mt-[-4px]")}>
                     {account.name}
-                    {!isActive && account.last4Digits && (
-                        <span className="ml-1.5 font-normal opacity-80">{account.last4Digits}</span>
+                    {!isActive && normalizedLast4 && (
+                        <span className="ml-1.5 font-normal opacity-80">{normalizedLast4}</span>
                     )}
                 </h3>
                 
@@ -388,7 +420,21 @@ function WalletBank({
             style={{ zIndex: isActiveWallet ? 1 : 0 }}
         >
             {/* Wallet wrapper — card overlays on top */}
-            <div className="relative w-[328px]">
+            <div className="relative w-[328px] mt-[30px]">
+                {/* Wallet Back Panel */}
+                <div 
+                    className="absolute inset-x-0 bottom-0 rounded-b-2xl rounded-t-3xl border border-white/60 dark:border-white/10 overflow-hidden transition-all duration-300 pointer-events-none bg-cover bg-center brightness-110 dark:brightness-75 drop-shadow-[0_0_15px_rgba(0,0,0,0.5)]"
+                    style={{
+                        zIndex: -1,
+                        top: bank.visibleAccounts.length > 0 ? -12 : 20,
+                        backgroundImage: `url(${Leather})`,
+                        boxShadow: 'inset 0 4px 6px rgba(255,255,255,0.4), inset 0 -30px 40px rgba(0,0,0,0.6), 0 -4px 15px rgba(0,0,0,0.2)',
+                    }}
+                >
+                    <div className="absolute inset-x-0 bottom-0 h-full bg-gradient-to-t from-black/20 via-black/5 to-transparent dark:from-black/80 dark:via-black/30 dark:to-black/10 pointer-events-none mix-blend-overlay"></div>
+                    <div className="absolute inset-x-0 bottom-0 h-full bg-gradient-to-t from-black/10 via-black/0 to-transparent dark:from-black/60 dark:via-black/10 dark:to-transparent pointer-events-none"></div>
+                </div>
+
                 {/* Card tabs peeking out from top of wallet */}
                 {bank.visibleAccounts.length > 0 && (
                     <div
@@ -414,11 +460,12 @@ function WalletBank({
                     </div>
                 )}
 
-                {/* Wallet body */}
+                {/* Wallet body — fixed height so content can pin to bottom */}
                 <div
                     className="flex flex-col relative z-20 group drop-shadow-2xl"
                     style={{ 
                         width: CARD_W, 
+                        height: CARD_H,
                         minHeight: CARD_H,
                         marginTop: '-16px',
                         filter: 'drop-shadow(0 -4px 12px rgba(0,0,0,0.15)) drop-shadow(0 12px 24px rgba(0,0,0,0.2))'
@@ -426,46 +473,48 @@ function WalletBank({
                 >
                     {/* Physical Pocket Shape Background */}
                     <div 
-                        className="absolute inset-0 rounded-b-2xl overflow-hidden bg-gradient-to-b from-[#EAEAE5] to-[#DCDCD5]"
+                        className="absolute inset-0 rounded-b-2xl overflow-hidden bg-cover bg-center dark:brightness-75"
                         style={{
                             clipPath: `path("M0,16 C0,7 7,0 16,0 L120,0 C128,0 133,4 137,10 C143,22 150,28 164,28 C178,28 185,22 191,10 C195,4 200,0 208,0 L312,0 C321,0 328,7 328,16 L328,1000 L0,1000 Z")`,
-                            boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.8), inset 0px -2px 10px rgba(0,0,0,0.05)',
+                            backgroundImage: `url(${Leather})`,
+                            boxShadow: 'inset 0 2px 5px rgba(255,255,255,0.4), inset 0px -2px 10px rgba(0,0,0,0.1)',
                         }}
                     >
-                        {/* Texture overlay */}
-                        <div className="absolute inset-0 mix-blend-overlay opacity-30" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
+                        {/* Leather Texture overlay darkening */}
+                        <div className="absolute inset-0 bg-black/0 dark:bg-black/40 pointer-events-none mix-blend-multiply"></div>
+                        
                         {/* Inner Gradient Gloss */}
-                        <div className="absolute inset-0 pointer-events-none opacity-40 bg-[radial-gradient(ellipse_at_top_center,rgba(255,255,255,1)_0%,transparent_70%)]"></div>
+                        <div className="absolute inset-0 pointer-events-none opacity-[0.55] dark:opacity-20 bg-[radial-gradient(ellipse_at_top_center,rgba(255,255,255,0.97)_0%,transparent_70%)] mix-blend-overlay"></div>
                     </div>
 
                     {/* Top edge lip rendering for stroke & stitches */}
                     <svg className="absolute top-0 left-0 pointer-events-none z-10" width="328" height="40" viewBox="0 0 328 40">
                         {/* Outer Highlight line */}
                         <path d="M1,16 C1,7.5 7.5,1 16,1 L120,1 C128,1 133,5 137,11 C143,23 150,29 164,29 C178,29 185,23 191,11 C195,5 200,1 208,1 L312,1 C320.5,1 327,7.5 327,16" 
-                            fill="none" stroke="#FFFFFF" strokeWidth="2" strokeOpacity="0.9" />
+                            fill="none" stroke="currentColor" className="text-white dark:text-white/20" strokeWidth="2" strokeOpacity="0.8" />
                         {/* Outer Shadow line */}
                         <path d="M0,16 C0,7 7,0 16,0 L120,0 C128,0 133,4 137,10 C143,22 150,28 164,28 C178,28 185,22 191,10 C195,4 200,0 208,0 L312,0 C321,0 328,7 328,16" 
-                            fill="none" stroke="#000000" strokeWidth="1" strokeOpacity="0.12" />
+                            fill="none" stroke="#000000" strokeWidth="1" strokeOpacity="0.25" />
                         {/* Stitching effect top */}
                         <path d="M6,16 C6,10 10,6 16,6 L118,6 C125,6 130,9 133,15 C139,27 148,33 164,33 C180,33 189,27 195,15 C198,9 203,6 210,6 L312,6 C318,6 322,10 322,16" 
-                            fill="none" stroke="#AAA59E" strokeWidth="1.5" strokeDasharray="5 3" opacity="0.7"/>
+                            fill="none" stroke="currentColor" className="text-[#99948D] dark:text-[#5A5854]" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.8"/>
                     </svg>
 
                     {/* Left/Right/Bottom Stitches */}
-                    <div className="absolute left-[5px] top-[16px] bottom-[5px] w-px border-l-[1.5px] border-dashed border-[#AAA59E]/70 z-10 pointer-events-none rounded-bl-xl"></div>
-                    <div className="absolute right-[5px] top-[16px] bottom-[5px] w-px border-r-[1.5px] border-dashed border-[#AAA59E]/70 z-10 pointer-events-none rounded-br-xl"></div>
-                    <div className="absolute left-[5px] right-[5px] bottom-[5px] h-px border-b-[1.5px] border-dashed border-[#AAA59E]/70 z-10 pointer-events-none rounded-b-xl"></div>
+                    <div className="absolute left-[5px] top-[16px] bottom-[5px] w-px border-l-[1.5px] border-dashed border-[#99948D]/80 dark:border-[#5A5854]/80 z-10 pointer-events-none rounded-bl-xl"></div>
+                    <div className="absolute right-[5px] top-[16px] bottom-[5px] w-px border-r-[1.5px] border-dashed border-[#99948D]/80 dark:border-[#5A5854]/80 z-10 pointer-events-none rounded-br-xl"></div>
+                    <div className="absolute left-[5px] right-[5px] bottom-[5px] h-px border-b-[1.5px] border-dashed border-[#99948D]/80 dark:border-[#5A5854]/80 z-10 pointer-events-none rounded-b-xl"></div>
 
                     {/* Wallet Content */}
-                    <div className="relative z-20 flex flex-col h-full p-5 pt-8">
+                    <div className="relative z-20 flex flex-col h-full min-h-0 p-5 pt-8">
                         {/* Bank actions */}
-                        <div className="flex items-center justify-end gap-0.5 mb-2 mt-[-10px] mr-[-5px]">
+                        <div className="flex items-center justify-end gap-0.5 mb-2 mt-[-10px] mr-[-5px] shrink-0">
                             <DeleteConfirm
                                 title="Delete this institution?"
                                 description={`This will permanently delete "${bank.name}" and all its ${bank.accounts.length} accounts. This action cannot be undone.`}
                                 onConfirm={onDeleteBank}
                                 trigger={
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-black/40 hover:text-red-600 hover:bg-black/5">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-black/50 dark:text-white/40 hover:text-red-600 dark:hover:text-red-400 hover:bg-black/5 dark:hover:bg-white/5">
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 }
@@ -473,26 +522,56 @@ function WalletBank({
                             <SettingsBankSheet
                                 bank={bank}
                                 trigger={
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-black/40 hover:text-black/70 hover:bg-black/5">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-black/50 dark:text-white/40 hover:text-black/80 dark:hover:text-white/80 hover:bg-black/5 dark:hover:bg-white/5">
                                         <Pencil className="h-4 w-4" />
                                     </Button>
                                 }
                             />
                             <AddAccountSheet bankId={bank.id} bankName={bank.name}
                                 trigger={
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-black/40 hover:text-black/70 hover:bg-black/5">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-black/50 dark:text-white/40 hover:text-black/80 dark:hover:text-white/80 hover:bg-black/5 dark:hover:bg-white/5">
                                         <Plus className="h-4 w-4" />
                                     </Button>
                                 }
                             />
                         </div>
 
-                        {/* Bank name & aggregated balances in a horizontal stack */}
-                        <div className="flex items-end justify-between mt-auto">
-                            <h3 className="font-bold text-lg text-black/80 leading-tight drop-shadow-sm">{bank.name}</h3>
+                        {/* Spacer: pushes bank name & balances to bottom */}
+                        <div className="flex-1 min-h-0" />
+
+                        {/* Bank name & aggregated balances at bottom */}
+                        <div className="flex items-end justify-between shrink-0 pb-0.5">
+                            <div className="relative leading-tight">
+                                {/* Top layer */}
+                                <h3
+                                    className="font-bold text-lg leading-tight"
+                                    style={{
+                                        color: "#E5B78F",
+                                        textShadow: `
+                                        0 -1px 0 #F2D1AE,
+                                        0 1px 0 #8A4C2C,
+                                        0 2px 0 #5E2F1B,
+                                        0 3px 4px rgba(0,0,0,0.35)
+                                        `
+                                    }}
+                                    >
+                                    {bank.name}
+                                </h3>
+                            </div>
                             <div className="text-right">
                                 {aggregateBalances(bank.visibleAccounts).map(({ code, total }) => (
-                                    <p key={code} className="text-base font-bold text-black/80 drop-shadow-sm">
+                                    <p key={code} 
+                                    className="text-base font-bold" 
+                                    style={{ 
+                                        color: '#E5B78F',
+                                        textShadow: `
+                                        0 -1px 0 #F2D1AE,
+                                        0 1px 0 #8A4C2C,
+                                        0 2px 0 #5E2F1B,
+                                        0 3px 4px rgba(0,0,0,0.35)
+                                        `
+                                    }}
+                                    >
                                         {Number(total).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}{code}
                                     </p>
                                 ))}
@@ -500,7 +579,7 @@ function WalletBank({
                         </div>
 
                         {bank.visibleAccounts.length === 0 && (
-                            <p className="text-sm text-black/50 font-medium text-center mt-6">
+                            <p className="text-sm text-white/60 font-medium text-center mt-6">
                                 No accounts yet. Add one to get started.
                             </p>
                         )}
