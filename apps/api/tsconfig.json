@@ -4,12 +4,12 @@
         "target": "ES2022",
         "module": "ESNext",
         "moduleResolution": "bundler",
-        "types": [
-            "bun"
-        ],
         "outDir": "./dist",
         "strict": true,
-        "noEmit": true
+        "noEmit": true,
+        "types": [
+            "bun-types"
+        ]
     },
     "include": [
         "src/**/*",
