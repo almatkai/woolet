@@ -168,7 +168,7 @@ describe("Account Router", () => {
                     })),
                 },
             },
-            transaction: mock(async (fn: (tx: typeof tx) => Promise<void>) => fn(tx)),
+            transaction: mock(async (fn: (transaction: any) => Promise<void>) => fn(tx)),
         };
 
         const ctx = createMockContext({ db: mockDb as any });
