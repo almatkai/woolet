@@ -13,25 +13,19 @@ jobs:
   changes:
     runs-on: namespace-profile-default
     outputs:
-      apps: ${{ steps.filter.outputs.apps }}
       api: ${{ steps.filter.outputs.api }}
       web: ${{ steps.filter.outputs.web }}
       landing: ${{ steps.filter.outputs.landing }}
       shared: ${{ steps.filter.outputs.shared }}
-      config: ${{ steps.filter.outputs.config }}
+      infra: ${{ steps.filter.outputs.infra }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
-            apps:
-              - 'apps/**'
-              - 'packages/**'
-              - 'bun.lock'
-              - 'package.json'
-              - 'turbo.json'
-              - '.dockerignore'
             api:
               - 'apps/api/**'
               - 'apps/api/Dockerfile'
@@ -47,7 +41,7 @@ jobs:
               - 'package.json'
               - 'turbo.json'
               - '.dockerignore'
-            config:
+            infra:
               - 'deploy.sh'
               - 'docker-compose.prod.yml'
               - 'docker-compose.monitoring.yml'
@@ -55,61 +49,101 @@ jobs:
               - '.env.example'
               - '.github/workflows/deploy.yml'
 
-  test-api:
+  setup:
     needs: changes
-    if: needs.changes.outputs.apps == 'true'
+    if: |
+      needs.changes.outputs.api == 'true' ||
+      needs.changes.outputs.web == 'true' ||
+      needs.changes.outputs.landing == 'true' ||
+      needs.changes.outputs.shared == 'true'
     runs-on: namespace-profile-default
+    outputs:
+      cache-hit: ${{ steps.cache.outputs.cache-hit }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.8
 
-      - name: Cache Bun dependencies
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
+        id: cache
         with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
 
       - name: Install dependencies
-        run: bun install 
-
-      - name: Lint and Test API
-        run: |
-          bun run lint --filter=@woolet/api
-          bun run test --filter=@woolet/api
-
-  test-web:
-    needs: changes
-    if: needs.changes.outputs.apps == 'true'
-    runs-on: namespace-profile-default
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.8
-
-      - name: Cache Bun dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
         run: bun install
 
+      - name: Share dependencies
+        uses: actions/upload-artifact@v4
+        with:
+          name: node_modules
+          path: node_modules
+          if-no-files-found: error
+          compression-level: 0
+
+  test-api:
+    needs: [changes, setup]
+    if: |
+      needs.changes.outputs.api == 'true' ||
+      needs.changes.outputs.web == 'true' ||
+      needs.changes.outputs.landing == 'true' ||
+      needs.changes.outputs.shared == 'true'
+    runs-on: namespace-profile-default
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.8
+
+      - name: Restore dependencies
+        uses: actions/download-artifact@v4
+        with:
+          name: node_modules
+          path: node_modules
+
+      - name: Lint and Test API
+        run: bun run turbo run lint test --filter=@woolet/api
+
+  test-web:
+    needs: [changes, setup]
+    if: |
+      needs.changes.outputs.api == 'true' ||
+      needs.changes.outputs.web == 'true' ||
+      needs.changes.outputs.landing == 'true' ||
+      needs.changes.outputs.shared == 'true'
+    runs-on: namespace-profile-default
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.8
+
+      - name: Restore dependencies
+        uses: actions/download-artifact@v4
+        with:
+          name: node_modules
+          path: node_modules
+
       - name: Lint and Test Web
-        run: |
-          bun run lint --filter=@woolet/web
-          bun run test --filter=@woolet/web
+        run: bun run turbo run lint test --filter=@woolet/web
 
   build-and-push:
     needs: [changes, test-api, test-web]
-    if: needs.changes.outputs.apps == 'true'
+    if: |
+      needs.changes.outputs.api == 'true' ||
+      needs.changes.outputs.web == 'true' ||
+      needs.changes.outputs.landing == 'true' ||
+      needs.changes.outputs.shared == 'true'
     runs-on: namespace-profile-default
     permissions:
       contents: read
@@ -121,6 +155,8 @@ jobs:
         component: [api, web, landing]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -174,6 +210,8 @@ jobs:
     environment: SSH_PRIVATE_KEY
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Check Connectivity
         run: |
@@ -259,13 +297,14 @@ jobs:
           WEB_CHANGED: ${{ needs.changes.outputs.web }}
           LANDING_CHANGED: ${{ needs.changes.outputs.landing }}
           SHARED_CHANGED: ${{ needs.changes.outputs.shared }}
-          CONFIG_CHANGED: ${{ needs.changes.outputs.config }}
+          CONFIG_CHANGED: ${{ needs.changes.outputs.infra }}
+          INFRA_CHANGED: ${{ needs.changes.outputs.infra }}
           FORCE_DEPLOY: ${{ github.event_name == 'workflow_dispatch' }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: DB_ADMIN_USER,DB_ADMIN_PASSWORD,DB_USER,DB_PASSWORD,DB_NAME,DB_PORT,GLITCHTIP_DB_PASSWORD,GLITCHTIP_DOMAIN,GLITCHTIP_FROM_EMAIL,GLITCHTIP_SECRET_KEY,REDIS_PASSWORD,CLERK_SECRET_KEY,CLERK_PUBLISHABLE_KEY,VITE_CLERK_PUBLISHABLE_KEY,WOOLET_API_IMAGE,WOOLET_WEB_IMAGE,WOOLET_LANDING_IMAGE,NODE_ENV,API_URL,WEB_URL,GLITCHTIP_DSN_API,VITE_GLITCHTIP_DSN_WEB,VITE_PUBLIC_POSTHOG_KEY,VITE_PUBLIC_POSTHOG_HOST,LOG_LEVEL,AI_PROVIDER_ORDER,OPEN_ROUTER_API_KEY,OPENROUTER_CHAT_MODEL,OPENROUTER_SITE_URL,OPENROUTER_APP_NAME,OPENAI_API_KEY,OPENAI_CHAT_MODEL,GEMINI_API_KEY,GEMINI_MODEL,CURRENCY_API_KEY,GROQ_API_KEY,TWELVE_DATA,VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY,VAPID_SUBJECT,API_CHANGED,WEB_CHANGED,LANDING_CHANGED,SHARED_CHANGED,CONFIG_CHANGED,FORCE_DEPLOY
+          envs: DB_ADMIN_USER,DB_ADMIN_PASSWORD,DB_USER,DB_PASSWORD,DB_NAME,DB_PORT,GLITCHTIP_DB_PASSWORD,GLITCHTIP_DOMAIN,GLITCHTIP_FROM_EMAIL,GLITCHTIP_SECRET_KEY,REDIS_PASSWORD,CLERK_SECRET_KEY,CLERK_PUBLISHABLE_KEY,VITE_CLERK_PUBLISHABLE_KEY,WOOLET_API_IMAGE,WOOLET_WEB_IMAGE,WOOLET_LANDING_IMAGE,NODE_ENV,API_URL,WEB_URL,GLITCHTIP_DSN_API,VITE_GLITCHTIP_DSN_WEB,VITE_PUBLIC_POSTHOG_KEY,VITE_PUBLIC_POSTHOG_HOST,LOG_LEVEL,AI_PROVIDER_ORDER,OPEN_ROUTER_API_KEY,OPENROUTER_CHAT_MODEL,OPENROUTER_SITE_URL,OPENROUTER_APP_NAME,OPENAI_API_KEY,OPENAI_CHAT_MODEL,GEMINI_API_KEY,GEMINI_MODEL,CURRENCY_API_KEY,GROQ_API_KEY,TWELVE_DATA,VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY,VAPID_SUBJECT,API_CHANGED,WEB_CHANGED,LANDING_CHANGED,SHARED_CHANGED,CONFIG_CHANGED,INFRA_CHANGED,FORCE_DEPLOY
           timeout: 60s
           command_timeout: 45m
           debug: true
