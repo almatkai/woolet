@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { trpc } from '@/lib/trpc';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatAmountAbbreviated } from '@/components/CurrencyDisplay';
+import { formatAmountAbbreviated, CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { Checkbox } from '@/components/ui/checkbox';
+import { PieChart as PieChartIcon, ArrowRight } from 'lucide-react';
 import {
     Select,
     SelectContent,
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import { useTooltipPro } from '@/components/ui/tooltip-pro';
 import { useTheme } from '@/components/theme-provider';
+import { WidgetFooter } from '@/components/dashboard/WidgetFooter';
 
 const COLORS = ['#a78bfa', '#f87171', '#facc15', '#4ade80', '#60a5fa', '#f472b6', '#22d3ee', '#fb923c'];
 
@@ -196,68 +198,247 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
     const safeAllCategories = Array.isArray(allCategories) ? allCategories : [];
 
     return (
-        <Card className="dashboard-widget h-full flex flex-col">
-            <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
-                <div className="flex items-center justify-between gap-2">
-                    <Link to="/spending" className="min-w-0 flex-1">
-                        <CardTitle className="dashboard-widget__title">
-                            Spending
-                        </CardTitle>
-                    </Link>
-                    {!isUltraCompact && (
-                        <Tabs value={period} onValueChange={(v) => setPeriod(v as 'weekly' | 'monthly')}>
-                            <TabsList className="h-7 bg-muted/50 p-0.5">
-                                <TabsTrigger value="weekly" className="h-full px-2 text-[10px]">W</TabsTrigger>
-                                <TabsTrigger value="monthly" className="h-full px-2 text-[10px]">M</TabsTrigger>
-                            </TabsList>
-                        </Tabs>
-                    )}
-                </div>
-            </CardHeader>
-            <CardContent className={isUltraCompact ? 'flex-1 min-h-0 p-1.5 pt-0 overflow-hidden flex flex-col' : 'flex-1 min-h-0 p-2 sm:p-4 pt-0 sm:pt-2 overflow-hidden flex flex-col'}>
-                {showSelector ? (
-                    <>
-                        {/* Category Selector */}
-                        <div className="mb-3">
-                            <Select
-                                value="all"
-                                onValueChange={(value) => {
-                                    if (value === 'all') {
-                                        setEnabledCategories(new Set(safeAllCategories.map((c: any) => c.id)));
-                                    } else if (value === 'none') {
-                                        setEnabledCategories(new Set());
-                                    } else {
-                                        handleToggleCategory(value);
-                                    }
-                                }}
+        <Card className="dashboard-widget h-full flex flex-col group rounded-[32px] overflow-hidden">
+            <Link to="/spending" className="block flex-1 flex flex-col min-h-0">
+                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-xl cursor-pointer">
+                    <div className="flex flex-col min-w-0 flex-1">
+                        <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Spending by Category</div>
+                        <div className="flex items-baseline gap-1.5 flex-wrap">
+                            <span className="text-lg font-bold tracking-tight whitespace-nowrap">
+                                {enabledCategories.size} 
+                                <span className="text-[10px] text-muted-foreground font-medium ml-1">categories</span>
+                            </span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        {!isUltraCompact && (
+                            <Tabs value={period} onValueChange={(v) => setPeriod(v as 'weekly' | 'monthly')} onClick={(e) => e.stopPropagation()}>
+                                <TabsList className="h-7 bg-muted/50 p-0.5">
+                                    <TabsTrigger value="weekly" className="h-full px-2 text-[10px]">W</TabsTrigger>
+                                    <TabsTrigger value="monthly" className="h-full px-2 text-[10px]">M</TabsTrigger>
+                                </TabsList>
+                            </Tabs>
+                        )}
+                        <div className="p-1.5 bg-muted rounded-md group-hover:bg-muted/80 transition-colors">
+                            <PieChartIcon className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className={isUltraCompact ? 'flex-1 min-h-0 p-1.5 pt-0 overflow-hidden flex flex-col' : 'flex-1 min-h-0 p-2 sm:p-4 pt-0 sm:pt-2 overflow-hidden flex flex-col'}>
+                    {showSelector ? (
+                        <>
+                            {/* Category Selector */}
+                            <div className="mb-3" onClick={(e) => e.stopPropagation()}>
+                                <Select
+                                    value="all"
+                                    onValueChange={(value) => {
+                                        if (value === 'all') {
+                                            setEnabledCategories(new Set(safeAllCategories.map((c: any) => c.id)));
+                                        } else if (value === 'none') {
+                                            setEnabledCategories(new Set());
+                                        } else {
+                                            handleToggleCategory(value);
+                                        }
+                                    }}
+                                >
+                                    <SelectTrigger className="h-8 text-xs">
+                                        <SelectValue placeholder={`${enabledCategories.size} categories selected`} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            <div className="flex items-center gap-2">
+                                                <Checkbox checked={enabledCategories.size === safeAllCategories.length} className="pointer-events-none" />
+                                                <span>Select All</span>
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value="none">
+                                            <div className="flex items-center gap-2">
+                                                <Checkbox checked={false} className="pointer-events-none" />
+                                                <span>Deselect All</span>
+                                            </div>
+                                        </SelectItem>
+                                        {safeAllCategories.map((entry: any, index: number) => (
+                                            <SelectItem key={entry.id} value={entry.id}>
+                                                <div className="flex items-center gap-2 w-full">
+                                                    <Checkbox
+                                                        checked={enabledCategories.has(entry.id)}
+                                                        className="pointer-events-none"
+                                                    />
+                                                    <div
+                                                        className="h-2 w-2 rounded-full flex-shrink-0"
+                                                        style={{
+                                                            backgroundColor: entry.color || COLORS[index % COLORS.length],
+                                                            border: (() => {
+                                                                const c = entry.color || COLORS[index % COLORS.length];
+                                                                const lum = getLuminance(c);
+                                                                if (isDark && lum < 0.08) return '1px solid rgba(255,255,255,0.4)';
+                                                                if (!isDark && lum > 0.9) return '1px solid rgba(0,0,0,0.3)';
+                                                                return 'none';
+                                                            })()
+                                                        }}
+                                                    />
+                                                    <span className="flex-1">{entry.name}</span>
+                                                    <span className="text-muted-foreground text-xs">{formatAmountAbbreviated(entry.value)}</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div
+                                ref={chartAreaRef}
+                                className="flex-1 min-h-0 min-w-0 flex items-center justify-center overflow-hidden"
                             >
-                                <SelectTrigger className="h-8 text-xs">
-                                    <SelectValue placeholder={`${enabledCategories.size} categories selected`} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">
-                                        <div className="flex items-center gap-2">
-                                            <Checkbox checked={enabledCategories.size === safeAllCategories.length} className="pointer-events-none" />
-                                            <span>Select All</span>
+                                {chartSize <= 0 ? (
+                                    <Skeleton className="h-24 w-24 rounded-full" />
+                                ) : (
+                                    <div
+                                        className="relative"
+                                        style={{ width: chartSize, height: chartSize }}
+                                        onMouseMove={tooltip.handleMouseMove}
+                                        onMouseLeave={tooltip.handleMouseLeave}
+                                    >
+                                        <PieChart width={chartSize} height={chartSize} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                                            <Pie
+                                                data={filteredData}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={innerRadius}
+                                                outerRadius={outerRadius}
+                                                paddingAngle={2}
+                                                dataKey="value"
+                                                strokeWidth={strokeWidth}
+                                                onClick={(_, index) => tooltip.handleItemClick(filteredData[index])}
+                                                onMouseEnter={(_, index) => tooltip.handleItemHover(filteredData[index])}
+                                                onMouseLeave={() => tooltip.handleItemHover(null)}
+                                            >
+                                                {filteredData.map((entry: any, index: number) => {
+                                                    const color = entry.color || COLORS[index % COLORS.length];
+                                                    return (
+                                                        <Cell
+                                                            key={`cell-${index}`}
+                                                            fill={color}
+                                                            stroke={getContrastStroke(color, isDark)}
+                                                            fillOpacity={1}
+                                                        />
+                                                    );
+                                                })}
+                                            </Pie>
+                                        </PieChart>
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                                            <span
+                                                className="font-bold tracking-tight text-foreground block"
+                                                style={{ fontSize: Math.max(chartSize * 0.12, 10) }}
+                                            >
+                                                {formatAmountAbbreviated(filteredTotal)}
+                                            </span>
+                                            {!isUltraCompact && (
+                                                <span
+                                                    className="text-muted-foreground font-medium block"
+                                                    style={{ fontSize: Math.max(chartSize * 0.05, 8) }}
+                                                >
+                                                    {formatCurrency(filteredTotal)}
+                                                </span>
+                                            )}
                                         </div>
-                                    </SelectItem>
-                                    <SelectItem value="none">
-                                        <div className="flex items-center gap-2">
-                                            <Checkbox checked={false} className="pointer-events-none" />
-                                            <span>Deselect All</span>
+
+                                        {tooltip.renderTooltip()}
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex-1 min-h-0 flex gap-2 sm:gap-6">
+                            {/* Left: Pie Chart centered vertically */}
+                            <div
+                                ref={chartAreaRef}
+                                className="flex-1 min-h-0 min-w-0 flex items-center justify-center overflow-hidden"
+                            >
+                                {chartSize <= 0 ? (
+                                    <Skeleton className="h-24 w-24 rounded-full" />
+                                ) : (
+                                    <div
+                                        className="relative"
+                                        style={{ width: chartSize, height: chartSize }}
+                                        onMouseMove={tooltip.handleMouseMove}
+                                        onMouseLeave={tooltip.handleMouseLeave}
+                                    >
+                                        <PieChart width={chartSize} height={chartSize} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                                            <Pie
+                                                data={filteredData}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={innerRadius}
+                                                outerRadius={outerRadius}
+                                                paddingAngle={2}
+                                                dataKey="value"
+                                                strokeWidth={strokeWidth}
+                                                onClick={(_, index) => tooltip.handleItemClick(filteredData[index])}
+                                                onMouseEnter={(_, index) => tooltip.handleItemHover(filteredData[index])}
+                                                onMouseLeave={() => tooltip.handleItemHover(null)}
+                                            >
+                                                {filteredData.map((entry: any, index: number) => {
+                                                    const color = entry.color || COLORS[index % COLORS.length];
+                                                    return (
+                                                        <Cell
+                                                            key={`cell-${index}`}
+                                                            fill={color}
+                                                            stroke={getContrastStroke(color, isDark)}
+                                                            fillOpacity={1}
+                                                        />
+                                                    );
+                                                })}
+                                            </Pie>
+                                        </PieChart>
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                                            <span
+                                                className="font-bold tracking-tight text-foreground block"
+                                                style={{ fontSize: Math.max(chartSize * 0.12, 10) }}
+                                            >
+                                                {formatAmountAbbreviated(filteredTotal)}
+                                            </span>
+                                            {!isUltraCompact && (
+                                                <span
+                                                    className="text-muted-foreground font-medium block"
+                                                    style={{ fontSize: Math.max(chartSize * 0.05, 8) }}
+                                                >
+                                                    {formatCurrency(filteredTotal)}
+                                                </span>
+                                            )}
                                         </div>
-                                    </SelectItem>
-                                    {safeAllCategories.map((entry: any, index: number) => (
-                                        <SelectItem key={entry.id} value={entry.id}>
-                                            <div className="flex items-center gap-2 w-full">
+
+                                        {tooltip.renderTooltip()}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Right: Category list with checkboxes */}
+                            <div className="w-32 lg:w-44 flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex-1 overflow-auto space-y-1">
+                                    {safeAllCategories.map((entry: any, index: number) => {
+                                        const isEnabled = enabledCategories.has(entry.id);
+                                        const percentage = stats?.total ? (entry.value / stats.total * 100) : 0;
+                                        return (
+                                            <div
+                                                key={entry.id}
+                                                className="flex items-center gap-1.5 sm:gap-2 cursor-pointer min-w-0"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    handleToggleCategory(entry.id);
+                                                }}
+                                            >
                                                 <Checkbox
-                                                    checked={enabledCategories.has(entry.id)}
-                                                    className="pointer-events-none"
+                                                    checked={isEnabled}
+                                                    onCheckedChange={() => handleToggleCategory(entry.id)}
+                                                    className="pointer-events-none flex-shrink-0"
                                                 />
                                                 <div
-                                                    className="h-2 w-2 rounded-full flex-shrink-0"
+                                                    className="h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full flex-shrink-0"
                                                     style={{
                                                         backgroundColor: entry.color || COLORS[index % COLORS.length],
+                                                        opacity: isEnabled ? 1 : 0.3,
                                                         border: (() => {
                                                             const c = entry.color || COLORS[index % COLORS.length];
                                                             const lum = getLuminance(c);
@@ -267,213 +448,39 @@ export function CategoryPieChart({ gridParams }: { gridParams?: { w: number; h: 
                                                         })()
                                                     }}
                                                 />
-                                                <span className="flex-1">{entry.name}</span>
-                                                <span className="text-muted-foreground text-xs">{formatAmountAbbreviated(entry.value)}</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div
-                            ref={chartAreaRef}
-                            className="flex-1 min-h-0 min-w-0 flex items-center justify-center overflow-hidden"
-                        >
-                            {chartSize <= 0 ? (
-                                <Skeleton className="h-24 w-24 rounded-full" />
-                            ) : (
-                                <div
-                                    className="relative"
-                                    style={{ width: chartSize, height: chartSize }}
-                                    onMouseMove={tooltip.handleMouseMove}
-                                    onMouseLeave={tooltip.handleMouseLeave}
-                                >
-                                    <PieChart width={chartSize} height={chartSize} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-                                        <Pie
-                                            data={filteredData}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={innerRadius}
-                                            outerRadius={outerRadius}
-                                            paddingAngle={2}
-                                            dataKey="value"
-                                            strokeWidth={strokeWidth}
-                                            onClick={(_, index) => tooltip.handleItemClick(filteredData[index])}
-                                            onMouseEnter={(_, index) => tooltip.handleItemHover(filteredData[index])}
-                                            onMouseLeave={() => tooltip.handleItemHover(null)}
-                                        >
-                                            {filteredData.map((entry: any, index: number) => {
-                                                const color = entry.color || COLORS[index % COLORS.length];
-                                                return (
-                                                    <Cell
-                                                        key={`cell-${index}`}
-                                                        fill={color}
-                                                        stroke={getContrastStroke(color, isDark)}
-                                                        fillOpacity={1}
-                                                    />
-                                                );
-                                            })}
-                                        </Pie>
-                                    </PieChart>
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                        <span
-                                            className="font-bold tracking-tight text-foreground"
-                                            style={{ fontSize: Math.max(chartSize * 0.12, 10) }}
-                                        >
-                                            {formatAmountAbbreviated(filteredTotal)}
-                                        </span>
-                                        {!isUltraCompact && (
-                                            <>
-                                                <span
-                                                    className="text-muted-foreground uppercase font-medium tracking-widest leading-none mt-1"
-                                                    style={{ fontSize: Math.max(chartSize * 0.05, 7) }}
-                                                >
-                                                    {enabledCategories.size} Categories
+                                                <span className={`text-xs sm:text-[11px] font-semibold flex-1 truncate min-w-0 ${isEnabled ? '' : 'text-muted-foreground'}`}>
+                                                    {entry.name}
                                                 </span>
-                                                <span
-                                                    className="text-muted-foreground font-medium mt-0.5"
-                                                    style={{ fontSize: Math.max(chartSize * 0.05, 8) }}
-                                                >
-                                                    {formatCurrency(filteredTotal)}
-                                                </span>
-                                            </>
-                                        )}
-                                    </div>
-
-                                    {tooltip.renderTooltip()}
-                                </div>
-                            )}
-                        </div>
-                    </>
-                ) : (
-                    <div className="flex-1 min-h-0 flex gap-2 sm:gap-6">
-                        {/* Left: Pie Chart centered vertically */}
-                        <div
-                            ref={chartAreaRef}
-                            className="flex-1 min-h-0 min-w-0 flex items-center justify-center overflow-hidden"
-                        >
-                            {chartSize <= 0 ? (
-                                <Skeleton className="h-24 w-24 rounded-full" />
-                            ) : (
-                                <div
-                                    className="relative"
-                                    style={{ width: chartSize, height: chartSize }}
-                                    onMouseMove={tooltip.handleMouseMove}
-                                    onMouseLeave={tooltip.handleMouseLeave}
-                                >
-                                    <PieChart width={chartSize} height={chartSize} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-                                        <Pie
-                                            data={filteredData}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={innerRadius}
-                                            outerRadius={outerRadius}
-                                            paddingAngle={2}
-                                            dataKey="value"
-                                            strokeWidth={strokeWidth}
-                                            onClick={(_, index) => tooltip.handleItemClick(filteredData[index])}
-                                            onMouseEnter={(_, index) => tooltip.handleItemHover(filteredData[index])}
-                                            onMouseLeave={() => tooltip.handleItemHover(null)}
-                                        >
-                                            {filteredData.map((entry: any, index: number) => {
-                                                const color = entry.color || COLORS[index % COLORS.length];
-                                                return (
-                                                    <Cell
-                                                        key={`cell-${index}`}
-                                                        fill={color}
-                                                        stroke={getContrastStroke(color, isDark)}
-                                                        fillOpacity={1}
-                                                    />
-                                                );
-                                            })}
-                                        </Pie>
-                                    </PieChart>
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                        <span
-                                            className="font-bold tracking-tight text-foreground"
-                                            style={{ fontSize: Math.max(chartSize * 0.12, 10) }}
-                                        >
-                                            {formatAmountAbbreviated(filteredTotal)}
-                                        </span>
-                                        {!isUltraCompact && (
-                                            <>
-                                                <span
-                                                    className="text-muted-foreground uppercase font-medium tracking-widest leading-none mt-1"
-                                                    style={{ fontSize: Math.max(chartSize * 0.05, 7) }}
-                                                >
-                                                    {enabledCategories.size} Categories
-                                                </span>
-                                                <span
-                                                    className="text-muted-foreground font-medium mt-0.5"
-                                                    style={{ fontSize: Math.max(chartSize * 0.05, 8) }}
-                                                >
-                                                    {formatCurrency(filteredTotal)}
-                                                </span>
-                                            </>
-                                        )}
-                                    </div>
-
-                                    {tooltip.renderTooltip()}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Right: Category list with checkboxes */}
-                        <div className="w-32 lg:w-44 flex flex-col overflow-hidden">
-                            <div className="flex-1 overflow-auto space-y-1">
-                                {safeAllCategories.map((entry: any, index: number) => {
-                                    const isEnabled = enabledCategories.has(entry.id);
-                                    const percentage = stats?.total ? (entry.value / stats.total * 100) : 0;
-                                    return (
-                                        <div
-                                            key={entry.id}
-                                            className="flex items-center gap-1.5 sm:gap-2 cursor-pointer min-w-0"
-                                            onClick={() => handleToggleCategory(entry.id)}
-                                        >
-                                            <Checkbox
-                                                checked={isEnabled}
-                                                onCheckedChange={() => handleToggleCategory(entry.id)}
-                                                className="pointer-events-none flex-shrink-0"
-                                            />
-                                            <div
-                                                className="h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full flex-shrink-0"
-                                                style={{
-                                                    backgroundColor: entry.color || COLORS[index % COLORS.length],
-                                                    opacity: isEnabled ? 1 : 0.3,
-                                                    border: (() => {
-                                                        const c = entry.color || COLORS[index % COLORS.length];
-                                                        const lum = getLuminance(c);
-                                                        if (isDark && lum < 0.08) return '1px solid rgba(255,255,255,0.4)';
-                                                        if (!isDark && lum > 0.9) return '1px solid rgba(0,0,0,0.3)';
-                                                        return 'none';
-                                                    })()
-                                                }}
-                                            />
-                                            <span className={`text-xs sm:text-sm flex-1 truncate min-w-0 ${isEnabled ? '' : 'text-muted-foreground'}`}>
-                                                {entry.name}
-                                            </span>
-                                            <div className="text-right flex-shrink-0">
-                                                <div className={`text-xs sm:text-sm font-semibold ${isEnabled ? '' : 'text-muted-foreground'}`}>
-                                                    {formatAmountAbbreviated(entry.value)}
-                                                </div>
-                                                <div className="text-[10px] text-muted-foreground">
-                                                    {percentage.toFixed(0)}%
+                                                <div className="text-right flex-shrink-0">
+                                                    <div className={`text-xs sm:text-[11px] font-bold ${isEnabled ? '' : 'text-muted-foreground'}`}>
+                                                        {formatAmountAbbreviated(entry.value)}
+                                                    </div>
+                                                    <div className="text-[9px] text-muted-foreground">
+                                                        {percentage.toFixed(0)}%
+                                                    </div>
                                                 </div>
                                             </div>
+                                        );
+                                    })}
+                                    {allCategories.length === 0 && (
+                                        <div className="text-sm text-muted-foreground text-center py-4">
+                                            No spending data
                                         </div>
-                                    );
-                                })}
-                                {allCategories.length === 0 && (
-                                    <div className="text-sm text-muted-foreground text-center py-4">
-                                        No spending data
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
-            </CardContent>
+                    )}
+                </CardContent>
+            </Link>
+            <WidgetFooter>
+                <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">
+                    {period === 'weekly' ? 'This Week' : 'This Month'}
+                </span>
+                <Link to="/spending" className="text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
+                    View All <ArrowRight className="h-2.5 w-2.5" />
+                </Link>
+            </WidgetFooter>
         </Card>
     );
 }

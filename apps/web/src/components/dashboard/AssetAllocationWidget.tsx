@@ -1,17 +1,15 @@
 import React from 'react';
 import { Link } from '@tanstack/react-router';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PieChart as PieChartIcon } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { PieChart as PieChartIcon, ArrowRight, Wallet } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { VoronoiTreemap } from '@/components/charts/VoronoiTreemap';
+import { WidgetFooter } from './WidgetFooter';
 
-interface AssetAllocationWidgetProps {
-    gridParams?: { w: number; h: number };
-}
+type GridParams = { w: number; h: number; breakpoint?: string };
 
 interface AllocationItem {
     name: string;
@@ -22,269 +20,108 @@ interface AllocationItem {
     color: string;
 }
 
-const COLORS = ['#e56b9a', '#e86f51', '#e49500', '#be9e00', '#8aaa2a', '#3eb370', '#19b3a8', '#1da4c6', '#3994dc'];
-const ROW_GLASS_CLASS = 'rounded-md border border-white/5 bg-background/30 backdrop-blur-md';
+const COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#6366f1', '#14b8a6'];
 
-export function AssetAllocationWidget({ gridParams }: AssetAllocationWidgetProps) {
+export function AssetAllocationWidget({ gridParams }: { gridParams?: GridParams }) {
     const { data: portfolio, isLoading } = trpc.investing.getPortfolioSummary.useQuery();
 
-    const width = gridParams?.w ?? 0;
-    const height = gridParams?.h ?? 0;
-    const isCompact = (gridParams?.h ?? 0) <= 1;
-    const isNarrow = width <= 1 && height >= 2;
-    const isMedium = width >= 2 && height === 2;
-    const isLarge = width >= 2 && height >= 3;
+    const bp = gridParams?.breakpoint;
+    const isSmallBp = bp === 'sm' || bp === 'xs';
+    const isNarrow = (gridParams?.w ?? 0) <= 1;
+    const isShort = (gridParams?.h ?? 0) <= 2;
+    const isCompact = isNarrow || isShort;
+    const isTall = (gridParams?.h ?? 0) > (isSmallBp ? 2 : 2);
 
     const holdings = portfolio?.holdings || [];
     const totalValue = portfolio?.currentValue || 0;
 
-    // Calculate allocation by stock
     const allocationData: AllocationItem[] = holdings.map((holding: any, index: number) => ({
         name: holding.ticker,
         fullName: holding.name || holding.ticker,
         value: holding.currentValue || 0,
-        formattedValue: new Intl.NumberFormat('en-US', { style: 'currency', currency: holding.currency || 'USD', maximumFractionDigits: 0 }).format(holding.currentValue || 0),
         percentage: totalValue > 0 ? ((holding.currentValue || 0) / totalValue) * 100 : 0,
         color: COLORS[index % COLORS.length],
     })).sort((a: any, b: any) => b.value - a.value);
 
-    // Group by currency
-    const byCurrency: Record<string, number> = {};
-    holdings.forEach((holding: any) => {
-        const currency = holding.currency || 'USD';
-        byCurrency[currency] = (byCurrency[currency] || 0) + (holding.currentValue || 0);
-    });
-
-    const currencyData = Object.entries(byCurrency).map(([currency, value], index) => ({
-        name: currency,
-        value,
-        percentage: totalValue > 0 ? (value / totalValue) * 100 : 0,
-        color: COLORS[index % COLORS.length],
-    })).sort((a, b) => b.value - a.value);
+    const visibleHoldings = isTall ? allocationData.slice(0, 4) : allocationData.slice(0, 2);
 
     if (isLoading) {
         return (
-            <Card className={cn('dashboard-widget h-full', isCompact && 'dashboard-widget--compact')}>
-                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
-                    <Skeleton className="h-4 w-32" />
+            <Card className="dashboard-widget h-full rounded-[32px] overflow-hidden">
+                <CardHeader className="p-3 pb-2">
+                    <Skeleton className="h-4 w-24" />
                 </CardHeader>
                 <CardContent className="p-3 pt-0">
-                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-32 mb-4" />
+                    <Skeleton className="h-12 w-full" />
                 </CardContent>
             </Card>
         );
     }
 
-    // Compact view
-    if (isCompact) {
-        const topHolding = allocationData[0];
-        return (
-            <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
-                <Link to="/investing" className="block">
-                    <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
-                        <CardTitle className="dashboard-widget__title truncate">Portfolio</CardTitle>
-                        <div className="dashboard-widget__header-value">
-                            {topHolding ? `${topHolding.percentage.toFixed(1)}%` : '0%'}
+    return (
+        <Card className={cn('dashboard-widget h-full flex flex-col group rounded-[32px] overflow-hidden', isCompact && 'dashboard-widget--compact')}>
+            <Link to="/investing" className="block flex-1 flex flex-col min-h-0">
+                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-xl cursor-pointer">
+                    <div className="flex flex-col min-w-0 flex-1">
+                        <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Asset Allocation</div>
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                            <span className="text-lg font-bold tracking-tight whitespace-nowrap">
+                                {holdings.length} <span className="text-[10px] text-muted-foreground font-medium ml-1">positions</span>
+                            </span>
                         </div>
-                    </CardHeader>
-                </Link>
-                <CardContent className="p-2 pt-1 pb-2 flex-1 flex items-end">
-                    <p className="dashboard-widget__sub w-full truncate">
-                        {topHolding ? `Top: ${topHolding.name}` : 'No holdings'}
-                    </p>
-                </CardContent>
-            </Card>
-        );
-    }
+                    </div>
+                    <div className="p-1.5 bg-cyan-500/10 rounded-md group-hover:bg-cyan-500/20 transition-colors">
+                        <PieChartIcon className="h-4 w-4 text-cyan-500" />
+                    </div>
+                </CardHeader>
 
-    // Narrow view - 1 column width, full diagram only
-    if (isNarrow && !isLarge) {
-        return (
-            <Card className="dashboard-widget h-full flex flex-col">
-                <Link to="/investing" className="block">
-                    <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
-                        <CardTitle className="dashboard-widget__title truncate">Portfolio</CardTitle>
-                        <PieChartIcon className="dashboard-widget__icon" />
-                    </CardHeader>
-                </Link>
-                <CardContent className="flex-1 overflow-hidden px-2 pt-1 pb-2">
-                    {allocationData.length === 0 ? (
-                        <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
-                            No holdings yet
-                        </div>
-                    ) : (
-                        <div className="h-full flex items-center justify-center">
-                            <VoronoiTreemap
-                                data={allocationData}
-                                resolution={200}
-                                cornerRadius={8}
-                                showLabels
-                                showPercentage
-                            />
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-        );
-    }
-
-    // Medium view - diagram left, stock list right
-    if (isMedium && !isLarge) {
-        return (
-            <Card className="dashboard-widget h-full flex flex-col">
-                <CardContent className="flex-1 overflow-hidden p-2 flex gap-3">
-                    {allocationData.length === 0 ? (
-                        <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-                            No holdings yet
-                        </div>
-                    ) : (
-                        <>
-                            {/* Left: Full-size Voronoi Diagram */}
-                            <div className="h-full flex items-center justify-center" style={{ flex: '0 0 45%' }}>
+                <CardContent className="px-3 py-1 flex-1 flex flex-col min-h-0">
+                    <div className="flex-1 flex gap-3 min-h-0 py-1">
+                        {/* Allocation chart - hidden on narrowest widgets to keep list readable */}
+                        {(!isNarrow || (gridParams?.h ?? 0) >= 3) && allocationData.length > 0 && (
+                            <div className="flex-1 max-w-[40%] flex items-center justify-center">
                                 <VoronoiTreemap
                                     data={allocationData}
-                                    resolution={250}
-                                    cornerRadius={8}
-                                    showLabels
-                                    showPercentage
+                                    resolution={200}
+                                    cornerRadius={6}
+                                    showPercentage={false}
                                 />
                             </div>
+                        )}
 
-                            {/* Right: Header + Stock List */}
-                            <div className="flex-1 min-w-0 flex flex-col gap-1">
-                                <Link to="/investing" className="block">
-                                    <div className="flex items-center justify-between hover:bg-muted/50 transition-colors rounded-md px-1 py-0.5">
-                                        <div>
-                                            <div className="font-medium text-base leading-tight">Portfolio</div>
-                                            <div className="text-xs text-muted-foreground">Stock distribution</div>
-                                        </div>
-                                        <PieChartIcon className="dashboard-widget__icon" />
-                                    </div>
-                                </Link>
-                                <ScrollArea className="flex-1">
-                                    <div className="space-y-1">
-                                        {allocationData.map((item: any) => (
-                                            <div key={item.name} className={cn('flex items-center justify-between px-2 py-1', ROW_GLASS_CLASS)}>
-                                                <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                                    <div
-                                                        className="w-2 h-2 rounded-full flex-shrink-0"
-                                                        style={{ backgroundColor: item.color }}
-                                                    />
-                                                    <span className="font-medium text-[12px] leading-4 truncate">{item.name}</span>
-                                                </div>
-                                                <div className="text-right ml-2">
-                                                    <div className="font-medium text-xs">{item.percentage.toFixed(1)}%</div>
-                                                    <div className="text-[10px] text-muted-foreground">
-                                                        <CurrencyDisplay amount={item.value} abbreviate />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </ScrollArea>
-                            </div>
-                        </>
-                    )}
-                </CardContent>
-            </Card>
-        );
-    }
-
-    // Large view - voronoi tiles + detailed list
-    return (
-        <Card className="dashboard-widget h-full flex flex-col">
-            <Link to="/investing" className="block">
-                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
-                    <div>
-                        <CardTitle className="dashboard-widget__title truncate">Portfolio</CardTitle>
-                        <CardDescription className="dashboard-widget__desc truncate">
-                            Stock distribution
-                        </CardDescription>
-                    </div>
-                    <PieChartIcon className="dashboard-widget__icon" />
-                </CardHeader>
-            </Link>
-            <CardContent className="flex-1 overflow-hidden p-3 pt-0">
-                {(() => {
-                    if (allocationData.length === 0) {
-                        return (
-                            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-                                No holdings yet
-                            </div>
-                        );
-                    }
-
-                    return (
-                        <div className="h-full flex gap-4">
-                            {/* Left: Voronoi Tiles */}
-                            <div className="flex-1 max-w-[50%] flex items-center justify-center">
-                                <div className="relative w-full aspect-square" style={{ maxHeight: '100%' }}>
-                                    <VoronoiTreemap
-                                        data={allocationData}
-                                        resolution={300}
-                                        cornerRadius={10}
-                                        showLabels
-                                        showPercentage
-                                    />
+                        <div className="flex-1 space-y-1.5 overflow-hidden">
+                            {allocationData.length === 0 ? (
+                                <div className="flex items-center justify-center h-full text-center py-4">
+                                    <p className="text-[10px] text-muted-foreground italic uppercase tracking-wider">No positions</p>
                                 </div>
-                            </div>
-
-                            {/* Right: Stock List */}
-                            <div className="flex-1 min-w-0">
-                                <ScrollArea className="h-full">
-                                    <div className="space-y-1.5">
-                                        <div className="text-xs font-medium text-muted-foreground px-1 pb-1 border-b">
-                                            By Stock
+                            ) : (
+                                visibleHoldings.map((item) => (
+                                    <div key={item.name} className="flex items-center justify-between gap-2 p-1.5 rounded-md bg-muted/40 hover:bg-muted/60 transition-colors group/item">
+                                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                            <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                                            <span className="text-[10px] font-bold truncate leading-tight">{item.name}</span>
                                         </div>
-                                        {allocationData.map((item: any) => (
-                                            <div key={item.name} className={cn('dashboard-widget__item flex items-center justify-between p-2', ROW_GLASS_CLASS)}>
-                                                <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                    <div
-                                                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                                                        style={{ backgroundColor: item.color }}
-                                                    />
-                                                    <span className="font-medium text-sm leading-tight truncate">{item.name}</span>
-                                                </div>
-                                                <div className="text-right ml-2 flex-shrink-0">
-                                                    <div className="font-medium text-sm leading-tight">{item.percentage.toFixed(1)}%</div>
-                                                    <div className="text-xs text-muted-foreground mt-0.5">
-                                                        <CurrencyDisplay amount={item.value} abbreviate />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-
-                                        {currencyData.length > 1 && (
-                                            <>
-                                                <div className="text-xs font-medium text-muted-foreground px-1 pt-2 pb-1 border-b">
-                                                    By Currency
-                                                </div>
-                                                {currencyData.map((item: any) => (
-                                                    <div key={item.name} className={cn('dashboard-widget__item flex items-center justify-between p-2', ROW_GLASS_CLASS)}>
-                                                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                            <div
-                                                                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                                                                style={{ backgroundColor: item.color }}
-                                                            />
-                                                            <span className="font-medium text-sm truncate">{item.name}</span>
-                                                        </div>
-                                                        <div className="text-right ml-2">
-                                                            <div className="font-medium text-sm">{item.percentage.toFixed(1)}%</div>
-                                                            <div className="text-xs text-muted-foreground">
-                                                                <CurrencyDisplay amount={item.value} abbreviate />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </>
-                                        )}
+                                        <span className="text-[10px] font-bold whitespace-nowrap">
+                                            {item.percentage.toFixed(1)}%
+                                        </span>
                                     </div>
-                                </ScrollArea>
-                            </div>
+                                ))
+                            )}
                         </div>
-                    );
-                })()}
-            </CardContent>
+                    </div>
+                </CardContent>
+            </Link>
+
+            <WidgetFooter>
+                <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                    <Wallet className="h-2.5 w-2.5" />
+                    <CurrencyDisplay amount={totalValue} abbreviate /> total
+                </span>
+                <Link to="/investing" className="text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
+                    Details <ArrowRight className="h-2.5 w-2.5" />
+                </Link>
+            </WidgetFooter>
         </Card>
     );
 }

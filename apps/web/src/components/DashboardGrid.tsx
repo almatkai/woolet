@@ -6,6 +6,7 @@ import './resize-styles.css';
 import './dashboard-widget.css';
 import { Button } from '@/components/ui/button';
 import { Trash2, Eye } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { trpc } from '@/lib/trpc';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -717,8 +718,8 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                             setCurrentBreakpoint(bp);
                         }
                     }}
-                    margin={currentBreakpoint === 'xs' ? [4, 4] : currentBreakpoint === 'sm' ? [6, 6] : [16, 16]}
-                    containerPadding={[0, 0]}
+                    margin={currentBreakpoint === 'xs' ? [8, 8] : currentBreakpoint === 'sm' ? [10, 10] : [20, 20]}
+                    containerPadding={[12, 12]}
                     draggableHandle=".drag-handle"
                     draggableCancel=".no-drag"
                     compactType="vertical"
@@ -742,8 +743,11 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                             : child;
 
                         return (
-                            <div key={widgetId} className={isEditing ? "border-2 border-dashed border-primary/50 rounded-lg relative bg-background/50" : "relative"}>
-                                <div className="no-drag h-full w-full rounded-lg overflow-hidden min-w-0">
+                            <div key={widgetId} className={cn(
+                                "group/grid-item",
+                                isEditing ? "border-2 border-dashed border-primary/50 rounded-lg relative bg-background/50" : "relative"
+                            )}>
+                                <div className="no-drag h-full w-full min-w-0">
                                     {childWithProps}
                                     {isEditing && (
                                         <EditOverlay />

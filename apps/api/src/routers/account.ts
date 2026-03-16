@@ -4,6 +4,7 @@ import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../lib/trpc';
 import { accounts, banks, currencyBalances, transactions, categories } from '../db/schema';
 import { checkEntityLimit } from '../lib/limits';
+import { cache, CACHE_KEYS } from '../lib/redis';
 
 export const accountRouter = router({
     list: protectedProcedure
@@ -71,6 +72,9 @@ export const accountRouter = router({
                 icon: input.icon,
             }).returning();
 
+            // Invalidate hierarchy cache
+            await cache.del(CACHE_KEYS.hierarchy(ctx.userId!));
+
             return account;
         }),
 
@@ -101,6 +105,9 @@ export const accountRouter = router({
                 })
                 .where(eq(accounts.id, input.id));
 
+            // Invalidate hierarchy cache
+            await cache.del(CACHE_KEYS.hierarchy(ctx.userId!));
+
             return { success: true };
         }),
 
@@ -118,6 +125,10 @@ export const accountRouter = router({
             }
 
             await ctx.db.delete(accounts).where(eq(accounts.id, input.id));
+
+            // Invalidate hierarchy cache
+            await cache.del(CACHE_KEYS.hierarchy(ctx.userId!));
+
             return { success: true };
         }),
 
@@ -134,6 +145,10 @@ export const accountRouter = router({
                 currencyCode: input.currencyCode,
                 balance: input.initialBalance.toString(),
             }).returning();
+
+            // Invalidate hierarchy cache
+            await cache.del(CACHE_KEYS.hierarchy(ctx.userId!));
+
             return balance;
         }),
 
@@ -233,6 +248,11 @@ export const accountRouter = router({
                     updatedAt: new Date(),
                 })
                 .where(eq(currencyBalances.id, input.currencyBalanceId));
+
+            // Invalidate caches
+            await cache.del(CACHE_KEYS.hierarchy(ctx.userId!));
+            await cache.invalidatePattern(`spending:${ctx.userId}:*`);
+            await cache.del(CACHE_KEYS.userDashboard(ctx.userId!));
 
             return { success: true };
         }),

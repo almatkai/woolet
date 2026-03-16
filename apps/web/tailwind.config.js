@@ -92,6 +92,9 @@ export default {
     		animation: {
     			'accordion-down': 'accordion-down 0.2s ease-out',
     			'accordion-up': 'accordion-up 0.2s ease-out'
+    		},
+    		transitionTimingFunction: {
+    			'bounce-out': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
     		}
     	}
     },

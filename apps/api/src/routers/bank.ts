@@ -9,6 +9,7 @@ import {
     formatLimit,
     SubscriptionTier
 } from '@woolet/shared';
+import { cache, CACHE_KEYS, CACHE_TTL } from '../lib/redis';
 
 export { TIER_LIMITS };
 
@@ -61,6 +62,9 @@ export const bankRouter = router({
                 isTest: ctx.user.testMode,
             }).returning();
 
+            // Invalidate hierarchy cache
+            await cache.del(CACHE_KEYS.hierarchy(ctx.userId!));
+
             return bank;
         }),
 
@@ -80,6 +84,10 @@ export const bankRouter = router({
             }
 
             await ctx.db.delete(banks).where(eq(banks.id, input.id));
+            
+            // Invalidate hierarchy cache
+            await cache.del(CACHE_KEYS.hierarchy(ctx.userId!));
+
             return { success: true };
         }),
 
@@ -104,12 +112,22 @@ export const bankRouter = router({
                 throw new TRPCError({ code: 'FORBIDDEN', message: 'Bank not found' });
             }
 
+            // Invalidate hierarchy cache
+            await cache.del(CACHE_KEYS.hierarchy(ctx.userId!));
+
             return updated;
         }),
 
     // Get full hierarchy for dashboard/sidebar
     getHierarchy: protectedProcedure
         .query(async ({ ctx }) => {
+            const cacheKey = CACHE_KEYS.hierarchy(ctx.userId!);
+            const cached = await cache.get<any>(cacheKey);
+            if (cached) {
+                console.log('📦 Using cached hierarchy');
+                return cached;
+            }
+
             const hierarchy = await ctx.db.query.banks.findMany({
                 where: and(
                     eq(banks.userId, ctx.userId!),
@@ -124,6 +142,8 @@ export const bankRouter = router({
                     }
                 }
             });
+
+            await cache.set(cacheKey, hierarchy, CACHE_TTL.hierarchy);
             return hierarchy;
         }),
 

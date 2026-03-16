@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { trpc } from '@/lib/trpc';
 import { Link } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
-// toast removed (unused)
+import { History, ArrowRight, List } from 'lucide-react';
+import { WidgetFooter } from './WidgetFooter';
 
 const STORAGE_KEY = 'woolet :recent-transactions-widget';
 
@@ -30,22 +32,6 @@ interface Transaction {
 }
 
 export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: number; h: number } }) {
-    // State for filters and preferences
-    const [excludedCategories, setExcludedCategories] = useState<string[]>(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                try {
-                    const parsed = JSON.parse(saved);
-                    return parsed.excludedCategories || [];
-                } catch (e) {
-                    console.error('Failed to parse saved preferences', e);
-                }
-            }
-        }
-        return [];
-    });
-
     const [period, setPeriod] = useState<'week' | 'month' | 'all'>(() => {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem(STORAGE_KEY);
@@ -61,51 +47,24 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
         return 'all';
     });
 
-    // showIncomeOnly/showExpensesOnly removed (unused)
-
-    // utils removed (unused)
     const { data: user } = trpc.user.me.useQuery();
-    // categories removed (unused)
 
-
-    // updateUser mutation removed (unused)
-
-    // Sync LocalStorage
     useEffect(() => {
-        const prefs = {
-            excludedCategories,
-            period,
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-    }, [excludedCategories, period]);
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const currentPrefs = saved ? JSON.parse(saved) : {};
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...currentPrefs, period }));
+    }, [period]);
 
-    // Sync from Database
     useEffect(() => {
-        const handle = setTimeout(() => {
-            if (user?.preferences) {
-                const prefs = user.preferences as any;
-                const dbPrefs = prefs?.recentTransactionsWidget;
-                if (dbPrefs) {
-                    if (Array.isArray(dbPrefs.excludedCategories)) {
-                        const currentStr = JSON.stringify(excludedCategories.slice().sort());
-                        const dbStr = JSON.stringify(dbPrefs.excludedCategories.slice().sort());
-                        if (currentStr !== dbStr) {
-                            setExcludedCategories(dbPrefs.excludedCategories);
-                        }
-                    }
-                    if (dbPrefs.period && dbPrefs.period !== period) {
-                        setPeriod(dbPrefs.period);
-                    }
-                }
+        if (user?.preferences) {
+            const prefs = user.preferences as any;
+            const dbPeriod = prefs?.recentTransactionsWidget?.period;
+            if (dbPeriod && dbPeriod !== period) {
+                setPeriod(dbPeriod);
             }
-        }, 0);
-        return () => clearTimeout(handle);
-    }, [user, excludedCategories, period]);
+        }
+    }, [user, period]);
 
-    // handleSavePreferences removed (unused)
-
-
-    // Calculate date range
     const dateRange = useMemo(() => {
         const now = new Date();
         if (period === 'week') {
@@ -119,11 +78,11 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
                 end: endOfMonth(now).toISOString()
             };
         }
-        return null; // All time
+        return null;
     }, [period]);
 
     const queryParams = useMemo(() => ({
-        limit: 20,
+        limit: 10,
         hideAdjustments: true,
         ...(dateRange && {
             startDate: dateRange.start,
@@ -131,93 +90,96 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
         })
     }), [dateRange]);
 
-    const { data: recentTransactions } = trpc.transaction.list.useQuery(queryParams) as { data: { transactions: Transaction[] } | undefined };
+    const { data: recentTransactions, isLoading } = trpc.transaction.list.useQuery(queryParams) as { data: { transactions: Transaction[] } | undefined, isLoading: boolean };
 
-    // Filtering handled inline where needed (removed unused variable)
+    const isNarrow = (gridParams?.w ?? 0) <= 1;
+    const isShort = (gridParams?.h ?? 0) <= 2;
+    const isCompact = isNarrow || isShort;
 
+    const transactions = recentTransactions?.transactions || [];
+    const visibleTransactions = isShort ? transactions.slice(0, 3) : transactions.slice(0, 6);
 
-    // categoryOptions removed (unused)
-
-
-    // Less restrictive compact mode - only for very small widgets
-    const isCompact = (gridParams?.w ?? 0) <= 1 && (gridParams?.h ?? 0) <= 1;
-
-    if (isCompact) {
-        const transactions = recentTransactions?.transactions || [];
-        const latestTransaction = transactions[0];
-
+    if (isLoading) {
         return (
-            <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col">
-                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 flex-shrink-0">
-                    <CardTitle className="dashboard-widget__title">Recent</CardTitle>
-                    <div className="dashboard-widget__header-value">{transactions.length}</div>
+            <Card className="dashboard-widget h-full rounded-[32px] overflow-hidden">
+                <CardHeader className="p-3 pb-2">
+                    <Skeleton className="h-4 w-24" />
                 </CardHeader>
-                <CardContent className="p-2 pt-1 pb-2 flex-1 flex items-end">
-                    <p className="dashboard-widget__sub w-full truncate">
-                        {latestTransaction
-                            ? `${format(new Date(latestTransaction.date), 'MM/dd')} • ${latestTransaction.description || latestTransaction.category?.name || 'Transaction'}`
-                            : 'No transactions'}
-                    </p>
+                <CardContent className="p-3 pt-0 space-y-2">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
                 </CardContent>
             </Card>
         );
     }
 
     return (
-        <Card className={cn('dashboard-widget h-full flex flex-col', isCompact && 'dashboard-widget--compact')}>
-            <Link to="/spending" className="block">
-                <CardHeader className="dashboard-widget__header p-2 pb-1 hover:bg-muted/50 transition-colors">
-                    <CardTitle className="dashboard-widget__title truncate">Recent Transactions</CardTitle>
-                </CardHeader>
-            </Link>
-            <CardContent className="flex-1 overflow-auto p-3 pt-0">
-                <div className="space-y-1 sm:space-y-4">
-                    {(recentTransactions?.transactions || []).length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full min-h-[60px] text-center">
-                            <p className="dashboard-widget__desc">No recent transactions</p>
+        <Card className={cn('dashboard-widget h-full flex flex-col group rounded-[32px] overflow-hidden', isCompact && 'dashboard-widget--compact')}>
+            <Link to="/spending" className="block flex-1 flex flex-col min-h-0">
+                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-xl cursor-pointer">
+                    <div className="flex flex-col min-w-0 flex-1">
+                        <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Recent Activity</div>
+                        <div className="flex items-baseline gap-1.5 flex-wrap">
+                            <span className="text-lg font-bold tracking-tight whitespace-nowrap">
+                                {transactions.length} 
+                                <span className="text-[10px] text-muted-foreground font-medium ml-1">transactions</span>
+                            </span>
                         </div>
-                    ) : (
-                        recentTransactions?.transactions.map((tx: Transaction) => {
-                            const txAmount = tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Number(tx.amount);
-                            const shouldAbbreviate = Math.abs(txAmount) > 999;
-                            return (
-                            <div key={tx.id} className="flex items-center justify-between py-1 px-1 sm:p-1.5 hover:bg-muted/50 rounded-lg transition-colors gap-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-full bg-muted/60 flex items-center justify-center dashboard-widget__item text-xs flex-shrink-0">
-                                        {tx.category?.icon || '📄'}
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="dashboard-widget__item font-medium text-sm truncate max-w-[120px] sm:max-w-[170px] leading-tight">{tx.description || tx.category?.name || 'Unknown'}</p>
-                                        <p className="dashboard-widget__meta text-xs text-muted-foreground mt-0.5">
-                                            {new Date(tx.date).toLocaleDateString()}
-                                        </p>
-                                    </div>
-                                </div>
-                                <span className={cn(
-                                    "whitespace-nowrap flex-shrink-0",
-                                    tx.type === 'income' ? 'text-green-600' : tx.type === 'expense' ? 'text-red-600' : 'text-foreground'
-                                )}>
-                                    <CurrencyDisplay
-                                        amount={txAmount}
-                                        currency={tx.currencyBalance?.currencyCode || 'USD'}
-                                        showSign={tx.type === 'income'}
-                                        abbreviate={shouldAbbreviate}
-                                    />
-                                </span>
-                            </div>
-                        )})
-                    )}
-                </div>
-                {(recentTransactions?.transactions || []).length > 0 && (
-                    <div className="pt-2 sm:pt-4">
-                        <Link to="/spending">
-                            <Button variant="outline" className="dashboard-widget__button w-full h-7 sm:h-9">
-                                View All
-                            </Button>
-                        </Link>
                     </div>
-                )}
-            </CardContent>
+                    <div className="p-1.5 bg-muted rounded-md group-hover:bg-muted/80 transition-colors">
+                        <History className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                </CardHeader>
+
+                <CardContent className="px-3 py-1 flex-1 flex flex-col min-h-0">
+                    <div className="flex-1 space-y-1 overflow-hidden py-1">
+                        {visibleTransactions.length === 0 ? (
+                            <div className="flex items-center justify-center h-full text-center py-4">
+                                <p className="text-[10px] text-muted-foreground italic uppercase tracking-wider">No recent activity</p>
+                            </div>
+                        ) : (
+                            visibleTransactions.map((tx) => {
+                                const txAmount = tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Number(tx.amount);
+                                return (
+                                    <div key={tx.id} className="flex items-center justify-between gap-3 p-1.5 rounded-lg bg-muted/40 hover:bg-muted/60 transition-colors group/item">
+                                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                            <div className="h-7 w-7 rounded-full bg-background shadow-sm flex items-center justify-center text-xs flex-shrink-0">
+                                                {tx.category?.icon || '📄'}
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[11px] font-semibold truncate leading-tight">{tx.description || tx.category?.name || 'Unknown'}</span>
+                                                <span className="text-[9px] text-muted-foreground truncate uppercase">{format(new Date(tx.date), 'MMM d, yyyy')}</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-right flex-shrink-0">
+                                            <div className={cn(
+                                                "text-[11px] font-bold",
+                                                tx.type === 'income' ? 'text-emerald-600' : tx.type === 'expense' ? 'text-rose-600' : ''
+                                            )}>
+                                                <CurrencyDisplay
+                                                    amount={txAmount}
+                                                    currency={tx.currencyBalance?.currencyCode || 'USD'}
+                                                    showSign={tx.type === 'income'}
+                                                    abbreviate={Math.abs(txAmount) > 9999}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })
+                        )}
+                    </div>
+                </CardContent>
+            </Link>
+
+            <WidgetFooter>
+                <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">
+                    {period === 'all' ? 'All Time' : period === 'week' ? 'This Week' : 'This Month'}
+                </span>
+                <Link to="/spending" className="text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
+                    View All <ArrowRight className="h-2.5 w-2.5" />
+                </Link>
+            </WidgetFooter>
         </Card>
     );
 }

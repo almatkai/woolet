@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { CreditCard, Check, X } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { CreditCard, Check, X, ArrowRight } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -8,202 +8,112 @@ import { cn } from '@/lib/utils';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { getPaymentStatusOptions, getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
 import { Link } from '@tanstack/react-router';
+import { WidgetFooter } from './WidgetFooter';
 
-export function CreditWidget({ gridParams }: { gridParams?: { w: number; h: number } }) {
+type GridParams = { w: number; h: number; breakpoint?: string };
+
+export function CreditWidget({ gridParams }: { gridParams?: GridParams }) {
     const { data: credits, isLoading } = trpc.credit.list.useQuery();
     const { data: settings } = trpc.settings.getUserSettings.useQuery();
     const activeCredits = (credits || []).filter((c: any) => c.status === 'active');
-    const gridW = gridParams?.w ?? 0;
-    const gridH = gridParams?.h ?? 0;
-    const is2x1 = gridW === 2 && gridH === 1;
-    const is1x2 = gridW === 1 && gridH === 2;
-    const is2x2 = gridW === 2 && gridH === 2;
-    const isLargerThan2x2 = (gridW > 2 || gridH > 2) && !(gridW === 2 && gridH === 1);
     
-    // Logic settings
+    const bp = gridParams?.breakpoint;
+    const isSmallBp = bp === 'sm' || bp === 'xs';
+    const isNarrow = (gridParams?.w ?? 0) <= 1;
+    const isShort = (gridParams?.h ?? 0) <= 2;
+    const isCompact = isNarrow || isShort;
+    const isTall = (gridParams?.h ?? 0) > (isSmallBp ? 2 : 2);
+
     const { logic, period } = getPaymentStatusOptions(settings, 'credit');
-    
-    // Calculate this month's total payment and check status
     const monthlyPayment = activeCredits.reduce((sum: number, c: any) => sum + Number(c.monthlyPayment), 0);
     
-    // Check if all credits are paid for this target month
     const allPaidThisMonth = activeCredits.every((c: any) => {
         const targetMonthStr = getTargetMonthStr(c.billingDay, { logic, period });
         return isPaidForTargetMonth(c.payments, targetMonthStr, true);
     });
     
-    const is1x3 = gridW === 1 && gridH === 3;
-    const is1x1 = gridW === 1 && gridH === 1;
-    const isNx1 = gridH === 1 && gridW > 1; // Height 1, width > 1 (e.g., 2x1, 3x1, etc.)
-    const isCompactStyle = is1x1;
-    const showTwoColumn = is2x1 || is2x2;
-    const showDetails = !isCompactStyle && !isNx1; // Hide details in Nx1 layout to save space
-    const hideCardDescription = isNx1 || is1x1; // Hide CardDescription in Nx1 and 1x1 layouts
-    const sortedCredits = [...activeCredits]
-        .sort((a: any, b: any) => Number(b.monthlyPayment) - Number(a.monthlyPayment));
-    const displayCredits = is2x1 ? sortedCredits.slice(0, 4) : sortedCredits;
+    const visibleCredits = isTall ? activeCredits.slice(0, 4) : activeCredits.slice(0, 2);
+
+    if (isLoading) {
+        return (
+            <Card className="dashboard-widget h-full rounded-[32px] overflow-hidden">
+                <CardHeader className="p-3 pb-2">
+                    <Skeleton className="h-4 w-24" />
+                </CardHeader>
+                <CardContent className="p-3 pt-0">
+                    <Skeleton className="h-8 w-32 mb-4" />
+                    <Skeleton className="h-12 w-full" />
+                </CardContent>
+            </Card>
+        );
+    }
 
     return (
-        <Card className={cn('dashboard-widget h-full flex flex-col', isCompactStyle && 'dashboard-widget--compact')}>
-            <Link to="/financial/credits" className="block">
-                <CardHeader className="dashboard-widget__header p-2 pb-1 hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center justify-between gap-2">
-                        <CardTitle className="dashboard-widget__title truncate">Credits</CardTitle>
-                        {isCompactStyle ? (
-                            <div className="dashboard-widget__header-value">
-                                <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} abbreviate />
+        <Card className={cn('dashboard-widget h-full flex flex-col group rounded-[32px] overflow-hidden', isCompact && 'dashboard-widget--compact')}>
+            <Link to="/financial/credits" className="block flex-1 flex flex-col min-h-0">
+                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-xl cursor-pointer">
+                    <div className="flex flex-col min-w-0 flex-1">
+                        <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Credits & Loans</div>
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                            <span className="text-lg font-bold tracking-tight whitespace-nowrap">
+                                <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} abbreviate={monthlyPayment > 1000000} />
+                                <span className="text-[10px] text-muted-foreground font-medium ml-1">due this month</span>
+                            </span>
+                        </div>
+                    </div>
+                    <div className={cn(
+                        "p-1.5 rounded-md transition-colors",
+                        allPaidThisMonth ? "bg-emerald-500/10 group-hover:bg-emerald-500/20" : "bg-rose-500/10 group-hover:bg-rose-500/20"
+                    )}>
+                        <CreditCard className={cn("h-4 w-4", allPaidThisMonth ? "text-emerald-500" : "text-rose-500")} />
+                    </div>
+                </CardHeader>
+
+                <CardContent className="px-3 py-1 flex-1 flex flex-col min-h-0">
+                    <div className="flex-1 space-y-1.5 overflow-hidden py-1">
+                        {activeCredits.length === 0 ? (
+                            <div className="flex items-center justify-center h-full text-center py-4">
+                                <p className="text-[10px] text-muted-foreground italic uppercase tracking-wider">No active credits</p>
                             </div>
                         ) : (
-                            <CreditCard className="dashboard-widget__icon" />
-                        )}
-                    </div>
-                    {!hideCardDescription && <CardDescription className="dashboard-widget__desc truncate">Your credit cards & loans</CardDescription>}
-                </CardHeader>
-            </Link>
-            <CardContent className={cn('flex-1 overflow-y-auto p-3 pt-0', isCompactStyle && 'p-2 pt-1 pb-2')}>
-                {isLoading ? (
-                    <div className="space-y-2">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-4 w-48" />
-                    </div>
-                ) : activeCredits.length === 0 ? (
-                    <p className="dashboard-widget__desc">No active credits.</p>
-                ) : isCompactStyle ? (
-                    <div className="h-full flex items-end">
-                        <p className="dashboard-widget__sub w-full truncate">
-                            {activeCredits.length} active • {allPaidThisMonth ? 'paid' : 'unpaid'}
-                        </p>
-                    </div>
-                ) : isNx1 ? (
-                    // Nx1 layout (height=1, width>1): Show only the most important info - monthly payment
-                    <div className="flex items-center justify-between h-full">
-                        <div className="flex items-center gap-3">
-                            <div>
-                                <div className="dashboard-widget__value text-lg">
-                                    <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} />
-                                </div>
-                            </div>
-                            <Badge variant={allPaidThisMonth ? "default" : "destructive"} className="dashboard-widget__badge flex items-center gap-1 text-xs h-5 px-2">
-                                {allPaidThisMonth ? (
-                                    <><Check className="h-2.5 w-2.5" /> Paid</>
-                                ) : (
-                                    <><X className="h-2.5 w-2.5" /> Unpaid</>
-                                )}
-                            </Badge>
-                        </div>
-                        <div className="text-right">
-                            <p className="dashboard-widget__meta">{activeCredits.length} Active</p>
-                        </div>
-                    </div>
-                ) : showTwoColumn ? (
-                    <div className="grid grid-cols-2 gap-4 h-full">
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <div className="dashboard-widget__value">
-                                    <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} />
-                                </div>
-                                <Badge variant={allPaidThisMonth ? "default" : "destructive"} className="dashboard-widget__badge flex items-center gap-1 text-xs h-5 px-2">
-                                    {allPaidThisMonth ? (
-                                        <><Check className="h-2.5 w-2.5" /> Paid</>
-                                    ) : (
-                                        <><X className="h-2.5 w-2.5" /> Unpaid</>
-                                    )}
-                                </Badge>
-                            </div>
-                        </div>
-                        <div className="space-y-1.5">
-                            <p className="dashboard-widget__meta">{is2x2 ? `All Credits (${activeCredits.length})` : 'Top Credits (4)'}</p>
-                            <div className="space-y-1">
-                                {displayCredits.map((credit: any) => {
-                                    const targetMonthStr = getTargetMonthStr(credit.billingDay, { logic, period });
-                                    const isPaidThisMonth = isPaidForTargetMonth(credit.payments, targetMonthStr, true);
-                                    return (
-                                        <div key={credit.id} className="dashboard-widget__item flex items-center justify-between p-1.5 rounded-md bg-muted/30 gap-2">
-                                            <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                                                {isPaidThisMonth ? (
-                                                    <Check className="h-2.5 w-2.5 text-green-600 flex-shrink-0" />
-                                                ) : (
-                                                    <X className="h-2.5 w-2.5 text-red-600 flex-shrink-0" />
-                                                )}
-                                                <span className="truncate text-sm font-medium">{credit.name}</span>
-                                            </div>
-                                            <span className="whitespace-nowrap flex-shrink-0">
-                                                <CurrencyDisplay amount={credit.monthlyPayment} currency={credit.currency} />
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-                ) : isLargerThan2x2 || is1x3 || is1x2 ? (
-                    <div className="space-y-3">
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <div className="dashboard-widget__value">
-                                    <CurrencyDisplay amount={monthlyPayment} currency={settings?.defaultCurrency || "USD"} />
-                                </div>
-                                <Badge variant={allPaidThisMonth ? "default" : "destructive"} className="dashboard-widget__badge flex items-center gap-1">
-                                    {allPaidThisMonth ? (
-                                        <><Check className="h-3 w-3" /> Paid</>
-                                    ) : (
-                                        <><X className="h-3 w-3" /> Unpaid</>
-                                    )}
-                                </Badge>
-                            </div>
-                            
-                        </div>
-                        <div className="space-y-2">
-                            <p className="dashboard-widget__meta">Active Credits ({activeCredits.length})</p>
-                            <div className="space-y-1.5">
-                                {activeCredits.map((credit: any) => {
-                                    const targetMonthStr = getTargetMonthStr(credit.billingDay, { logic, period });
-                                    const isPaidThisMonth = isPaidForTargetMonth(credit.payments, targetMonthStr, true);
-                                    return (
-                                        <div key={credit.id} className="dashboard-widget__item flex items-center justify-between p-2 rounded-md bg-muted/30">
-                                            <div className="flex items-center gap-2 max-w-[60%]">
-                                                {isPaidThisMonth ? (
-                                                    <Check className="h-3 w-3 text-green-600 flex-shrink-0" />
-                                                ) : (
-                                                    <X className="h-3 w-3 text-red-600 flex-shrink-0" />
-                                                )}
-                                                <span className="truncate text-sm font-medium">{credit.name}</span>
-                                            </div>
-                                            <span className="whitespace-nowrap ml-2">
-                                                <CurrencyDisplay amount={credit.monthlyPayment} currency={credit.currency} />
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="space-y-1">
-                        <div className="space-y-0.5">
-                            {activeCredits.slice(0, 3).map((credit: any) => {
+                            visibleCredits.map((credit: any) => {
                                 const targetMonthStr = getTargetMonthStr(credit.billingDay, { logic, period });
-                                const isPaidThisMonth = isPaidForTargetMonth(credit.payments, targetMonthStr, true);
+                                const isPaid = isPaidForTargetMonth(credit.payments, targetMonthStr, true);
                                 return (
-                                    <div key={credit.id} className="dashboard-widget__item flex items-center justify-between p-1 rounded-md bg-muted/30">
-                                        <div className="flex items-center gap-2 max-w-[60%]">
-                                            {isPaidThisMonth ? (
-                                                <Check className="h-3 w-3 text-green-600 flex-shrink-0" />
+                                    <div key={credit.id} className="flex items-center justify-between gap-2 p-1.5 rounded-md bg-muted/40 hover:bg-muted/60 transition-colors group/item">
+                                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                            {isPaid ? (
+                                                <Check className="h-3 w-3 text-emerald-500 flex-shrink-0" />
                                             ) : (
-                                                <X className="h-3 w-3 text-red-600 flex-shrink-0" />
+                                                <X className="h-3 w-3 text-rose-500 flex-shrink-0" />
                                             )}
-                                            <span className="truncate">{credit.name}</span>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[10px] font-bold truncate leading-tight">{credit.name}</span>
+                                                <span className="text-[8px] text-muted-foreground uppercase">Day {credit.billingDay}</span>
+                                            </div>
                                         </div>
-                                        <span className="font-medium whitespace-nowrap ml-2">
-                                            <CurrencyDisplay amount={credit.monthlyPayment} currency={credit.currency} />
-                                        </span>
+                                        <div className="text-right">
+                                            <div className="text-[10px] font-bold">
+                                                <CurrencyDisplay amount={Number(credit.monthlyPayment)} currency={credit.currency} abbreviate />
+                                            </div>
+                                        </div>
                                     </div>
                                 );
-                            })}
-                        </div>
+                            })
+                        )}
                     </div>
-                )}
-            </CardContent>
+                </CardContent>
+            </Link>
+
+            <WidgetFooter>
+                <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                    {allPaidThisMonth ? <Check className="h-2.5 w-2.5 text-emerald-500" /> : <X className="h-2.5 w-2.5 text-rose-500" />}
+                    {allPaidThisMonth ? 'All Paid' : 'Pending Payments'}
+                </span>
+                <Link to="/financial/credits" className="text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
+                    Details <ArrowRight className="h-2.5 w-2.5" />
+                </Link>
+            </WidgetFooter>
         </Card>
     );
 }
