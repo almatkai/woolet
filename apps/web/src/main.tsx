@@ -16,11 +16,6 @@ import { initErrorTracking, GlitchTip } from './lib/error-tracking';
 
 // Clerk publishable key
 const VITE_CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-// Route Clerk traffic through the app domain in production to avoid cross-site cookie issues.
-const VITE_CLERK_PROXY_URL = import.meta.env.PROD
-    ? (import.meta.env.VITE_CLERK_PROXY_URL || '/clerk')
-    : undefined;
-
 if (!VITE_CLERK_PUBLISHABLE_KEY) {
     console.warn('Missing VITE_CLERK_PUBLISHABLE_KEY - Using demo mode');
 }
@@ -52,7 +47,7 @@ const trpcClient = trpc.createClient({
     links: [
         loggerLink({
             enabled: (opts) =>
-                process.env.NODE_ENV === 'development' ||
+                import.meta.env.DEV ||
                 (opts.direction === 'down' && opts.result instanceof Error),
             logger: (opts) => {
                 if (opts.direction === 'down' && opts.result instanceof Error) {
@@ -73,6 +68,36 @@ const trpcClient = trpc.createClient({
         }),
     ],
 });
+
+// Remove old Workbox app shell workers that can keep serving stale bundles.
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        void (async () => {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (const registration of registrations) {
+                const urls = [
+                    registration.active?.scriptURL,
+                    registration.waiting?.scriptURL,
+                    registration.installing?.scriptURL,
+                ].filter((value): value is string => Boolean(value));
+
+                const hasPushWorker = urls.some((url) => url.endsWith('/push-sw.js'));
+                if (!hasPushWorker) {
+                    await registration.unregister();
+                }
+            }
+
+            if ('caches' in window) {
+                const cacheKeys = await caches.keys();
+                await Promise.all(
+                    cacheKeys
+                        .filter((key) => key.includes('workbox') || key.includes('precache'))
+                        .map((key) => caches.delete(key))
+                );
+            }
+        })();
+    });
+}
 
 // Create router
 const router = createRouter({
@@ -104,7 +129,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
         <ClerkProvider
             publishableKey={VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_demo'}
-            {...(VITE_CLERK_PROXY_URL ? { proxyUrl: VITE_CLERK_PROXY_URL } : {})}
         >
             <PostHogProvider>
                 <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
