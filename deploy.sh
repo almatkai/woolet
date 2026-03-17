@@ -15,6 +15,9 @@ DB_PASSWORD="${DB_PASSWORD:-password}"
 DB_NAME="${DB_NAME:-woolet}"
 DB_PORT="${DB_PORT:-5433}"
 POSTGRES_HOST="woolet-postgres"
+export VITE_API_URL="${VITE_API_URL}"
+export VITE_CLERK_PUBLISHABLE_KEY="${VITE_CLERK_PUBLISHABLE_KEY}"
+
 
 # Helper function to URL encode values (requires python3)
 url_encode() {

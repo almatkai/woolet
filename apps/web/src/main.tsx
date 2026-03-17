@@ -21,19 +21,10 @@ function ServiceWorkerRegistration() {
 
         (async () => {
             try {
-                // Keep a single root-scope service worker to avoid activation/reload loops.
-                const registrations = await navigator.serviceWorker.getRegistrations();
-                const pwaRegistration = registrations.find((registration) =>
-                    registration.active?.scriptURL.includes('/sw.js')
-                    || registration.waiting?.scriptURL.includes('/sw.js')
-                    || registration.installing?.scriptURL.includes('/sw.js')
-                );
-
-                if (pwaRegistration) {
-                    await pwaRegistration.unregister();
-                }
-
-                await navigator.serviceWorker.register('/push-sw.js');
+                // Register the push service worker. 
+                // The browser will handle updates efficiently without needing manual unregistration loops.
+                const registration = await navigator.serviceWorker.register('/push-sw.js');
+                console.log('[Push SW] Registered with scope:', registration.scope);
             } catch (error) {
                 console.error('[Push SW] Registration failed:', error);
             }
