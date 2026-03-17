@@ -14,25 +14,30 @@ import { PostHogProvider } from './components/PostHogProvider';
 import { PricingProvider } from './components/PricingProvider';
 import { initErrorTracking, GlitchTip } from './lib/error-tracking';
 import { useEffect } from 'react';
-import { registerSW } from 'virtual:pwa-register';
 
 function ServiceWorkerRegistration() {
     useEffect(() => {
-        const updateSW = registerSW({
-            onNeedRefresh() {
-                if (confirm('New content available. Reload?')) {
-                    updateSW(true);
+        if (!('serviceWorker' in navigator)) return;
+
+        (async () => {
+            try {
+                // Keep a single root-scope service worker to avoid activation/reload loops.
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                const pwaRegistration = registrations.find((registration) =>
+                    registration.active?.scriptURL.includes('/sw.js')
+                    || registration.waiting?.scriptURL.includes('/sw.js')
+                    || registration.installing?.scriptURL.includes('/sw.js')
+                );
+
+                if (pwaRegistration) {
+                    await pwaRegistration.unregister();
                 }
-            },
-            onOfflineReady() {
-                console.log('App ready to work offline');
-            },
-        });
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/push-sw.js').catch((error) => {
+
+                await navigator.serviceWorker.register('/push-sw.js');
+            } catch (error) {
                 console.error('[Push SW] Registration failed:', error);
-            });
-        }
+            }
+        })();
     }, []);
     return null;
 }

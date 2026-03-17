@@ -47,10 +47,16 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         if (!('serviceWorker' in navigator)) {
             throw new Error('Service workers are not supported in this browser');
         }
-        // register if not yet registered
-        if (!(await navigator.serviceWorker.getRegistration())) {
+
+        const existingRegistration = await navigator.serviceWorker.getRegistration('/push-sw.js');
+        const isPushRegistration = existingRegistration?.active?.scriptURL.endsWith('/push-sw.js')
+            || existingRegistration?.waiting?.scriptURL.endsWith('/push-sw.js')
+            || existingRegistration?.installing?.scriptURL.endsWith('/push-sw.js');
+
+        if (!isPushRegistration) {
             await navigator.serviceWorker.register('/push-sw.js');
         }
+
         // navigator.serviceWorker.ready resolves once an active SW controls the page
         return navigator.serviceWorker.ready;
     }, []);

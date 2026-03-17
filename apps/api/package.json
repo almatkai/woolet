@@ -4,7 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "NODE_ENV=development bun run --env-file=../../.env --watch src/index.ts",
+        "dev": "NODE_ENV=development bun run --watch src/index.ts",
         "build": "bun build src/index.ts --outdir dist --target bun",
         "start": "bun run dist/index.js",
         "vapid-gen": "web-push generate-vapid-keys",
