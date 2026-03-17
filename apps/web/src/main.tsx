@@ -20,6 +20,12 @@ if (!VITE_CLERK_PUBLISHABLE_KEY) {
     console.warn('Missing VITE_CLERK_PUBLISHABLE_KEY - Using demo mode');
 }
 
+if (import.meta.env.PROD && VITE_CLERK_PUBLISHABLE_KEY?.startsWith('pk_test_')) {
+    console.error(
+        'Clerk production domain is running with a test publishable key. Use a Clerk production/live instance for stable HTTPS auth on custom domains.'
+    );
+}
+
 // Initialize Error Tracking (PostHog)
 initErrorTracking();
 
@@ -73,6 +79,7 @@ const trpcClient = trpc.createClient({
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         void (async () => {
+            let removedLegacyWorker = false;
             const registrations = await navigator.serviceWorker.getRegistrations();
             for (const registration of registrations) {
                 const urls = [
@@ -83,6 +90,7 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
 
                 const hasPushWorker = urls.some((url) => url.endsWith('/push-sw.js'));
                 if (!hasPushWorker) {
+                    removedLegacyWorker = true;
                     await registration.unregister();
                 }
             }
@@ -94,6 +102,13 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
                         .filter((key) => key.includes('workbox') || key.includes('precache'))
                         .map((key) => caches.delete(key))
                 );
+            }
+
+            // Force a single refresh after unregistering legacy workers so the page reboots cleanly.
+            const reloadFlag = 'sw-migration-reloaded-once';
+            if (removedLegacyWorker && !sessionStorage.getItem(reloadFlag)) {
+                sessionStorage.setItem(reloadFlag, '1');
+                window.location.reload();
             }
         })();
     });
