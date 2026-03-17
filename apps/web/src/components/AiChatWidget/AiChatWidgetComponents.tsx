@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MomoIcon } from './MomoIcon';
 import { MomoIconWrapper } from './MomoIconWrapper';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Message {
     role: 'user' | 'model';
@@ -376,6 +377,9 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
     const [mobileViewportHeight, setMobileViewportHeight] = useState<number | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const isCompactMobile = useIsMobile(470);
+    const isSmallScreen = useIsMobile(768);
+    const useMobilePanel = variant === 'mobile' || isSmallScreen;
 
     const utils = trpc.useUtils();
     const { isAngry, setIsAngry } = useAngryState(isOpen, hasSentMessage);
@@ -393,7 +397,7 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
     }, [isOpen, view]);
 
     useEffect(() => {
-        if (!isOpen || variant !== 'mobile') return;
+        if (!isOpen || !useMobilePanel) return;
 
         const updateHeight = () => {
             const nextHeight = Math.max(window.visualViewport?.height ?? window.innerHeight, 320) * 0.8;
@@ -419,7 +423,7 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
             document.body.style.overflow = previousBodyOverflow;
             document.body.style.overscrollBehavior = previousBodyOverscrollBehavior;
         };
-    }, [isOpen, variant]);
+    }, [isOpen, useMobilePanel]);
 
     // Queries
     const { data: usage } = trpc.ai.getChatUsage.useQuery(undefined, { enabled: isOpen });
@@ -465,12 +469,13 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
 
     return (
         <>
-            <div className={cn(
-                variant === 'desktop'
-                    ? "fixed bottom-6 left-6 z-[45] hidden min-[850px]:flex"
-                    : "fixed bottom-4 right-4 z-[45] flex min-[850px]:hidden",
-                "pointer-events-auto items-center justify-center"
-            )}>
+            <div
+                className={cn(
+                    "fixed z-[45] flex right-4 bottom-4 min-[850px]:right-6 min-[850px]:bottom-6",
+                    isCompactMobile && "bottom-24",
+                    "pointer-events-auto items-center justify-center"
+                )}
+            >
                 <button
                     onClick={() => setIsOpen(true)}
                     onMouseEnter={() => setSidebarHovered(true)}
@@ -504,12 +509,12 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
             {createPortal(
                 <AnimatePresence>
                     {isOpen && (
-                        <div className="fixed inset-0 left-0 z-[46] flex items-end p-2 md:p-4 pointer-events-none w-full h-full">
-                            <div className="pointer-events-auto w-full md:w-auto h-full md:h-auto flex items-end justify-center md:justify-start">
+                        <div className="fixed inset-0 right-0 z-[46] flex items-end justify-end p-2 md:p-4 pointer-events-none w-full h-full">
+                            <div className="pointer-events-auto w-full md:w-auto h-full md:h-auto flex items-end justify-center md:justify-end">
                                 <motion.div
                                     layoutId="ai-chat-container"
                                     className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl border-purple-200 dark:border-purple-800 w-full md:w-[350px] flex flex-col md:h-[600px]"
-                                    style={variant === 'mobile' ? { height: mobilePanelHeight, maxHeight: mobilePanelHeight } : undefined}
+                                    style={useMobilePanel && mobileViewportHeight ? { height: mobileViewportHeight, maxHeight: mobileViewportHeight } : undefined}
                                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                                 >
                                     <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -645,5 +650,3 @@ export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop
         </>
     );
 }
-
-
