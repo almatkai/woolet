@@ -28,10 +28,6 @@ import { SubscriptionPaymentSheet } from '@/components/SubscriptionPaymentSheet'
 
 import { getPaymentStatusOptions, getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
 
-export const Route = createFileRoute('/subscriptions')({
-    component: SubscriptionsPage,
-});
-
 interface Subscription {
     id: string;
     name: string;
