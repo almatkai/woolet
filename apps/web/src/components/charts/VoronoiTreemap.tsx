@@ -20,7 +20,7 @@ interface VoronoiTile extends VoronoiDataItem {
     polygon: Polygon;
     centroid: Point;
     area: number;
-}
+} 
 
 interface VoronoiTreemapProps {
     data: VoronoiDataItem[];
