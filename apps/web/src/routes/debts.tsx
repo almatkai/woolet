@@ -116,7 +116,16 @@ export function DebtsPage() {
     const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
     const [payingDebt, setPayingDebt] = useState<Debt | null>(null);
     const [editingPayment, setEditingPayment] = useState<{ id: string, amount: number, note: string | null, paidAt: string, debt: Debt } | null>(null);
-    const [detailDebt, setDetailDebt] = useState<Debt | null>(null);
+    const [detailDebtId, setDetailDebtId] = useState<string | null>(null);
+
+    const detailDebt = useMemo(() => {
+        if (!detailDebtId) return null;
+        return (debtsData?.debts || []).find(d => d.id === detailDebtId) || null;
+    }, [debtsData?.debts, detailDebtId]);
+
+    const setDetailDebt = (debt: Debt | null) => {
+        setDetailDebtId(debt?.id || null);
+    };
     const detailHistoryRef = useRef<HTMLDivElement | null>(null);
     const paymentPageSize = 10;
     const [detailPaymentsPage, setDetailPaymentsPage] = useState(1);
@@ -176,6 +185,7 @@ export function DebtsPage() {
 
     const isPaymentSplit = watchPayment('isSplit');
     const paymentTotalAmount = watchPayment('amount');
+    const watchedPaymentDistributions = watchPayment('distributions');
 
     const availableAccounts = useMemo(() => {
         if (!editingPayment?.debt || !accountsData) return [];
@@ -346,17 +356,16 @@ export function DebtsPage() {
 
     useEffect(() => {
         setDetailPaymentsPage(1);
-    }, [detailDebt?.id]);
+    }, [detailDebtId]);
 
-    useEffect(() => {
-        if (!detailDebt) return;
-        const latest = allDebts.find((debt) => debt.id === detailDebt.id);
-        if (!latest) {
-            setDetailDebt(null);
-            return;
-        }
-        setDetailDebt(latest);
+    const latestDebt = useMemo(() => {
+        if (!detailDebt) return null;
+        return allDebts.find((debt) => debt.id === detailDebt.id) || null;
     }, [allDebts, detailDebt?.id]);
+
+    // Use latestDebt where needed or just let useMemo handle it via detailDebtId
+    // The previous useEffect that was calling setDetailDebt(latest) is no longer needed
+    // because detailDebt is now a useMemo that tracks allDebts automatically.
 
     useEffect(() => {
         const el = detailHistoryRef.current;
@@ -996,7 +1005,7 @@ export function DebtsPage() {
                                             <div className="flex-1 space-y-1">
                                                 <Label className="text-xs" htmlFor={`distribution-account-${index}`}>Account</Label>
                                                 <Select
-                                                    value={watchPayment(`distributions.${index}.currencyBalanceId`)}
+                                                    value={watchedPaymentDistributions?.[index]?.currencyBalanceId}
                                                     onValueChange={(val: string) => setValuePayment(`distributions.${index}.currencyBalanceId`, val)}
                                                 >
                                                     <SelectTrigger id={`distribution-account-${index}`}>

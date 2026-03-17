@@ -28,7 +28,7 @@ import { SubscriptionPaymentSheet } from '@/components/SubscriptionPaymentSheet'
 
 import { getPaymentStatusOptions, getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
 
-export const Route = (createFileRoute as any)('/subscriptions')({
+export const Route = createFileRoute('/subscriptions')({
     component: SubscriptionsPage,
 });
 

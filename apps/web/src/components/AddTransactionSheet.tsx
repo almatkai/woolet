@@ -172,6 +172,8 @@ export function AddTransactionSheet({
         }
     });
 
+    const watchedValues = watch();
+
     useEffect(() => {
         if (!open) return;
         if (preselectedType) setValue('type', preselectedType);
@@ -706,18 +708,17 @@ export function AddTransactionSheet({
                                     className="h-10 w-10 rounded-xl shrink-0 border-muted-foreground/20"
                                     disabled={!canSaveAsShortcut}
                                     onClick={() => {
-                                        const currencyBalanceId = watch('currencyBalanceId');
-                                        const categoryId = watch('categoryId');
+                                        const { currencyBalanceId, categoryId, type, amount, description } = watchedValues;
                                         if (!currencyBalanceId || !categoryId) {
                                             toast.error('Please select account and category first');
                                             return;
                                         }
                                         onSaveAsShortcut({
-                                            type: watch('type'),
+                                            type: type,
                                             currencyBalanceId,
                                             categoryId,
-                                            amount: watch('amount') ? Number(watch('amount')) : undefined,
-                                            description: watch('description') || undefined,
+                                            amount: amount ? Number(amount) : undefined,
+                                            description: description || undefined,
                                         });
                                     }}
                                     title="Save as Shortcut"

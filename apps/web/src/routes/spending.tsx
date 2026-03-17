@@ -404,6 +404,8 @@ export function SpendingPage() {
         resolver: zodResolver(editTransactionSchema),
     });
 
+    const watchedCurrencyBalanceId = watchEdit('currencyBalanceId');
+
     const {
         register: registerShortcut,
         handleSubmit: handleSubmitShortcut,
@@ -420,6 +422,10 @@ export function SpendingPage() {
             icon: '💰',
         },
     });
+
+    const watchedShortcutIcon = watchShortcut('icon');
+    const watchedShortcutType = watchShortcut('type');
+    const watchedShortcutCurrencyBalanceId = watchShortcut('currencyBalanceId');
 
     const deleteTransaction = trpc.transaction.delete.useMutation({
         onSuccess: () => {
@@ -1128,7 +1134,7 @@ export function SpendingPage() {
                                 onValueChange={(val) => {
                                     setValueEdit('currencyBalanceId', val);
                                 }}
-                                value={watchEdit('currencyBalanceId')}
+                                value={watchedCurrencyBalanceId}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select account" />
@@ -1497,36 +1503,31 @@ export function SpendingPage() {
 
                         <div className="space-y-2">
                             <Label>Icon</Label>
-                            {(() => {
-                                const watchedIcon = watchShortcut('icon');
-                                return (
-                                    <div className="flex flex-wrap gap-2">
-                                        {['💰', '🚌', '🍔', '☕', '🛒', '💳', '🏠', '⚡', '📱', '🎮', '✈️', '🎬', '💊', '📚', '🎁', '🚗'].map((emoji) => {
-                                            const isSelected = watchedIcon === emoji;
-                                            return (
-                                                <button
-                                                    key={emoji}
-                                                    type="button"
-                                                    onClick={() => setShortcutValue('icon', emoji)}
-                                                    className={`h-10 w-10 rounded-md flex items-center justify-center text-lg border-2 transition-colors ${isSelected
-                                                        ? 'border-primary bg-primary/10'
-                                                        : 'border-muted hover:border-muted-foreground/50'
-                                                        } `}
-                                                >
-                                                    {emoji}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                );
-                            })()}
+                            <div className="flex flex-wrap gap-2">
+                                {['💰', '🚌', '🍔', '☕', '🛒', '💳', '🏠', '⚡', '📱', '🎮', '✈️', '🎬', '💊', '📚', '🎁', '🚗'].map((emoji) => {
+                                    const isSelected = watchedShortcutIcon === emoji;
+                                    return (
+                                        <button
+                                            key={emoji}
+                                            type="button"
+                                            onClick={() => setShortcutValue('icon', emoji)}
+                                            className={`h-10 w-10 rounded-md flex items-center justify-center text-lg border-2 transition-colors ${isSelected
+                                                ? 'border-primary bg-primary/10'
+                                                : 'border-muted hover:border-muted-foreground/50'
+                                                } `}
+                                        >
+                                            {emoji}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
 
                         <div className="space-y-2">
                             <Label>Type</Label>
                             <Select
                                 onValueChange={(val) => setShortcutValue('type', val as ShortcutForm['type'])}
-                                value={watchShortcut('type')}
+                                value={watchedShortcutType}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select type" />
@@ -1541,7 +1542,7 @@ export function SpendingPage() {
 
                         <div className="space-y-2">
                             <Label>Account</Label>
-                            <Select onValueChange={(val) => setShortcutValue('currencyBalanceId', val)} value={watchShortcut('currencyBalanceId')}>
+                            <Select onValueChange={(val) => setShortcutValue('currencyBalanceId', val)} value={watchedShortcutCurrencyBalanceId}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select account" />
                                 </SelectTrigger>

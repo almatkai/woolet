@@ -44,7 +44,13 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
     const isNarrow = (gridParams?.w ?? 0) <= 1;
     const isCompact = isNarrow || (gridParams?.h ?? 0) <= 2;
     const [period, setPeriod] = useState<'weekly' | 'monthly'>('weekly');
+    const [prevPeriod, setPrevPeriod] = useState(period);
     const [offset, setOffset] = useState(0);
+
+    if (period !== prevPeriod) {
+        setPrevPeriod(period);
+        setOffset(0);
+    }
 
     // Initialize with LocalStorage value if available
     const [categoryIds, setCategoryIds] = useState<string[]>(() => {
@@ -72,11 +78,6 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
             toast.error('Failed to save preferences');
         }
     });
-
-    // Reset offset when period changes
-    useEffect(() => {
-        setOffset(0);
-    }, [period]);
 
     // Sync LocalStorage when state changes
     useEffect(() => {

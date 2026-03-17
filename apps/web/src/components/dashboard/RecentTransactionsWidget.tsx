@@ -63,7 +63,8 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
                 setPeriod(dbPeriod);
             }
         }
-    }, [user, period]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user]);
 
     const dateRange = useMemo(() => {
         const now = new Date();
