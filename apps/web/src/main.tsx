@@ -13,25 +13,6 @@ import { ThemeProvider } from './components/theme-provider';
 import { PostHogProvider } from './components/PostHogProvider';
 import { PricingProvider } from './components/PricingProvider';
 import { initErrorTracking, GlitchTip } from './lib/error-tracking';
-import { useEffect } from 'react';
-
-function ServiceWorkerRegistration() {
-    useEffect(() => {
-        if (!('serviceWorker' in navigator)) return;
-
-        (async () => {
-            try {
-                // Register the push service worker. 
-                // The browser will handle updates efficiently without needing manual unregistration loops.
-                const registration = await navigator.serviceWorker.register('/push-sw.js');
-                console.log('[Push SW] Registered with scope:', registration.scope);
-            } catch (error) {
-                console.error('[Push SW] Registration failed:', error);
-            }
-        })();
-    }, []);
-    return null;
-}
 
 // Clerk publishable key
 const VITE_CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -123,7 +104,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                     <trpc.Provider client={trpcClient} queryClient={queryClient}>
                         <QueryClientProvider client={queryClient}>
                             <PricingProvider>
-                                <ServiceWorkerRegistration />
                                 <RouterProvider router={router} />
                                 <Toaster
                                     position="bottom-right"

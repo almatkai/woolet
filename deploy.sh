@@ -15,7 +15,25 @@ DB_PASSWORD="${DB_PASSWORD:-password}"
 DB_NAME="${DB_NAME:-woolet}"
 DB_PORT="${DB_PORT:-5433}"
 POSTGRES_HOST="woolet-postgres"
-export VITE_API_URL="${VITE_API_URL}"
+
+# Production-safe defaults for deployments where optional secrets are not configured.
+NODE_ENV="${NODE_ENV:-production}"
+
+if [ -n "${SERVER_HOST:-}" ]; then
+    WEB_URL="${WEB_URL:-https://${SERVER_HOST}}"
+else
+    WEB_URL="${WEB_URL:-http://localhost:3000}"
+fi
+
+API_URL="${API_URL:-${WEB_URL}/api}"
+VITE_API_URL="${VITE_API_URL:-${WEB_URL}/api}"
+OPENROUTER_SITE_URL="${OPENROUTER_SITE_URL:-${WEB_URL}}"
+
+export NODE_ENV
+export WEB_URL
+export API_URL
+export VITE_API_URL
+export OPENROUTER_SITE_URL
 export VITE_CLERK_PUBLISHABLE_KEY="${VITE_CLERK_PUBLISHABLE_KEY}"
 
 
