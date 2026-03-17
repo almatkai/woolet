@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from '@tanstack/react-router';
 import posthog from 'posthog-js';
 
+import { Link } from '@tanstack/react-router';
+
 export function CustomSignUpForm() {
     const { signUp, setActive, isLoaded } = useSignUp();
     const navigate = useNavigate();
@@ -374,11 +376,11 @@ export function CustomSignUpForm() {
                 </motion.button>
 
                 {/* Sign In Link */}
-                <p className="text-center text-sm text-muted-foreground">
+                <p className="text-sm text-slate-400 mt-6 text-center">
                     Already have an account?{' '}
-                    <a href="/login" className="text-foreground hover:text-slate-300 font-medium transition-colors">
-                        Sign in
-                    </a>
+                    <Link to="/login" className="text-foreground hover:text-slate-300 font-medium transition-colors">
+                        Sign In
+                    </Link>
                 </p>
             </form>
         </div>

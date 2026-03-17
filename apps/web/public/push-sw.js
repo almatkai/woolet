@@ -70,7 +70,7 @@ sw.addEventListener('notificationclick', (event) => {
 
     event.notification.close();
 
-    const url = event.notification.data?.url || '/notifications';
+    const url = new URL(event.notification.data?.url || '/notifications', self.location.origin).href;
 
     if (event.action === 'dismiss') {
         return;
@@ -78,11 +78,19 @@ sw.addEventListener('notificationclick', (event) => {
 
     event.waitUntil(
         sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            // 1. Try to find any existing window from our app and tell it to navigate
             for (const client of clientList) {
-                if (client.url === url && 'focus' in client) {
-                    return client.focus();
+                if ('focus' in client && 'postMessage' in client) {
+                    client.focus();
+                    client.postMessage({
+                        type: 'NAVIGATE',
+                        url: url
+                    });
+                    return;
                 }
             }
+
+            // 2. Otherwise open a new window
             return sw.clients.openWindow(url);
         })
     );

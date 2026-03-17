@@ -44,7 +44,10 @@ interface AiConfig {
   updatedAt: string;
 }
 
+import { useNavigate } from '@tanstack/react-router';
+
 export default function AdminPanel() {
+  const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const [config, setConfig] = useState<AiConfig | null>(null);
   const [saving, setSaving] = useState(false);
@@ -143,7 +146,7 @@ export default function AdminPanel() {
           You do not have administrative privileges to access this area.
           Please contact the system administrator if you believe this is an error.
         </p>
-        <Button onClick={() => window.location.href = '/'}>Return Home</Button>
+        <Button onClick={() => navigate({ to: '/' })}>Return Home</Button>
       </div>
     );
   }

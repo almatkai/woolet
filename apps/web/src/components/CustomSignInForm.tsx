@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSignIn } from '@clerk/clerk-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, Link } from '@tanstack/react-router';
 import posthog from 'posthog-js';
 
 export function CustomSignInForm() {
@@ -289,11 +289,11 @@ export function CustomSignInForm() {
                 </motion.button>
 
                 {/* Sign Up Link */}
-                <p className="text-center text-sm text-muted-foreground">
+                <p className="text-sm text-slate-400 mt-6 text-center">
                     Don't have an account?{' '}
-                    <a href="/register" className="text-foreground hover:text-slate-300 font-medium transition-colors">
-                        Sign up
-                    </a>
+                    <Link to="/register" className="text-foreground hover:text-slate-300 font-medium transition-colors">
+                        Sign Up
+                    </Link>
                 </p>
             </form>
         </div>

@@ -123,6 +123,17 @@ const router = createRouter({
     defaultPreloadStaleTime: 1000 * 60 * 5,
 });
 
+// Add message listener for service worker navigation
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'NAVIGATE') {
+            const url = new URL(event.data.url, window.location.origin);
+            const path = url.pathname + url.search + url.hash;
+            router.navigate({ to: path });
+        }
+    });
+}
+
 // Type declaration for router
 declare module '@tanstack/react-router' {
     interface Register {

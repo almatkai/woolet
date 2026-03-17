@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { Bell, Check, ExternalLink, AlertCircle, CalendarClock, CreditCard, TrendingUp, Wallet, DollarSign, Trash2 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -30,11 +30,11 @@ interface Notification {
     createdAt: string;
 }
 
-const priorityColors = {
-    low: 'bg-blue-500',
-    medium: 'bg-yellow-500',
-    high: 'bg-orange-500',
-    urgent: 'bg-red-500',
+const priorityGradients = {
+    low: 'bg-gradient-to-r from-blue-500/30 to-transparent',
+    medium: 'bg-gradient-to-r from-yellow-500/30 to-transparent',
+    high: 'bg-gradient-to-r from-orange-500/30 to-transparent',
+    urgent: 'bg-gradient-to-r from-red-500/30 to-transparent',
 };
 
 const priorityBadgeColors = {
@@ -147,11 +147,13 @@ export function NotificationsPage() {
 
                 <TabsContent value={activeTab} className="mt-4">
                     {filteredNotifications.length === 0 ? (
-                        <Card>
-                            <CardContent className="flex flex-col items-center justify-center py-12">
-                                <Bell className="h-12 w-12 text-muted-foreground mb-4" />
+                        <Card className="dashboard-widget h-full rounded-[32px] overflow-hidden">
+                            <CardHeader className="p-3 pb-2">
+                                <Bell className="h-8 w-8 text-muted-foreground mb-2" />
+                            </CardHeader>
+                            <CardContent className="p-6 text-center">
                                 <h3 className="text-lg font-semibold">No notifications</h3>
-                                <p className="text-muted-foreground">
+                                <p className="text-muted-foreground mt-2">
                                     {activeTab === 'unread'
                                         ? 'You have no unread notifications'
                                         : 'You have no notifications yet'}
@@ -159,7 +161,7 @@ export function NotificationsPage() {
                             </CardContent>
                         </Card>
                     ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                             {filteredNotifications.map((notification: Notification) => {
                                 const Icon = typeIcons[notification.type as keyof typeof typeIcons] || Bell;
                                 const isUnread = !notification.isRead;
@@ -167,84 +169,77 @@ export function NotificationsPage() {
                                 return (
                                     <Card
                                         key={notification.id}
-                                        className={cn(
-                                            "relative overflow-hidden transition-all hover:shadow-md",
-                                            isUnread && "border-primary/30"
-                                        )}
+                                        className="dashboard-widget h-auto rounded-[32px] overflow-hidden group"
                                     >
-                                        <div
-                                            className={cn(
-                                                "absolute left-0 top-0 bottom-0 w-1",
-                                                priorityColors[notification.priority as keyof typeof priorityColors] || 'bg-muted'
-                                            )}
-                                        />
-                                        <CardContent className="p-4 pl-5">
-                                            <div className="flex items-start gap-4">
-                                                <div className={cn(
-                                                    "h-10 w-10 rounded-full flex items-center justify-center shrink-0",
-                                                    priorityColors[notification.priority as keyof typeof priorityColors] || 'bg-muted'
-                                                )}>
-                                                    <Icon className="h-5 w-5 text-white" />
-                                                </div>
-
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <h4 className={cn(
-                                                                "font-semibold",
-                                                                isUnread ? "text-foreground" : "text-muted-foreground"
-                                                            )}>
-                                                                {notification.title}
-                                                            </h4>
-                                                            <Badge
-                                                                variant="secondary"
-                                                                className={priorityBadgeColors[notification.priority as keyof typeof priorityBadgeColors]}
-                                                            >
-                                                                {notification.priority}
-                                                            </Badge>
-                                                        </div>
-                                                        <span className="text-xs text-muted-foreground shrink-0">
-                                                            {formatTimeAgo(notification.createdAt)}
-                                                        </span>
+                                        <div className="relative overflow-hidden">
+                                            <div 
+                                                className={cn(
+                                                    "absolute left-0 top-0 bottom-0 w-[140px]",
+                                                    priorityGradients[notification.priority as keyof typeof priorityGradients] || 'bg-gradient-to-r from-primary to-transparent'
+                                                )}
+                                            />
+                                            <CardContent className="p-5">
+                                                <div className="flex items-start gap-4">
+                                                    <div className="h-11 w-11 rounded-full flex items-center justify-center shrink-0 bg-primary/10 text-primary">
+                                                        <Icon className="h-5 w-5" />
                                                     </div>
 
-                                                    <p className="text-sm text-muted-foreground mt-1">
-                                                        {notification.message}
-                                                    </p>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center justify-between gap-2 mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <h4 className="font-semibold text-foreground">
+                                                                    {notification.title}
+                                                                </h4>
+                                                                <Badge
+                                                                    variant="secondary"
+                                                                    className={priorityBadgeColors[notification.priority as keyof typeof priorityBadgeColors]}
+                                                                >
+                                                                    {notification.priority}
+                                                                </Badge>
+                                                            </div>
+                                                            <span className="text-xs text-muted-foreground shrink-0">
+                                                                {formatTimeAgo(notification.createdAt)}
+                                                            </span>
+                                                        </div>
 
-                                                    <div className="flex items-center gap-2 mt-3">
-                                                        {!notification.isRead && (
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {notification.message}
+                                                        </p>
+
+                                                        <div className="flex items-center gap-3 mt-4">
+                                                            {!notification.isRead && (
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => markAsReadMutation.mutate({ id: notification.id })}
+                                                                >
+                                                                    <Check className="h-3 w-3 mr-1" />
+                                                                    Mark as read
+                                                                </Button>
+                                                            )}
+
+                                                            {notification.links?.web && (
+                                                                <Link to={notification.links.web}>
+                                                                    <Button variant="outline" size="sm">
+                                                                        <ExternalLink className="h-3 w-3 mr-1" />
+                                                                        View details
+                                                                    </Button>
+                                                                </Link>
+                                                            )}
+
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
-                                                                onClick={() => markAsReadMutation.mutate({ id: notification.id })}
+                                                                className="text-muted-foreground hover:text-destructive"
+                                                                onClick={() => deleteMutation.mutate({ id: notification.id })}
                                                             >
-                                                                <Check className="h-3 w-3 mr-1" />
-                                                                Mark as read
+                                                                <Trash2 className="h-3 w-3" />
                                                             </Button>
-                                                        )}
-
-                                                        {notification.links?.web && (
-                                                            <a href={notification.links.web}>
-                                                                <Button variant="ghost" size="sm">
-                                                                    <ExternalLink className="h-3 w-3 mr-1" />
-                                                                    View details
-                                                                </Button>
-                                                            </a>
-                                                        )}
-
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="text-muted-foreground hover:text-destructive"
-                                                            onClick={() => deleteMutation.mutate({ id: notification.id })}
-                                                        >
-                                                            <Trash2 className="h-3 w-3" />
-                                                        </Button>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </CardContent>
+                                            </CardContent>
+                                        </div>
                                     </Card>
                                 );
                             })}

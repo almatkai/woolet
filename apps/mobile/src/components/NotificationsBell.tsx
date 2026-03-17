@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, Modal, Pressable, ScrollView, Text, Dimensions, ViewStyle } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Modal, Pressable, ScrollView, Text, Dimensions } from 'react-native';
 import { Bell, Check, X, ExternalLink, AlertCircle, CalendarClock, CreditCard, TrendingUp, Wallet, DollarSign } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@clerk/clerk-expo';
@@ -131,6 +131,7 @@ export function NotificationsBell() {
                         style={styles.modalContent}
                         onPress={(e) => e.stopPropagation()}
                     >
+                        <View style={styles.modalContentInner}>
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>Notifications</Text>
                             <TouchableOpacity 
@@ -243,6 +244,7 @@ export function NotificationsBell() {
                         >
                             <Text style={styles.viewAllText}>View all notifications</Text>
                         </TouchableOpacity>
+                        </View>
                     </Pressable>
                 </Pressable>
             </Modal>
@@ -260,9 +262,9 @@ const styles = StyleSheet.create({
         top: 4,
         right: 4,
         backgroundColor: '#EF4444',
-        borderRadius: 10,
-        minWidth: 18,
-        height: 18,
+        borderRadius: 12,
+        minWidth: 20,
+        height: 20,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -273,23 +275,33 @@ const styles = StyleSheet.create({
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.55)',
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: '#1F2937',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
+        backgroundColor: 'rgba(31, 41, 55, 0.92)',
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
         maxHeight: height * 0.8,
         paddingBottom: 32,
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 24,
+        elevation: 16,
+    },
+    modalContentInner: {
+        flex: 1,
     },
     modalHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: 20,
+        paddingHorizontal: 20,
+        paddingVertical: 20,
         borderBottomWidth: 1,
-        borderBottomColor: '#374151',
+        borderBottomColor: 'rgba(148, 163, 184, 0.15)',
     },
     modalTitle: {
         color: '#F9FAFB',
@@ -301,19 +313,21 @@ const styles = StyleSheet.create({
     },
     tabContainer: {
         flexDirection: 'row',
-        paddingHorizontal: 16,
+        paddingHorizontal: 20,
         paddingTop: 16,
-        gap: 8,
+        gap: 10,
     },
     tab: {
         flex: 1,
-        paddingVertical: 10,
+        paddingVertical: 12,
         alignItems: 'center',
-        borderRadius: 8,
-        backgroundColor: '#374151',
+        borderRadius: 16,
+        backgroundColor: 'rgba(55, 65, 81, 0.6)',
     },
     activeTab: {
-        backgroundColor: '#8B5CF6',
+        backgroundColor: 'rgba(139, 92, 246, 0.35)',
+        borderWidth: 1,
+        borderColor: 'rgba(139, 92, 246, 0.5)',
     },
     tabText: {
         color: '#9CA3AF',
@@ -331,20 +345,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 12,
-        marginHorizontal: 16,
-        marginTop: 12,
-        borderRadius: 8,
-        backgroundColor: '#8B5CF6' + '20',
+        marginHorizontal: 20,
+        marginTop: 14,
+        borderRadius: 16,
+        backgroundColor: 'rgba(139, 92, 246, 0.2)',
     },
     markAllReadText: {
-        color: '#8B5CF6',
+        color: '#A78BFA',
         fontSize: 14,
         fontWeight: '600',
         marginLeft: 8,
     },
     scrollView: {
         maxHeight: height * 0.5,
-        padding: 16,
+        paddingHorizontal: 20,
+        paddingTop: 16,
     },
     emptyState: {
         alignItems: 'center',
@@ -365,23 +380,23 @@ const styles = StyleSheet.create({
     notificationItem: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        padding: 12,
-        borderRadius: 12,
-        marginBottom: 8,
-        backgroundColor: '#374151',
+        padding: 14,
+        borderRadius: 20,
+        marginBottom: 10,
+        backgroundColor: 'rgba(55, 65, 81, 0.5)',
     },
     unreadNotification: {
-        backgroundColor: '#8B5CF6' + '20',
+        backgroundColor: 'rgba(139, 92, 246, 0.18)',
         borderWidth: 1,
-        borderColor: '#8B5CF6' + '40',
+        borderColor: 'rgba(139, 92, 246, 0.35)',
     },
     iconContainer: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 12,
+        marginRight: 14,
     },
     notificationContent: {
         flex: 1,
@@ -408,25 +423,27 @@ const styles = StyleSheet.create({
         marginLeft: 8,
     },
     notificationMessage: {
-        color: '#6B7280',
+        color: '#9CA3AF',
         fontSize: 13,
         marginTop: 2,
     },
     notificationTime: {
-        color: '#4B5563',
+        color: '#6B7280',
         fontSize: 12,
         marginTop: 4,
     },
     viewAllButton: {
         alignItems: 'center',
+        justifyContent: 'center',
         paddingVertical: 16,
-        marginHorizontal: 16,
-        marginTop: 8,
-        borderTopWidth: 1,
-        borderTopColor: '#374151',
+        marginHorizontal: 20,
+        marginTop: 12,
+        borderRadius: 20,
+        backgroundColor: 'rgba(55, 65, 81, 0.5)',
+        borderTopWidth: 0,
     },
     viewAllText: {
-        color: '#8B5CF6',
+        color: '#A78BFA',
         fontSize: 14,
         fontWeight: '600',
     },
