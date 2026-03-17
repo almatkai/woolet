@@ -14,6 +14,7 @@ import { PostHogProvider } from './components/PostHogProvider';
 import { PricingProvider } from './components/PricingProvider';
 import { initErrorTracking, GlitchTip } from './lib/error-tracking';
 
+// Test
 // Clerk publishable key
 const VITE_CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 if (!VITE_CLERK_PUBLISHABLE_KEY) {

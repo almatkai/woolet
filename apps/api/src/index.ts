@@ -15,6 +15,8 @@ import { logger } from './lib/logger';
 import { initErrorTracking, GlitchTip } from './lib/error-tracking';
 import { runMigrations } from './db/migrate';
 
+// Test
+
 // Initialize Error Tracking (PostHog)
 initErrorTracking();
 
