@@ -3,7 +3,7 @@ import { trpc } from '@/lib/trpc';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Home, Trash2, Edit, DollarSign, Calendar, Percent, MapPin, Wallet, CheckCircle2, Circle } from 'lucide-react';
+import { Plus, Home, Trash2, Edit, DollarSign, Percent, MapPin, Wallet, CheckCircle2, Circle } from 'lucide-react';
 import { toast } from 'sonner';
 import { AddMortgageSheet } from '@/components/AddMortgageSheet';
 import { MortgagePaymentSheet } from '@/components/MortgagePaymentSheet';

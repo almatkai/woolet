@@ -15,7 +15,6 @@ import {
     CheckCircle2,
     Circle
 } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
     Dialog,
     DialogContent,
@@ -29,7 +28,7 @@ import { SubscriptionPaymentSheet } from '@/components/SubscriptionPaymentSheet'
 
 import { getPaymentStatusOptions, getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
 
-export const Route = (createFileRoute as (path: string) => any)('/subscriptions')({
+export const Route = (createFileRoute as any)('/subscriptions')({
     component: SubscriptionsPage,
 });
 
@@ -72,7 +71,7 @@ export function SubscriptionsPage() {
     const { data: settings } = trpc.settings.getUserSettings.useQuery();
 
     const [payingSubscription, setPayingSubscription] = useState<Subscription | null>(null);
-    const [selectedDaySubscriptions, setSelectedDaySubscriptions] = useState<{ day: number, items: any[] } | null>(null);
+    const [selectedDaySubscriptions, setSelectedDaySubscriptions] = useState<{ day: number, items: { subscription: Subscription; isPaid: boolean }[] } | null>(null);
     const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth() + 1);
     const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
 

@@ -80,7 +80,7 @@ export function CurrencySelector({ value, onValueChange, disabled }: CurrencySel
                                 <CommandItem
                                     key={currency.code}
                                     value={currency.code}
-                                    onSelect={(currentValue) => {
+                                    onSelect={(_) => {
                                         // cmdk lowercases the value, so we use the original code from currency object
                                         // but onSelect gives the value prop. If we pass currency.code as value, it should be fine?
                                         // cmdk checks filtering against value.

@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { ChevronsUpDown } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -33,10 +33,6 @@ export function MultiSelect({
     className,
 }: MultiSelectProps) {
     const [open, setOpen] = React.useState(false)
-
-    const handleUnselect = (item: string) => {
-        onChange(selected.filter((i) => i !== item))
-    }
 
     return (
         <Popover open={open} onOpenChange={setOpen}>

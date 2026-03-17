@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Pencil, Trash2, MoreHorizontal, Star, StarOff, Bookmark, X, Plus, Check, ChevronDown, ChevronUp, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn, formatAccountLabel } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/PageHeader';
 import { AddTransactionSheet } from '@/components/AddTransactionSheet';
 import { Card, CardContent } from '@/components/ui/card';
@@ -1497,21 +1497,29 @@ export function SpendingPage() {
 
                         <div className="space-y-2">
                             <Label>Icon</Label>
-                            <div className="flex flex-wrap gap-2">
-                                {['💰', '🚌', '🍔', '☕', '🛒', '💳', '🏠', '⚡', '📱', '🎮', '✈️', '🎬', '💊', '📚', '🎁', '🚗'].map((emoji) => (
-                                    <button
-                                        key={emoji}
-                                        type="button"
-                                        onClick={() => setShortcutValue('icon', emoji)}
-                                        className={`h-10 w-10 rounded-md flex items-center justify-center text-lg border-2 transition-colors ${watchShortcut('icon') === emoji
-                                            ? 'border-primary bg-primary/10'
-                                            : 'border-muted hover:border-muted-foreground/50'
-                                            } `}
-                                    >
-                                        {emoji}
-                                    </button>
-                                ))}
-                            </div>
+                            {(() => {
+                                const watchedIcon = watchShortcut('icon');
+                                return (
+                                    <div className="flex flex-wrap gap-2">
+                                        {['💰', '🚌', '🍔', '☕', '🛒', '💳', '🏠', '⚡', '📱', '🎮', '✈️', '🎬', '💊', '📚', '🎁', '🚗'].map((emoji) => {
+                                            const isSelected = watchedIcon === emoji;
+                                            return (
+                                                <button
+                                                    key={emoji}
+                                                    type="button"
+                                                    onClick={() => setShortcutValue('icon', emoji)}
+                                                    className={`h-10 w-10 rounded-md flex items-center justify-center text-lg border-2 transition-colors ${isSelected
+                                                        ? 'border-primary bg-primary/10'
+                                                        : 'border-muted hover:border-muted-foreground/50'
+                                                        } `}
+                                                >
+                                                    {emoji}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         <div className="space-y-2">

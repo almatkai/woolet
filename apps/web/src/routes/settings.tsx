@@ -4,10 +4,8 @@ import { trpc } from '@/lib/trpc';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { LogOut } from 'lucide-react';
 import { toast } from 'sonner';
-import { useNavigate } from '@tanstack/react-router';
 import {
     Moon,
     MoonStar,
@@ -62,7 +60,7 @@ export function SettingsPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [pushSettingsOpen, setPushSettingsOpen] = useState(false);
     const [isUsernameDialogOpen, setIsUsernameDialogOpen] = useState(false);
-    const [emailNotificationAddress, setEmailNotificationAddress] = useState('');
+    const [_emailNotificationAddress, setEmailNotificationAddress] = useState('');
 
     const { isSupported, isSubscribed, isLoading, isUpdating, vapidPublicKey, vapidKeyError, error: pushError, subscribe, unsubscribe } = usePushNotifications();
     const hasBrowserPermission =

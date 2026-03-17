@@ -32,7 +32,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CurrencySelect } from '@/components/CurrencySelect';
-import { Building2, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, DollarSign, Wallet, PieChart, BarChart3, LineChart, Trophy, AlertCircle, Trash2, ExternalLink, Cpu, Droplets, Stethoscope, Globe, Newspaper, Plus, Minus } from 'lucide-react';
+import { Building2, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, DollarSign, Wallet, PieChart, BarChart3, LineChart, Trophy, Trash2, ExternalLink, Cpu, Droplets, Stethoscope, Globe, Newspaper } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/PageHeader';
@@ -181,13 +181,13 @@ export function InvestingPage() {
     const [cashDialogOpen, setCashDialogOpen] = useState(false);
     const [cashAmount, setCashAmount] = useState('');
     const [cashCurrency, setCashCurrency] = useState('USD');
-    const [cashType, setCashType] = useState<'deposit' | 'withdraw'>('deposit');
+    const [cashType] = useState<'deposit' | 'withdraw'>('deposit');
     const [cashNotes, setCashNotes] = useState('');
 
     const { data: summary, isLoading: isSummaryLoading } = trpc.investing.getPortfolioSummary.useQuery();
     const { data: stocks, isLoading: isStocksLoading } = trpc.investing.listStocks.useQuery();
     const { data: transactions } = trpc.investing.getTransactions.useQuery({});
-    const { data: cashBalances } = trpc.investing.getInvestmentCashBalance.useQuery();
+    const { data: _cashBalances } = trpc.investing.getInvestmentCashBalance.useQuery();
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
     const chartRange = '1Y';
