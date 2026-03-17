@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Home, Check, X, Wallet } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Home, Check, X, ArrowRight, Wallet } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -10,47 +8,43 @@ import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { MortgagePaymentSheet } from '@/components/MortgagePaymentSheet';
 import { getPaymentStatusOptions, getTargetMonthStr, isPaidForTargetMonth } from "@/lib/payment-status";
 import { Link } from '@tanstack/react-router';
+import { WidgetFooter } from './WidgetFooter';
 
-export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: number } }) {
+type GridParams = { w: number; h: number; breakpoint?: string };
+
+export function MortgageWidget({ gridParams }: { gridParams?: GridParams }) {
     const { data: mortgages, isLoading } = trpc.mortgage.list.useQuery();
     const { data: settings } = trpc.settings.getUserSettings.useQuery();
     const [payingMortgage, setPayingMortgage] = useState<any>(null);
     
-    const activeMortgages = (mortgages || []).filter((m: any) => m.status === 'active');
-    const maxItems = gridParams?.h && gridParams.h <= 2 ? 2 : 3;
+    const bp = gridParams?.breakpoint;
+    const isSmallBp = bp === 'sm' || bp === 'xs';
+    const isNarrow = (gridParams?.w ?? 0) <= 1;
+    const isShort = (gridParams?.h ?? 0) <= 2;
+    const isCompact = isNarrow || isShort;
+    const isTall = (gridParams?.h ?? 0) > (isSmallBp ? 2 : 2);
 
+    const activeMortgages = (mortgages || []).filter((m: any) => m.status === 'active');
     const totalBalance = activeMortgages.reduce((sum: number, m: any) => sum + Number(m.remainingBalance), 0);
     const totalMonthly = activeMortgages.reduce((sum: number, m: any) => sum + Number(m.monthlyPayment), 0);
-    const isCompact = (gridParams?.h ?? 0) <= 1;
     
-    // Logic settings
     const { logic, period } = getPaymentStatusOptions(settings, 'mortgage');
-    
-    // Check if all mortgages are paid for this target month
     const allPaidThisMonth = activeMortgages.every((m: any) => {
         const targetMonthStr = getTargetMonthStr(m.paymentDay, { logic, period });
         return isPaidForTargetMonth(m.payments, targetMonthStr, true);
     });
 
-    if (isCompact) {
+    const visibleMortgages = isTall ? activeMortgages.slice(0, 3) : activeMortgages.slice(0, 1);
+
+    if (isLoading) {
         return (
-            <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
-                <Link to="/financial/mortgages" className="block">
-                    <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
-                        <CardTitle className="dashboard-widget__title truncate">Mortgages</CardTitle>
-                        <div className="dashboard-widget__header-value">
-                            <CurrencyDisplay
-                                amount={totalBalance}
-                                currency={activeMortgages.length > 0 ? activeMortgages[0].currency : undefined}
-                                abbreviate
-                            />
-                        </div>
-                    </CardHeader>
-                </Link>
-                <CardContent className="p-2 pt-1 pb-2 flex-1 flex items-end">
-                    <p className="dashboard-widget__sub w-full">
-                        {activeMortgages.length} active {activeMortgages.length === 1 ? 'loan' : 'loans'}
-                    </p>
+            <Card className="dashboard-widget h-full rounded-[32px] overflow-hidden">
+                <CardHeader className="p-3 pb-2">
+                    <Skeleton className="h-4 w-24" />
+                </CardHeader>
+                <CardContent className="p-3 pt-0">
+                    <Skeleton className="h-8 w-32 mb-4" />
+                    <Skeleton className="h-12 w-full" />
                 </CardContent>
             </Card>
         );
@@ -58,86 +52,77 @@ export function MortgageWidget({ gridParams }: { gridParams?: { w: number; h: nu
 
     return (
         <>
-            <Card className={cn('dashboard-widget h-full flex flex-col', isCompact && 'dashboard-widget--compact')}>
-                <Link to="/financial/mortgages" className="block">
-                    <CardHeader className="dashboard-widget__header p-2 pb-1 hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="dashboard-widget__title truncate">Mortgages</CardTitle>
-                            <Home className="dashboard-widget__icon" />
+            <Card className={cn('dashboard-widget h-full flex flex-col group rounded-[32px] overflow-hidden', isCompact && 'dashboard-widget--compact')}>
+                <Link to="/financial/mortgages" className="block flex-1 flex flex-col min-h-0">
+                    <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-xl cursor-pointer">
+                        <div className="flex flex-col min-w-0 flex-1">
+                            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Mortgages</div>
+                            <div className="flex items-baseline gap-2 flex-wrap">
+                                <span className="text-lg font-bold tracking-tight whitespace-nowrap">
+                                    <CurrencyDisplay amount={totalMonthly} currency={activeMortgages[0]?.currency || 'KZT'} abbreviate={totalMonthly > 1000000} />
+                                    <span className="text-[10px] text-muted-foreground font-medium ml-1">due this month</span>
+                                </span>
+                            </div>
+                        </div>
+                        <div className={cn(
+                            "p-1.5 rounded-md transition-colors",
+                            allPaidThisMonth ? "bg-emerald-500/10 group-hover:bg-emerald-500/20" : "bg-orange-500/10 group-hover:bg-orange-500/20"
+                        )}>
+                            <Home className={cn("h-4 w-4", allPaidThisMonth ? "text-emerald-500" : "text-orange-500")} />
                         </div>
                     </CardHeader>
-                </Link>
-                <CardContent className="flex-1 overflow-y-auto p-3 pt-0">
-                    {isLoading ? (
-                        <div className="space-y-2">
-                            <Skeleton className="h-4 w-32" />
-                            <Skeleton className="h-4 w-48" />
-                        </div>
-                    ) : activeMortgages.length === 0 ? (
-                        <p className="dashboard-widget__desc">No active mortgages found.</p>
-                    ) : (
-                        <div className="space-y-3">
-                            {/* This Month Status */}
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <div className="dashboard-widget__value">
-                                        <CurrencyDisplay amount={totalMonthly} currency={activeMortgages[0]?.currency || 'KZT'} className="max-[600px]:text-xs" />
-                                    </div>
-                                    <Badge variant={allPaidThisMonth ? "default" : "destructive"} className="dashboard-widget__badge flex items-center gap-1">
-                                        {allPaidThisMonth ? (
-                                            <><Check className="h-3 w-3" /> Paid</>
-                                        ) : (
-                                            <><X className="h-3 w-3" /> <span className="max-[600px]:hidden">Unpaid</span></>
-                                        )}
-                                    </Badge>
+
+                    <CardContent className="px-3 py-1 flex-1 flex flex-col min-h-0">
+                        <div className="flex-1 space-y-1.5 overflow-hidden py-1">
+                            {activeMortgages.length === 0 ? (
+                                <div className="flex items-center justify-center h-full text-center py-4">
+                                    <p className="text-[10px] text-muted-foreground italic uppercase tracking-wider">No active mortgages</p>
                                 </div>
-                            </div>
-                            
-                            {/* Active Mortgages */}
-                            <div className="space-y-2">
-                                <p className="dashboard-widget__meta">Active ({activeMortgages.length})</p>
-                                <div className="space-y-1.5">
-                                    {activeMortgages.slice(0, maxItems).map((mortgage: any) => {
-                                        const targetMonthStr = getTargetMonthStr(mortgage.paymentDay, { logic, period });
-                                        const isPaidThisMonth = isPaidForTargetMonth(mortgage.payments, targetMonthStr, true);
-                                        return (
-                                            <div 
-                                                key={mortgage.id} 
-                                                className="dashboard-widget__item flex items-center justify-between p-2 rounded-md bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors gap-2"
-                                                onClick={() => setPayingMortgage(mortgage)}
-                                            >
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    {isPaidThisMonth ? (
-                                                        <Check className="h-3 w-3 text-green-600 flex-shrink-0" />
-                                                    ) : (
-                                                        <X className="h-3 w-3 text-red-600 flex-shrink-0" />
-                                                    )}
-                                                    <span className="truncate text-sm font-medium">{mortgage.propertyName}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2 flex-shrink-0">
-                                                    <span className="whitespace-nowrap">
-                                                        <CurrencyDisplay amount={mortgage.monthlyPayment} currency={mortgage.currency} className="max-[600px]:text-xs" />
-                                                    </span>
-                                                    <Wallet className="h-3 w-3 text-muted-foreground" />
+                            ) : (
+                                visibleMortgages.map((mortgage: any) => {
+                                    const targetMonthStr = getTargetMonthStr(mortgage.paymentDay, { logic, period });
+                                    const isPaid = isPaidForTargetMonth(mortgage.payments, targetMonthStr, true);
+                                    return (
+                                        <div 
+                                            key={mortgage.id} 
+                                            className="flex items-center justify-between gap-2 p-1.5 rounded-md bg-muted/40 hover:bg-muted/60 transition-colors group/item cursor-pointer"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setPayingMortgage(mortgage);
+                                            }}
+                                        >
+                                            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                                {isPaid ? (
+                                                    <Check className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                                                ) : (
+                                                    <X className="h-3 w-3 text-orange-500 flex-shrink-0" />
+                                                )}
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-[10px] font-bold truncate leading-tight">{mortgage.propertyName}</span>
+                                                    <span className="text-[8px] text-muted-foreground uppercase">Day {mortgage.paymentDay}</span>
                                                 </div>
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                            
-                            {/* Total Remaining */}
-                            <div className="pt-2 border-t">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs text-muted-foreground">Total Remaining</span>
-                                    <span className="font-medium text-orange-500">
-                                        <CurrencyDisplay amount={totalBalance} currency={activeMortgages[0]?.currency || 'KZT'} className="max-[600px]:text-xs" />
-                                    </span>
-                                </div>
-                            </div>
+                                            <div className="text-right">
+                                                <div className="text-[10px] font-bold">
+                                                    <CurrencyDisplay amount={Number(mortgage.monthlyPayment)} currency={mortgage.currency} abbreviate />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
                         </div>
-                    )}
-                </CardContent>
+                    </CardContent>
+                </Link>
+
+                <WidgetFooter>
+                    <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">
+                        <CurrencyDisplay amount={totalBalance} currency={activeMortgages[0]?.currency || 'KZT'} abbreviate /> total left
+                    </span>
+                    <Link to="/financial/mortgages" className="text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
+                        Details <ArrowRight className="h-2.5 w-2.5" />
+                    </Link>
+                </WidgetFooter>
             </Card>
             
             <MortgagePaymentSheet

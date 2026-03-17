@@ -1,12 +1,12 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Repeat } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Repeat, Calendar, ArrowRight, Bell } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Link } from '@tanstack/react-router';
+import { WidgetFooter } from './WidgetFooter';
 
 interface Subscription {
     id: string;
@@ -32,17 +32,22 @@ interface SubscriptionWithNextBilling extends Subscription {
     monthlyEquivalent: number;
 }
 
-export function SubscriptionsWidget({ gridParams }: { gridParams?: { w: number; h: number } }) {
+type GridParams = { w: number; h: number; breakpoint?: string };
+
+export function SubscriptionsWidget({ gridParams }: { gridParams?: GridParams }) {
     const { data: subscriptionsData, isLoading } = trpc.subscription.list.useQuery({
         includeLinkedEntities: true,
         status: 'active',
         type: 'all'
     });
     
-    const isCompact = (gridParams?.h ?? 0) <= 1;
-    const isTall = (gridParams?.h ?? 0) > 1;
+    const bp = gridParams?.breakpoint;
+    const isSmallBp = bp === 'sm' || bp === 'xs';
+    const isNarrow = (gridParams?.w ?? 0) <= 1;
+    const isShort = (gridParams?.h ?? 0) <= 2;
+    const isCompact = isNarrow || isShort;
+    const isTall = (gridParams?.h ?? 0) > (isSmallBp ? 2 : 2);
 
-    // Process subscriptions and calculate next billing dates
     const processedSubscriptions: SubscriptionWithNextBilling[] = React.useMemo(() => {
         if (!subscriptionsData) return [];
         
@@ -55,34 +60,28 @@ export function SubscriptionsWidget({ gridParams }: { gridParams?: { w: number; 
             .filter((sub: Subscription) => sub.status === 'active')
             .map((sub: Subscription): SubscriptionWithNextBilling => {
                 const amount = Number(sub.amount);
-                
-                // Calculate monthly equivalent based on frequency
                 const monthlyEquivalent = (() => {
                     switch (sub.frequency) {
                         case 'daily': return amount * 30;
-                        case 'weekly': return amount * 4.33; // More accurate weekly calculation
+                        case 'weekly': return amount * 4.33;
                         case 'yearly': return amount / 12;
                         default: return amount;
                     }
                 })();
 
-                // Calculate next billing date
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                
                 const nextBillingDate = new Date(today);
                 
                 if (sub.frequency === 'monthly') {
                     const billingDay = sub.billingDay || new Date(sub.startDate).getDate();
                     nextBillingDate.setDate(billingDay);
-                    
-                    // If billing day already passed this month, move to next month
                     if (nextBillingDate < today) {
                         nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
                     }
                 } else if (sub.frequency === 'weekly') {
-                    const dayOfWeek = sub.billingDay || 1; // 1 = Monday
-                    const currentDayOfWeek = today.getDay() === 0 ? 7 : today.getDay(); // Convert to 1-7 (Mon-Sun)
+                    const dayOfWeek = sub.billingDay || 1;
+                    const currentDayOfWeek = today.getDay() === 0 ? 7 : today.getDay();
                     const daysUntilBilling = ((dayOfWeek - currentDayOfWeek + 7) % 7) || 7;
                     nextBillingDate.setDate(today.getDate() + daysUntilBilling);
                 } else if (sub.frequency === 'daily') {
@@ -90,16 +89,12 @@ export function SubscriptionsWidget({ gridParams }: { gridParams?: { w: number; 
                 } else if (sub.frequency === 'yearly') {
                     const startDate = new Date(sub.startDate);
                     nextBillingDate.setMonth(startDate.getMonth(), startDate.getDate());
-                    
-                    // If anniversary already passed this year, move to next year
                     if (nextBillingDate < today) {
                         nextBillingDate.setFullYear(nextBillingDate.getFullYear() + 1);
                     }
                 }
 
-                // Check if subscription has ended
                 if (sub.endDate && nextBillingDate > new Date(sub.endDate)) {
-                    // Don't include expired subscriptions
                     return null as any;
                 }
 
@@ -116,7 +111,6 @@ export function SubscriptionsWidget({ gridParams }: { gridParams?: { w: number; 
             .sort((a, b) => a.daysUntilBilling - b.daysUntilBilling);
     }, [subscriptionsData]);
 
-    // Calculate totals by currency
     const totalsByCurrency: Record<string, number> = React.useMemo(() => {
         const totals: Record<string, number> = {};
         processedSubscriptions.forEach(sub => {
@@ -126,107 +120,86 @@ export function SubscriptionsWidget({ gridParams }: { gridParams?: { w: number; 
     }, [processedSubscriptions]);
 
     const totalSubscriptions = processedSubscriptions.length;
-    const visibleSubscriptions = isTall ? processedSubscriptions.slice(0, 5) : [];
+    const visibleSubscriptions = isTall ? processedSubscriptions.slice(0, 4) : processedSubscriptions.slice(0, 2);
     
-    // Get primary display value
     const activeBalances = Object.entries(totalsByCurrency).filter(([_, amount]) => amount !== 0);
     const primaryCurrency = activeBalances.length > 0 ? activeBalances[0][0] : 'USD';
     const primaryAmount = activeBalances.length > 0 ? activeBalances[0][1] : 0;
 
     if (isLoading) {
         return (
-            <Card className={cn('dashboard-widget h-full', isCompact && 'dashboard-widget--compact')}>
-                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
-                    <Skeleton className="h-4 w-28" />
+            <Card className="dashboard-widget h-full rounded-[32px] overflow-hidden">
+                <CardHeader className="p-3 pb-2">
+                    <Skeleton className="h-4 w-24" />
                 </CardHeader>
                 <CardContent className="p-3 pt-0">
-                    <Skeleton className="h-8 w-32" />
+                    <Skeleton className="h-8 w-32 mb-4" />
+                    <Skeleton className="h-12 w-full" />
                 </CardContent>
             </Card>
         );
     }
 
-    // Compact view - just show total
-    if (isCompact) {
-        return (
-            <Card className="dashboard-widget dashboard-widget--compact h-full flex flex-col justify-between">
-                <Link to="/subscriptions" className="block">
-                    <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
-                        <CardTitle className="dashboard-widget__title truncate">Subscriptions</CardTitle>
-                        <div className="dashboard-widget__header-value">
-                            <CurrencyDisplay amount={primaryAmount} currency={primaryCurrency} abbreviate />
-                        </div>
-                    </CardHeader>
-                </Link>
-                <CardContent className="p-2 pt-1 pb-2 flex-1 flex items-end">
-                    <p className="dashboard-widget__sub w-full truncate">
-                        {totalSubscriptions} {totalSubscriptions === 1 ? 'subscription' : 'subscriptions'}
-                    </p>
-                </CardContent>
-            </Card>
-        );
-    }
-
-    // Expanded view with subscription list
     return (
-        <Card className="dashboard-widget h-full flex flex-col">
-            <Link to="/subscriptions" className="block">
-                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1 hover:bg-muted/50 transition-colors">
-                    <CardTitle className="dashboard-widget__title truncate">Subscriptions</CardTitle>
-                    <Repeat className="dashboard-widget__icon" />
+        <Card className={cn('dashboard-widget h-full flex flex-col group rounded-[32px] overflow-hidden', isCompact && 'dashboard-widget--compact')}>
+            <Link to="/subscriptions" className="block flex-1 flex flex-col min-h-0">
+                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-xl cursor-pointer">
+                    <div className="flex flex-col min-w-0 flex-1">
+                        <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Subscriptions</div>
+                        <div className="flex items-baseline gap-1.5 flex-wrap">
+                            <span className="text-lg font-bold tracking-tight whitespace-nowrap">
+                                <CurrencyDisplay amount={primaryAmount} currency={primaryCurrency} abbreviate={primaryAmount > 1000000} />
+                                <span className="text-[10px] text-muted-foreground font-medium ml-1">/mo</span>
+                            </span>
+                        </div>
+                    </div>
+                    <div className="p-1.5 bg-purple-500/10 rounded-md group-hover:bg-purple-500/20 transition-colors">
+                        <Repeat className="h-4 w-4 text-purple-500" />
+                    </div>
                 </CardHeader>
-            </Link>
-            <CardContent className="flex-1 overflow-hidden p-3 pt-0 flex flex-col">
-                <div className="dashboard-widget__value mb-2">
-                    <CurrencyDisplay amount={primaryAmount} currency={primaryCurrency} abbreviate />
-                    <span className="text-xs text-muted-foreground ml-2">/ month</span>
-                </div>
-                
-                {isTall && processedSubscriptions.length > 0 && (
-                    <ScrollArea className="flex-1 -mx-1 px-1">
-                        <div className="space-y-1.5">
-                            {visibleSubscriptions.map(subscription => (
-                                <div 
-                                    key={subscription.id} 
-                                    className="dashboard-widget__item flex items-center justify-between p-1.5 rounded bg-muted/30"
-                                >
+
+                <CardContent className="px-3 py-1 flex-1 flex flex-col min-h-0">
+                    <div className="flex-1 space-y-1.5 overflow-hidden py-1">
+                        {visibleSubscriptions.length === 0 ? (
+                            <div className="flex items-center justify-center h-full text-center py-4">
+                                <p className="text-[10px] text-muted-foreground italic uppercase tracking-wider">No active subscriptions</p>
+                            </div>
+                        ) : (
+                            visibleSubscriptions.map((sub) => (
+                                <div key={sub.id} className="flex items-center justify-between gap-2 p-1.5 rounded-md bg-muted/40 hover:bg-muted/60 transition-colors group/item">
                                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span 
-                                            className="text-xs flex-shrink-0" 
-                                            style={{ color: subscription.color }}
-                                        >
-                                            {subscription.icon}
-                                        </span>
+                                        <span className="text-sm flex-shrink-0" style={{ color: sub.color }}>{sub.icon}</span>
                                         <div className="flex flex-col min-w-0">
-                                            <span className="text-sm font-medium truncate leading-tight">{subscription.name}</span>
-                                            <span className="text-[10px] text-muted-foreground truncate">
-                                                {subscription.daysUntilBilling === 0 
-                                                    ? 'Today' 
-                                                    : subscription.daysUntilBilling === 1
-                                                        ? 'Tomorrow'
-                                                        : `In ${subscription.daysUntilBilling} days`
-                                                }
+                                            <span className="text-[10px] font-bold truncate leading-tight">{sub.name}</span>
+                                            <span className={cn(
+                                                "text-[9px] font-medium uppercase",
+                                                sub.daysUntilBilling <= 3 ? "text-rose-500 font-bold" : "text-muted-foreground"
+                                            )}>
+                                                {sub.daysUntilBilling === 0 ? 'Today' : sub.daysUntilBilling === 1 ? 'Tomorrow' : `In ${sub.daysUntilBilling} days`}
                                             </span>
                                         </div>
                                     </div>
-                                    <div className="text-xs font-medium whitespace-nowrap ml-2">
-                                        <CurrencyDisplay 
-                                            amount={subscription.monthlyEquivalent} 
-                                            currency={subscription.currency}
-                                        />
+                                    <div className="text-right">
+                                        <div className="text-[10px] font-bold">
+                                            <CurrencyDisplay amount={Number(sub.amount)} currency={sub.currency} abbreviate />
+                                        </div>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    </ScrollArea>
-                )}
-                
-                <p className="dashboard-widget__sub mt-auto pt-1">
-                    {totalSubscriptions > visibleSubscriptions.length
-                        ? `Showing ${visibleSubscriptions.length} of ${totalSubscriptions} subscriptions`
-                        : `${totalSubscriptions} ${totalSubscriptions === 1 ? 'subscription' : 'subscriptions'}`}
-                </p>
-            </CardContent>
+                            ))
+                        )}
+                    </div>
+                </CardContent>
+            </Link>
+
+            <WidgetFooter>
+                <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                    <Bell className="h-2.5 w-2.5" />
+                    {totalSubscriptions} Active
+                </span>
+                <Link to="/subscriptions" className="text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
+                    Details <ArrowRight className="h-2.5 w-2.5" />
+                </Link>
+            </WidgetFooter>
         </Card>
     );
 }

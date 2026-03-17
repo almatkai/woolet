@@ -51,6 +51,7 @@ export const CACHE_KEYS = {
         `report:${userId}:${year}:${month}`,
     categories: (userId: string) => `categories:${userId}`,
     accounts: (userId: string) => `accounts:${userId}`,
+    hierarchy: (userId: string) => `hierarchy:${userId}`,
     exchangeRate: (from: string, to: string) => `rate:${from}:${to}`,
     
     // Currency exchange rates
@@ -69,6 +70,8 @@ export const CACHE_KEYS = {
     portfolioChart: (userId: string, range: string) => `invest:portfolio:${userId}:chart:${range}`,
     marketDigestDaily: (userId: string, date: string) => `invest:digest:daily:${userId}:${date}`,
     marketDigestCustom: (userId: string, date: string, specsHash: string) => `invest:digest:custom:${userId}:${date}:${specsHash}`,
+    spendingStats: (userId: string, startDate: string, endDate: string, categoryIds?: string[]) =>
+        `spending:${userId}:${startDate}:${endDate}:${(categoryIds || []).sort().join(',')}`,
 };
 
 export const CACHE_TTL = {
@@ -76,7 +79,9 @@ export const CACHE_TTL = {
     monthlyReport: 60 * 60, // 1 hour
     categories: 60 * 30,    // 30 minutes
     accounts: 60 * 10,      // 10 minutes
+    hierarchy: 60 * 10,     // 10 minutes
     exchangeRate: 60 * 60,  // 1 hour
+    spendingStats: 60 * 30, // 30 minutes
     
     // Investing module
     stockSearch: 60 * 60 * 24,      // 24 hours (stock symbols rarely change)

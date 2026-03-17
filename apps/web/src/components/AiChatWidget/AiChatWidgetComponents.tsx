@@ -5,9 +5,9 @@ import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessageCircle, X, Send, History, PlusCircle, Trash2, Loader2, CheckCircle2 } from 'lucide-react';
-import { SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from '@/components/ui/sidebar';
+import { CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { MessageCircle, X, Send, History, PlusCircle, Trash2 } from 'lucide-react';
+import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -15,64 +15,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MomoIcon } from './MomoIcon';
 import { MomoIconWrapper } from './MomoIconWrapper';
-import { useNavigate } from '@tanstack/react-router';
 
 interface Message {
     role: 'user' | 'model';
     text: string;
-    trace?: AgentTraceStep[];
-    actionPath?: string;
-}
-
-interface AgentTraceStep {
-    key: string;
-    label: string;
-    detail?: string;
-    status?: 'done' | 'running' | 'pending';
-}
-
-function createClientRequestId(): string {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-        return crypto.randomUUID();
-    }
-    return `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function AgentTraceView({ steps, loading = false }: { steps: AgentTraceStep[]; loading?: boolean }) {
-    if (!steps.length) return null;
-
-    return (
-        <div className="mb-2 rounded-md border border-slate-300/60 dark:border-slate-700/70 bg-slate-100/60 dark:bg-slate-900/40 px-2.5 py-2">
-            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Agent Execution
-            </div>
-            <div className="space-y-1.5">
-                {steps.map((step) => {
-                    const isDone = step.status === 'done';
-                    const isRunning = step.status === 'running';
-                    return (
-                        <div key={step.key} className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                            <div className="flex items-center gap-1.5">
-                                {isDone ? (
-                                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                                ) : isRunning ? (
-                                    <Loader2 className={cn("h-3 w-3 text-slate-400", loading ? "animate-spin" : "")} />
-                                ) : (
-                                    <span className="h-3 w-3 rounded-full bg-slate-300/80 dark:bg-slate-600/80" />
-                                )}
-                                <span>{step.label}...</span>
-                            </div>
-                            {step.detail ? (
-                                <div className="pl-4 text-[11px] text-slate-500 dark:text-slate-400 break-words">
-                                    Result: {step.detail}
-                                </div>
-                            ) : null}
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
-    );
 }
 
 // Shared hook for anger state management
@@ -103,44 +49,30 @@ function useChatLogic(currentSessionId: string | null, setCurrentSessionId: (id:
         { role: 'model', text: 'Hi! I\'m Woo. Ask me anything about your finances!' }
     ]);
     const [hasSentMessage, setHasSentMessage] = useState(false);
-    const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
 
     const chatMutation = trpc.ai.chat.useMutation({
         onSuccess: (data: any) => {
-            const clientActionPath =
-                data?.clientAction?.type === 'navigate' && typeof data?.clientAction?.path === 'string'
-                    ? data.clientAction.path
-                    : undefined;
-            setMessages(prev => [...prev, {
-                role: 'model',
-                text: data.response,
-                trace: Array.isArray(data.agentTrace) ? data.agentTrace : [],
-                actionPath: clientActionPath,
-            }]);
+            setMessages(prev => [...prev, { role: 'model', text: data.response }]);
             if (data.sessionId && !currentSessionId) {
                 setCurrentSessionId(data.sessionId);
                 utils.ai.listSessions.invalidate();
             }
             utils.ai.getChatUsage.invalidate();
-            setPendingRequestId(null);
         },
         onError: (error: any) => {
             console.error(error);
             const message = error.message || 'Sorry, I encountered an error. Try again!';
             setMessages(prev => [...prev, { role: 'model', text: message }]);
-            setPendingRequestId(null);
         }
     });
 
     const handleSend = (inputValue: string) => {
         if (!inputValue.trim()) return;
 
-        const clientRequestId = createClientRequestId();
         const newMsg: Message = { role: 'user', text: inputValue };
         setMessages(prev => [...prev, newMsg]);
         setHasSentMessage(true);
-        setPendingRequestId(clientRequestId);
-        chatMutation.mutate({ message: newMsg.text, sessionId: currentSessionId, clientRequestId });
+        chatMutation.mutate({ message: newMsg.text, sessionId: currentSessionId });
         posthog.capture('ai_message_sent', { session_id: currentSessionId, message_length: newMsg.text.length });
     };
 
@@ -149,7 +81,7 @@ function useChatLogic(currentSessionId: string | null, setCurrentSessionId: (id:
         setHasSentMessage(false);
     };
 
-    return { messages, setMessages, handleSend, handleNewChat, chatMutation, hasSentMessage, setHasSentMessage, pendingRequestId };
+    return { messages, setMessages, handleSend, handleNewChat, chatMutation, hasSentMessage, setHasSentMessage };
 }
 
 export function AiChatSidebarItem() {
@@ -161,20 +93,10 @@ export function AiChatSidebarItem() {
     const [sidebarPressed, setSidebarPressed] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const navigate = useNavigate();
 
     const { isAngry, setIsAngry } = useAngryState(isOpen, false);
-    const { messages, setMessages, handleSend, handleNewChat, chatMutation, pendingRequestId } = useChatLogic(currentSessionId, setCurrentSessionId);
+    const { messages, setMessages, handleSend, handleNewChat, chatMutation } = useChatLogic(currentSessionId, setCurrentSessionId);
     const utils = trpc.useUtils();
-    const { data: liveTraceData } = trpc.ai.getLiveTrace.useQuery(
-        { requestId: pendingRequestId || '' },
-        {
-            enabled: isOpen && chatMutation.isLoading && Boolean(pendingRequestId),
-            refetchInterval: chatMutation.isLoading ? 400 : false,
-            refetchIntervalInBackground: true,
-        }
-    );
-    const liveTrace = Array.isArray(liveTraceData?.trace) ? liveTraceData.trace : [];
 
     // Queries
     const { data: usage } = trpc.ai.getChatUsage.useQuery(undefined, { enabled: isOpen });
@@ -327,38 +249,16 @@ export function AiChatSidebarItem() {
                                                                             ? "bg-purple-600 text-white"
                                                                             : "bg-muted text-foreground"
                                                                     )}>
-                                                                        {m.role === 'model' && m.trace && m.trace.length > 0 && (
-                                                                            <AgentTraceView steps={m.trace} />
-                                                                        )}
                                                                         {typeof m.text === 'string' && m.text.trim().length > 0 && (
                                                                             <ReactMarkdown children={m.text} />
-                                                                        )}
-                                                                        {m.role === 'model' && m.actionPath && (
-                                                                            <div className="mt-2">
-                                                                                <Button
-                                                                                    size="sm"
-                                                                                    variant="secondary"
-                                                                                    className="h-7 text-xs"
-                                                                                    onClick={() => navigate({ to: m.actionPath as any })}
-                                                                                >
-                                                                                    Open {m.actionPath}
-                                                                                </Button>
-                                                                            </div>
                                                                         )}
                                                                     </div>
                                                                 </div>
                                                             ))}
                                                             {chatMutation.isLoading && (
                                                                 <div className="flex justify-start">
-                                                                    <div className="max-w-[80%] bg-muted rounded-lg px-3 py-2 text-sm text-muted-foreground">
-                                                                        {liveTrace.length > 0 ? (
-                                                                            <AgentTraceView steps={liveTrace} loading />
-                                                                        ) : (
-                                                                            <div className="flex items-center gap-2">
-                                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                                                <span>Starting...</span>
-                                                                            </div>
-                                                                        )}
+                                                                    <div className="bg-muted rounded-lg px-3 py-2 text-sm text-muted-foreground animate-pulse">
+                                                                        Thinking...
                                                                     </div>
                                                                 </div>
                                                             )}
@@ -465,11 +365,7 @@ export function AiChatSidebarItem() {
     );
 }
 
-export function AiChatFloatingItem() {
-    const COMPACT_PANEL_GAP = 8;
-    const MOBILE_TABBAR_OFFSET = 96;
-    const MOBILE_TRIGGER_OFFSET = 88;
-    const { isMobile: isSidebarMobile } = useSidebar();
+export function AiChatFloatingItem({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile' }) {
     const [isOpen, setIsOpen] = useState(false);
     const [view, setView] = useState<'chat' | 'history'>('chat');
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -477,32 +373,15 @@ export function AiChatFloatingItem() {
     const [sidebarHovered, setSidebarHovered] = useState(false);
     const [sidebarPressed, setSidebarPressed] = useState(false);
     const [hasSentMessage, setHasSentMessage] = useState(false);
-    const [compactPanelHeight, setCompactPanelHeight] = useState<number | null>(null);
-    const [compactBottomOffset, setCompactBottomOffset] = useState<number>(8);
-    const [isWideChatViewport, setIsWideChatViewport] = useState<boolean>(() => {
-        if (typeof window === 'undefined') return false;
-        return window.matchMedia('(min-width: 640px)').matches;
-    });
+    const [mobileViewportHeight, setMobileViewportHeight] = useState<number | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const navigate = useNavigate();
 
     const utils = trpc.useUtils();
     const { isAngry, setIsAngry } = useAngryState(isOpen, hasSentMessage);
-    const { messages, setMessages, handleSend, handleNewChat, chatMutation, setHasSentMessage: setMsgSent, pendingRequestId } = useChatLogic(currentSessionId, setCurrentSessionId);
-    const { data: liveTraceData } = trpc.ai.getLiveTrace.useQuery(
-        { requestId: pendingRequestId || '' },
-        {
-            enabled: isOpen && chatMutation.isLoading && Boolean(pendingRequestId),
-            refetchInterval: chatMutation.isLoading ? 400 : false,
-            refetchIntervalInBackground: true,
-        }
-    );
-    const liveTrace = Array.isArray(liveTraceData?.trace) ? liveTraceData.trace : [];
-    const openChat = () => {
-        setIsAngry(false);
-        setIsOpen(true);
-    };
+    const { messages, setMessages, handleSend, handleNewChat, chatMutation, setHasSentMessage: setMsgSent } = useChatLogic(currentSessionId, setCurrentSessionId);
+
+
 
     useEffect(() => {
         if (isOpen && view === 'chat') {
@@ -514,57 +393,33 @@ export function AiChatFloatingItem() {
     }, [isOpen, view]);
 
     useEffect(() => {
-        const mql = window.matchMedia('(min-width: 640px)');
-        const syncViewport = () => setIsWideChatViewport(mql.matches);
-        syncViewport();
-        mql.addEventListener('change', syncViewport);
-        return () => mql.removeEventListener('change', syncViewport);
-    }, []);
+        if (!isOpen || variant !== 'mobile') return;
 
-    const [hasMobileBottomNav, setHasMobileBottomNav] = useState(false);
-    useEffect(() => {
-        const mql = window.matchMedia('(max-width: 470px)');
-        const sync = () => setHasMobileBottomNav(mql.matches);
-        sync();
-        mql.addEventListener('change', sync);
-        return () => mql.removeEventListener('change', sync);
-    }, []);
-
-    const compactBottomBaseOffset = hasMobileBottomNav ? MOBILE_TABBAR_OFFSET : COMPACT_PANEL_GAP;
-
-    useEffect(() => {
-        if (!isOpen || isWideChatViewport) {
-            const timer = setTimeout(() => {
-                setCompactPanelHeight(null);
-                setCompactBottomOffset(compactBottomBaseOffset);
-            }, 0);
-            return () => clearTimeout(timer);
-        }
-
-        const updateCompactMetrics = () => {
-            const viewport = window.visualViewport;
-            const viewportHeight = viewport?.height ?? window.innerHeight;
-            const keyboardInset = Math.max(
-                0,
-                window.innerHeight - viewportHeight - (viewport?.offsetTop ?? 0)
-            );
-
-            setCompactPanelHeight(Math.max(320, Math.floor(viewportHeight * 0.72)));
-            setCompactBottomOffset(Math.max(compactBottomBaseOffset, Math.floor(keyboardInset + compactBottomBaseOffset)));
+        const updateHeight = () => {
+            const nextHeight = Math.max(window.visualViewport?.height ?? window.innerHeight, 320) * 0.8;
+            setMobileViewportHeight(Math.max(320, Math.floor(nextHeight)));
         };
 
-        updateCompactMetrics();
+        updateHeight();
+
         const viewport = window.visualViewport;
-        viewport?.addEventListener('resize', updateCompactMetrics);
-        viewport?.addEventListener('scroll', updateCompactMetrics);
-        window.addEventListener('resize', updateCompactMetrics);
+        viewport?.addEventListener('resize', updateHeight);
+        viewport?.addEventListener('scroll', updateHeight);
+        window.addEventListener('resize', updateHeight);
+
+        const previousBodyOverflow = document.body.style.overflow;
+        const previousBodyOverscrollBehavior = document.body.style.overscrollBehavior;
+        document.body.style.overflow = 'hidden';
+        document.body.style.overscrollBehavior = 'none';
 
         return () => {
-            viewport?.removeEventListener('resize', updateCompactMetrics);
-            viewport?.removeEventListener('scroll', updateCompactMetrics);
-            window.removeEventListener('resize', updateCompactMetrics);
+            viewport?.removeEventListener('resize', updateHeight);
+            viewport?.removeEventListener('scroll', updateHeight);
+            window.removeEventListener('resize', updateHeight);
+            document.body.style.overflow = previousBodyOverflow;
+            document.body.style.overscrollBehavior = previousBodyOverscrollBehavior;
         };
-    }, [isOpen, isWideChatViewport, compactBottomBaseOffset]);
+    }, [isOpen, variant]);
 
     // Queries
     const { data: usage } = trpc.ai.getChatUsage.useQuery(undefined, { enabled: isOpen });
@@ -595,133 +450,108 @@ export function AiChatFloatingItem() {
         e.preventDefault();
         if (!inputValue.trim()) return;
 
-        handleSend(inputValue);
+        const newMsg: Message = { role: 'user', text: inputValue };
+        setMessages(prev => [...prev, newMsg]);
         setInputValue('');
         setHasSentMessage(true);
         setMsgSent(true);
+        chatMutation.mutate({ message: newMsg.text, sessionId: currentSessionId });
+        posthog.capture('ai_message_sent', { session_id: currentSessionId, message_length: newMsg.text.length });
     };
 
-    const handleNewChatClick = () => {
-        handleNewChat();
-        setCurrentSessionId(null);
-        setView('chat');
-        setHasSentMessage(false);
-        setMsgSent(false);
-    };
-
-    const isCompactViewport = !isWideChatViewport;
-    const triggerPositionClass = isSidebarMobile ? "right-4" : "bottom-6 right-6";
-    const triggerStyle = isSidebarMobile
-        ? {
-            bottom: hasMobileBottomNav
-                ? `calc(${MOBILE_TRIGGER_OFFSET}px + env(safe-area-inset-bottom))`
-                : '1rem',
-        }
-        : undefined;
-    const panelPositionClass = isCompactViewport
-        ? "fixed inset-x-0 z-[46] pointer-events-auto mx-auto"
-        : "fixed bottom-6 right-6 z-[46] pointer-events-auto";
-    const panelClassName = cn(
-        "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 overflow-hidden shadow-2xl border-purple-200 dark:border-purple-800 flex flex-col z-[50]",
-        isCompactViewport
-            ? "w-[95vw] rounded-3xl"
-            : "w-[350px] rounded-3xl"
-    );
-    const panelStyle = isCompactViewport
-        ? {
-            height: compactPanelHeight ? `${compactPanelHeight}px` : '72dvh',
-            maxHeight: compactPanelHeight ? `${compactPanelHeight}px` : '72dvh',
-            bottom: `calc(${8}px + env(safe-area-inset-bottom))`,
-        }
-        : { height: '600px', maxHeight: '85vh' };
+    const mobilePanelHeight = mobileViewportHeight
+        ? `${Math.max(320, mobileViewportHeight - 8)}px`
+        : 'calc(100dvh - 0.5rem)';
 
     return (
         <>
-            {!isOpen && (
-                <div
-                    className={cn("fixed z-[45] pointer-events-auto items-center justify-center", triggerPositionClass)}
-                    style={triggerStyle}
+            <div className={cn(
+                variant === 'desktop'
+                    ? "fixed bottom-6 left-6 z-[45] hidden min-[850px]:flex"
+                    : "fixed bottom-4 right-4 z-[45] flex min-[850px]:hidden",
+                "pointer-events-auto items-center justify-center"
+            )}>
+                <button
+                    onClick={() => setIsOpen(true)}
+                    onMouseEnter={() => setSidebarHovered(true)}
+                    onMouseLeave={() => { setSidebarHovered(false); setSidebarPressed(false); }}
+                    onMouseDown={() => setSidebarPressed(true)}
+                    onMouseUp={() => { setSidebarPressed(false); setIsOpen(true); }}
+                    className="relative h-14 w-14 rounded-2xl shadow-lg cursor-pointer transition-all duration-500 flex items-center justify-center pointer-events-auto overflow-hidden bg-transparent hover:bg-transparent"
                 >
-                    <button
-                        onClick={openChat}
-                        onMouseEnter={() => setSidebarHovered(true)}
-                        onMouseLeave={() => { setSidebarHovered(false); setSidebarPressed(false); }}
-                        onMouseDown={() => setSidebarPressed(true)}
-                        onMouseUp={() => setSidebarPressed(false)}
-                        className="relative h-14 w-14 rounded-2xl shadow-lg cursor-pointer transition-all duration-500 flex items-center justify-center pointer-events-auto overflow-hidden bg-transparent hover:bg-transparent"
-                    >
+                    <motion.div
+                        layoutId="ai-chat-container"
+                        className={cn("absolute inset-0 rounded-2xl z-0", !isOpen ? "bg-purple-500" : "bg-transparent")}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                    <div className="relative z-10">
                         <motion.div
-                            layoutId="ai-chat-container"
-                            className={cn("absolute inset-0 rounded-2xl z-0", !isOpen ? "bg-purple-500" : "bg-transparent")}
+                            layoutId="woo-wallet-icon-box"
+                            className="flex items-center justify-center"
                             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                        />
-                        <div className="relative z-10">
-                            <motion.div
-                                layoutId="woo-wallet-icon-box"
-                                className="flex items-center justify-center"
-                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                            >
-                                <MomoIcon
-                                    className={cn("size-10", !isOpen ? "text-white" : "text-transparent")}
-                                    isHovered={sidebarHovered}
-                                    isPressed={sidebarPressed}
-                                    isAngry={isAngry}
-                                />
-                            </motion.div>
-                        </div>
-                    </button>
-                </div>
-            )}
+                        >
+                            <MomoIcon
+                                className={cn("size-10", !isOpen ? "text-white" : "text-transparent")}
+                                isHovered={sidebarHovered}
+                                isPressed={sidebarPressed}
+                                isAngry={isAngry}
+                            />
+                        </motion.div>
+                    </div>
+                </button>
+            </div>
 
             {createPortal(
                 <AnimatePresence>
                     {isOpen && (
-                        <motion.div
-                            layoutId="ai-chat-container"
-                            className={cn(panelPositionClass, panelClassName)}
-                            style={panelStyle}
-                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                        >
-                            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                                <CardHeader className="px-3 py-2 border-b bg-purple-50/50 dark:bg-purple-900/20 flex flex-row items-center justify-between space-y-0 shrink-0">
-                                    <div className="flex items-center gap-2">
-                                        <MomoIconWrapper
-                                            layoutId="woo-wallet-icon-box"
-                                            height="h-6"
-                                            width="w-6"
-                                            iconClassName="h-4 w-4"
-                                        />
-                                        <div className="flex flex-col">
-                                            <CardTitle className="text-sm font-medium leading-none">
-                                                {usage?.tierTitle || 'Woo'}
-                                            </CardTitle>
-                                            {usage && (
-                                                <span className="text-[10px] text-muted-foreground mt-0.5">
-                                                    {usage.remaining} / {usage.limit || usage.lifetimeLimit} {usage.limit > 0 ? 'left today' : 'questions left'}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                        {view === 'chat' ? (
-                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setView('history')} title="History">
-                                                <History className="h-4 w-4" />
-                                            </Button>
-                                        ) : (
-                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setView('chat')} title="Back to Chat">
-                                                <MessageCircle className="h-4 w-4" />
-                                            </Button>
-                                        )}
-                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleNewChatClick} title="New Chat">
-                                            <PlusCircle className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsOpen(false)}>
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </CardHeader>
+                        <div className="fixed inset-0 left-0 z-[46] flex items-end p-2 md:p-4 pointer-events-none w-full h-full">
+                            <div className="pointer-events-auto w-full md:w-auto h-full md:h-auto flex items-end justify-center md:justify-start">
+                                <motion.div
+                                    layoutId="ai-chat-container"
+                                    className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl border-purple-200 dark:border-purple-800 w-full md:w-[350px] flex flex-col md:h-[600px]"
+                                    style={variant === 'mobile' ? { height: mobilePanelHeight, maxHeight: mobilePanelHeight } : undefined}
+                                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                >
+                                    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                                        <CardHeader className="px-3 py-2 md:p-3 border-b bg-purple-50/50 dark:bg-purple-900/20 flex flex-row items-center justify-between space-y-0 shrink-0">
+                                            <div className="flex items-center gap-2">
+                                                <MomoIconWrapper
+                                                    layoutId="woo-wallet-icon-box"
+                                                    height="h-6"
+                                                    width="w-6"
+                                                    iconClassName="h-4 w-4"
+                                                />
+                                                <div className="flex flex-col">
+                                                    <CardTitle className="text-sm font-medium leading-none">
+                                                        {usage?.tierTitle || 'Woo'}
+                                                    </CardTitle>
+                                                    {usage && (
+                                                        <span className="text-[10px] text-muted-foreground mt-0.5">
+                                                            {usage.remaining} / {usage.limit || usage.lifetimeLimit} {usage.limit > 0 ? 'left today' : 'questions left'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                {view === 'chat' ? (
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setView('history')} title="History">
+                                                        <History className="h-4 w-4" />
+                                                    </Button>
+                                                ) : (
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setView('chat')} title="Back to Chat">
+                                                        <MessageCircle className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleNewChat} title="New Chat">
+                                                    <PlusCircle className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsOpen(false)}>
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </CardHeader>
 
-                                <CardContent className="flex-1 min-h-0 p-0 overflow-hidden relative">
+                                        <CardContent className="flex-1 min-h-0 p-0 overflow-hidden relative">
                                             {/* Chat View */}
                                             {view === 'chat' ? (
                                                 <div className="absolute inset-0 overflow-y-auto overscroll-contain p-4 space-y-4" ref={scrollRef}>
@@ -739,37 +569,13 @@ export function AiChatFloatingItem() {
                                                             {messages.map((m, i) => (
                                                                 <div key={i} className={cn("flex w-full", m.role === 'user' ? "justify-end" : "justify-start")}>
                                                                     <div className={cn("max-w-[80%] rounded-lg px-3 py-2 text-sm", m.role === 'user' ? "bg-purple-600 text-white" : "bg-muted text-foreground")}>
-                                                                        {m.role === 'model' && m.trace && m.trace.length > 0 && (
-                                                                            <AgentTraceView steps={m.trace} />
-                                                                        )}
                                                                         {typeof m.text === 'string' && m.text.trim().length > 0 && <ReactMarkdown children={m.text} />}
-                                                                        {m.role === 'model' && m.actionPath && (
-                                                                            <div className="mt-2">
-                                                                                <Button
-                                                                                    size="sm"
-                                                                                    variant="secondary"
-                                                                                    className="h-7 text-xs"
-                                                                                    onClick={() => navigate({ to: m.actionPath as any })}
-                                                                                >
-                                                                                    Open {m.actionPath}
-                                                                                </Button>
-                                                                            </div>
-                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             ))}
                                                             {chatMutation.isLoading && (
                                                                 <div className="flex justify-start">
-                                                                    <div className="max-w-[80%] bg-muted rounded-lg px-3 py-2 text-sm text-muted-foreground">
-                                                                        {liveTrace.length > 0 ? (
-                                                                            <AgentTraceView steps={liveTrace} loading />
-                                                                        ) : (
-                                                                            <div className="flex items-center gap-2">
-                                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                                                <span>Starting...</span>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
+                                                                    <div className="bg-muted rounded-lg px-3 py-2 text-sm text-muted-foreground animate-pulse">Thinking...</div>
                                                                 </div>
                                                             )}
                                                         </>
@@ -803,9 +609,9 @@ export function AiChatFloatingItem() {
                                                     </div>
                                                 </div>
                                             )}
-                                </CardContent>
+                                        </CardContent>
 
-                                <CardFooter className="px-3 py-2 border-t bg-background/50 backdrop-blur-sm shrink-0">
+                                        <CardFooter className="px-3 py-2 md:p-3 border-t bg-background/50 backdrop-blur-sm shrink-0">
                                             {view === 'chat' && (
                                                 <form
                                                     className="flex w-full items-center space-x-2 pointer-events-auto"
@@ -827,9 +633,11 @@ export function AiChatFloatingItem() {
                                                     </Button>
                                                 </form>
                                             )}
-                                </CardFooter>
+                                        </CardFooter>
+                                    </div>
+                                </motion.div>
                             </div>
-                        </motion.div>
+                        </div>
                     )}
                 </AnimatePresence>,
                 document.body
@@ -837,3 +645,5 @@ export function AiChatFloatingItem() {
         </>
     );
 }
+
+

@@ -92,13 +92,13 @@
     transition: none !important;
 }
 
-/* Mobile optimization - remove transform transitions on small screens */
+/* Mobile optimization */
 @media (max-width: 400px) {
     .layout .react-grid-item {
         transition: none !important;
     }
+}
 
-    .layout .react-grid-item>div {
-        overflow: hidden;
-    }
+.layout {
+    overflow: visible !important;
 }

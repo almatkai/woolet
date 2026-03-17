@@ -6,6 +6,7 @@ import './resize-styles.css';
 import './dashboard-widget.css';
 import { Button } from '@/components/ui/button';
 import { Trash2, Eye } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { trpc } from '@/lib/trpc';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -108,35 +109,22 @@ const EditOverlay = () => {
         const el = overlayRef.current;
         if (!el) return;
 
-        const stopNativeDragStart = (e: Event) => {
-            // Block native start events so only `.drag-handle` can initiate drag.
-            e.stopPropagation();
-            if ('stopImmediatePropagation' in e) {
-                (e as Event & { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
-            }
-        };
-
         const handleTouch = (e: TouchEvent) => {
-            stopNativeDragStart(e);
+            // Stop the native event from reaching RGL's touchstart handler on the parent grid item
+            e.stopImmediatePropagation();
         };
 
         const handleMouse = (e: MouseEvent) => {
-            stopNativeDragStart(e);
-        };
-
-        const handlePointer = (e: PointerEvent) => {
-            stopNativeDragStart(e);
+            e.stopImmediatePropagation();
         };
 
         // Attach in capture phase to intercept before RGL
-        el.addEventListener('touchstart', handleTouch, { capture: true, passive: false });
-        el.addEventListener('mousedown', handleMouse, { capture: true });
-        el.addEventListener('pointerdown', handlePointer, { capture: true });
+        el.addEventListener('touchstart', handleTouch, { capture: false, passive: false });
+        el.addEventListener('mousedown', handleMouse, { capture: false });
 
         return () => {
             el.removeEventListener('touchstart', handleTouch);
             el.removeEventListener('mousedown', handleMouse);
-            el.removeEventListener('pointerdown', handlePointer);
         };
     }, []);
 
@@ -144,9 +132,6 @@ const EditOverlay = () => {
         <div
             ref={overlayRef}
             className="absolute inset-0 z-40 bg-transparent"
-            onPointerDown={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
         />
     );
@@ -402,7 +387,6 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
         const [hiddenWidgets, setHiddenWidgets] = useState<string[]>([]);
         const [currentBreakpoint, setCurrentBreakpoint] = useState<Breakpoint>('lg');
         const [isLayoutReady, setIsLayoutReady] = useState(false);
-        const isMobileBreakpoint = currentBreakpoint === 'sm' || currentBreakpoint === 'xs';
         const utils = trpc.useUtils();
 
         const { data: savedLayout, isLoading } = trpc.dashboard.getLayout.useQuery(undefined, {
@@ -411,9 +395,7 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
 
         const saveLayoutMutation = trpc.dashboard.saveLayout.useMutation({
             onSuccess: () => {
-                if (!isMobileBreakpoint) {
-                    toast.success('Dashboard layout saved');
-                }
+                toast.success('Dashboard layout saved');
                 onEditingChange(false);
                 utils.dashboard.getLayout.invalidate();
             },
@@ -726,15 +708,8 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                     cols={COLS}
                     measureBeforeMount
                     rowHeight={currentBreakpoint === 'xs' ? 36 : currentBreakpoint === 'sm' ? 40 : 100}
-                    dragConfig={{
-                        enabled: isEditing,
-                        handle: '.drag-handle',
-                        cancel: '.no-drag, .no-drag *',
-                    }}
-                    resizeConfig={{
-                        enabled: isEditing,
-                        handles: ['se'],
-                    }}
+                    isDraggable={isEditing}
+                    isResizable={isEditing}
                     onLayoutChange={onLayoutChange}
                     onBreakpointChange={onBreakpointChange}
                     onWidthChange={(width: number) => {
@@ -743,8 +718,14 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                             setCurrentBreakpoint(bp);
                         }
                     }}
-                    margin={currentBreakpoint === 'xs' ? [4, 4] : currentBreakpoint === 'sm' ? [6, 6] : [16, 16]}
-                    containerPadding={[0, 0]}
+                    margin={currentBreakpoint === 'xs' ? [8, 8] : currentBreakpoint === 'sm' ? [10, 10] : [20, 20]}
+                    containerPadding={[12, 12]}
+                    draggableHandle=".drag-handle"
+                    draggableCancel=".no-drag"
+                    compactType="vertical"
+                    preventCollision={false}
+                    useCSSTransforms={true}
+                    transformScale={1}
                 >
                     {visibleWidgetIds.map((widgetId) => {
                         const child = getChild(widgetId);
@@ -762,8 +743,11 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                             : child;
 
                         return (
-                            <div key={widgetId} className={isEditing ? "border-2 border-dashed border-primary/50 rounded-lg relative bg-background/50" : "relative"}>
-                                <div className="no-drag h-full w-full rounded-lg overflow-hidden min-w-0">
+                            <div key={widgetId} className={cn(
+                                "group/grid-item",
+                                isEditing ? "border-2 border-dashed border-primary/50 rounded-lg relative bg-background/50" : "relative"
+                            )}>
+                                <div className="no-drag h-full w-full min-w-0">
                                     {childWithProps}
                                     {isEditing && (
                                         <EditOverlay />

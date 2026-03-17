@@ -1,214 +1,105 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PiggyBank, TrendingUp } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { PiggyBank, TrendingUp, ArrowRight, Wallet } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { Link } from '@tanstack/react-router';
+import { WidgetFooter } from './WidgetFooter';
 
-export function DepositWidget({ gridParams }: { gridParams?: { w: number; h: number } }) {
+type GridParams = { w: number; h: number; breakpoint?: string };
+
+export function DepositWidget({ gridParams }: { gridParams?: GridParams }) {
     const { data: deposits, isLoading } = trpc.deposit.list.useQuery();
     const activeDeposits = (deposits || []).filter((d: any) => d.status === 'active');
-    const gridW = gridParams?.w ?? 0;
-    const gridH = gridParams?.h ?? 0;
-    const is2x1 = gridW === 2 && gridH === 1;
-    const is1x2 = gridW === 1 && gridH === 2;
-    const is2x2 = gridW === 2 && gridH === 2;
-    const isLargerThan2x2 = (gridW > 2 || gridH > 2) && !(gridW === 2 && gridH === 1);
     
-    // Calculate total current balance and total principal
+    const bp = gridParams?.breakpoint;
+    const isSmallBp = bp === 'sm' || bp === 'xs';
+    const isNarrow = (gridParams?.w ?? 0) <= 1;
+    const isShort = (gridParams?.h ?? 0) <= 2;
+    const isCompact = isNarrow || isShort;
+    const isTall = (gridParams?.h ?? 0) > (isSmallBp ? 2 : 2);
+
     const totalBalance = activeDeposits.reduce((sum: number, d: any) => sum + Number(d.currentBalance), 0);
     const totalPrincipal = activeDeposits.reduce((sum: number, d: any) => sum + Number(d.principalAmount), 0);
     const totalEarned = totalBalance - totalPrincipal;
     
-    // Calculate expected earnings this month (simplified)
-    const currentDate = new Date();
-    const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-    
-    const expectedThisMonth = activeDeposits.reduce((sum: number, d: any) => {
-        const balance = Number(d.currentBalance);
-        const rate = Number(d.interestRate) / 100;
-        const frequency = d.compoundingFrequency;
-        
-        let monthlyEarning = 0;
-        if (frequency === 'daily') {
-            monthlyEarning = balance * (Math.pow(1 + rate / 365, daysInMonth) - 1);
-        } else if (frequency === 'monthly') {
-            monthlyEarning = balance * (rate / 12);
-        } else if (frequency === 'quarterly') {
-            monthlyEarning = balance * (rate / 12); // Approximation
-        } else if (frequency === 'annually') {
-            monthlyEarning = balance * (rate / 12);
-        }
-        
-        return sum + monthlyEarning;
-    }, 0);
-    
-    const is1x3 = gridW === 1 && gridH === 3;
-    const is1x1 = gridW === 1 && gridH === 1;
-    const isNx1 = gridH === 1 && gridW > 1; // Height 1, width > 1 (e.g., 2x1, 3x1, etc.)
-    const isCompactStyle = is1x1;
-    const showTwoColumn = is2x1 || is2x2;
-    const showDetails = !isCompactStyle && !isNx1; // Hide details in Nx1 layout to save space
-    const hideCardDescription = isNx1 || is1x1; // Hide CardDescription in Nx1 and 1x1 layouts
-    const sortedDeposits = [...activeDeposits]
-        .sort((a: any, b: any) => Number(b.currentBalance) - Number(a.currentBalance));
-    const displayDeposits = is2x1 ? sortedDeposits.slice(0, 4) : sortedDeposits;
+    const visibleDeposits = isTall ? activeDeposits.slice(0, 4) : activeDeposits.slice(0, 2);
+
+    if (isLoading) {
+        return (
+            <Card className="dashboard-widget h-full rounded-[32px] overflow-hidden">
+                <CardHeader className="p-3 pb-2">
+                    <Skeleton className="h-4 w-24" />
+                </CardHeader>
+                <CardContent className="p-3 pt-0">
+                    <Skeleton className="h-8 w-32 mb-4" />
+                    <Skeleton className="h-12 w-full" />
+                </CardContent>
+            </Card>
+        );
+    }
 
     return (
-        <Card className={cn('dashboard-widget h-full flex flex-col', isCompactStyle && 'dashboard-widget--compact')}>
-            <Link to="/financial/deposits" className="block">
-                <CardHeader className="dashboard-widget__header p-2 pb-1 hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center justify-between gap-2">
-                        <CardTitle className="dashboard-widget__title truncate">Deposits</CardTitle>
-                        {isCompactStyle ? (
-                            <div className="dashboard-widget__header-value">
-                                <CurrencyDisplay amount={totalBalance} abbreviate />
+        <Card className={cn('dashboard-widget h-full flex flex-col group rounded-[32px] overflow-hidden', isCompact && 'dashboard-widget--compact')}>
+            <Link to="/financial/deposits" className="block flex-1 flex flex-col min-h-0">
+                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-xl cursor-pointer">
+                    <div className="flex flex-col min-w-0 flex-1">
+                        <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Savings & Deposits</div>
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                            <span className="text-lg font-bold tracking-tight whitespace-nowrap">
+                                <CurrencyDisplay amount={totalBalance} abbreviate={totalBalance > 1000000} />
+                            </span>
+                            {totalEarned > 0 && (
+                                <div className="flex items-center text-[10px] font-bold text-emerald-600 dark:text-emerald-500">
+                                    <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
+                                    +<CurrencyDisplay amount={totalEarned} abbreviate />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <div className="p-1.5 bg-emerald-500/10 rounded-md group-hover:bg-emerald-500/20 transition-colors">
+                        <PiggyBank className="h-4 w-4 text-emerald-500" />
+                    </div>
+                </CardHeader>
+
+                <CardContent className="px-3 py-1 flex-1 flex flex-col min-h-0">
+                    <div className="flex-1 space-y-1.5 overflow-hidden py-1">
+                        {activeDeposits.length === 0 ? (
+                            <div className="flex items-center justify-center h-full text-center py-4">
+                                <p className="text-[10px] text-muted-foreground italic uppercase tracking-wider">No active deposits</p>
                             </div>
                         ) : (
-                            <PiggyBank className="dashboard-widget__icon" />
+                            visibleDeposits.map((deposit: any) => (
+                                <div key={deposit.id} className="flex items-center justify-between gap-2 p-1.5 rounded-md bg-muted/40 hover:bg-muted/60 transition-colors group/item">
+                                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                        <Wallet className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-[10px] font-bold truncate leading-tight">{deposit.depositName}</span>
+                                            <span className="text-[8px] text-muted-foreground uppercase">{deposit.interestRate}% APR • {deposit.compoundingFrequency}</span>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-[10px] font-bold">
+                                            <CurrencyDisplay amount={Number(deposit.currentBalance)} currency={deposit.currency} abbreviate />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
                         )}
                     </div>
-                    {!hideCardDescription && <CardDescription className="dashboard-widget__desc truncate">Your savings & deposits</CardDescription>}
-                </CardHeader>
+                </CardContent>
             </Link>
-            <CardContent className={cn('flex-1 overflow-y-auto p-3 pt-0', isCompactStyle && 'p-2 pt-1 pb-2')}>
-                {isLoading ? (
-                    <div className="space-y-2">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-4 w-48" />
-                    </div>
-                ) : activeDeposits.length === 0 ? (
-                    <p className="dashboard-widget__desc">No active deposits.</p>
-                ) : isCompactStyle ? (
-                    <div className="h-full flex items-end">
-                        <p className="dashboard-widget__sub w-full truncate">
-                            {activeDeposits.length} active • +<CurrencyDisplay amount={totalEarned} abbreviate />
-                        </p>
-                    </div>
-                ) : isNx1 ? (
-                    // Nx1 layout (height=1, width>1): Show only the most important info - total balance
-                    <div className="flex items-center justify-between h-full">
-                        <div className="flex items-center gap-4">
-                            <div>
-                                <p className="dashboard-widget__meta">Total Balance</p>
-                                <div className="dashboard-widget__value text-lg">
-                                    <CurrencyDisplay amount={totalBalance} />
-                                </div>
-                            </div>
-                            <div>
-                                <p className="dashboard-widget__meta flex items-center gap-1 text-xs">
-                                    <TrendingUp className="h-2.5 w-2.5 text-green-600" />
-                                    Earned
-                                </p>
-                                <div className="dashboard-widget__value text-green-600 text-sm">
-                                    <CurrencyDisplay amount={totalEarned} />
-                                </div>
-                            </div>
-                        </div>
-                        <div className="text-right">
-                            <p className="dashboard-widget__meta">{activeDeposits.length} Active</p>
-                        </div>
-                    </div>
-                ) : showTwoColumn ? (
-                    <div className="grid grid-cols-2 gap-4 h-full">
-                        <div className="space-y-2">
-                            <div className="grid grid-cols-2 gap-2">
-                                <div className="space-y-0.5">
-                                    <p className="dashboard-widget__meta">Total Balance</p>
-                                    <div className="dashboard-widget__value">
-                                        <CurrencyDisplay amount={totalBalance} />
-                                    </div>
-                                </div>
-                                <div className="space-y-0.5">
-                                    <p className="dashboard-widget__meta flex items-center gap-1 text-xs">
-                                        <TrendingUp className="h-2.5 w-2.5 text-green-600" />
-                                        Earned
-                                    </p>
-                                    <div className="dashboard-widget__value text-green-600 text-sm">
-                                        <CurrencyDisplay amount={totalEarned} />
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="space-y-0.5">
-                                <p className="dashboard-widget__meta">Expected This Month</p>
-                                <div className="dashboard-widget__value text-blue-600 text-sm">
-                                    ~<CurrencyDisplay amount={expectedThisMonth} />
-                                </div>
-                            </div>
-                        </div>
-                        <div className="space-y-1.5">
-                            <p className="dashboard-widget__meta">{is2x2 ? `All Deposits (${activeDeposits.length})` : 'Top Deposits (4)'}</p>
-                            <div className="space-y-1">
-                                {displayDeposits.map((deposit: any) => (
-                                    <div key={deposit.id} className="dashboard-widget__item flex items-center justify-between text-xs gap-2">
-                                        <span className="truncate flex-1 font-medium text-sm">{deposit.depositName}</span>
-                                        <span className="whitespace-nowrap flex-shrink-0 text-xs">
-                                            <CurrencyDisplay amount={deposit.currentBalance} currency={deposit.currency} />
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                ) : isLargerThan2x2 || is1x3 || is1x2 ? (
-                    <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                                <p className="dashboard-widget__meta">Total Balance</p>
-                                <div className="dashboard-widget__value">
-                                    <CurrencyDisplay amount={totalBalance} />
-                                </div>
-                            </div>
-                            <div className="space-y-1">
-                                <p className="dashboard-widget__meta flex items-center gap-1">
-                                    <TrendingUp className="h-3 w-3 text-green-600" />
-                                    Earned
-                                </p>
-                                <div className="dashboard-widget__value text-green-600">
-                                    <CurrencyDisplay amount={totalEarned} />
-                                </div>
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="dashboard-widget__meta">Expected This Month</p>
-                            <div className="dashboard-widget__value text-blue-600">
-                                ~<CurrencyDisplay amount={expectedThisMonth} />
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <p className="dashboard-widget__meta">Active Deposits ({activeDeposits.length})</p>
-                            <div className="space-y-1.5">
-                                {activeDeposits.map((deposit: any) => (
-                                    <div key={deposit.id} className="dashboard-widget__item flex items-center justify-between gap-2">
-                                        <div className="flex flex-col min-w-0 flex-1">
-                                            <span className="truncate font-medium text-sm leading-tight">{deposit.depositName}</span>
-                                            <span className="dashboard-widget__meta text-[10px] text-muted-foreground mt-0.5">{deposit.interestRate}% • {deposit.compoundingFrequency}</span>
-                                        </div>
-                                        <span className="whitespace-nowrap flex-shrink-0">
-                                            <CurrencyDisplay amount={deposit.currentBalance} currency={deposit.currency} />
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="space-y-1">
-                        <div className="space-y-0.5 mt-0.5">
-                            {activeDeposits.slice(0, 1).map((deposit: any) => (
-                                <div key={deposit.id} className="dashboard-widget__item flex items-center justify-between bg-muted/30 p-1 rounded-md gap-2">
-                                    <span className="truncate flex-1 font-medium">{deposit.depositName}</span>
-                                    <span className="font-medium whitespace-nowrap flex-shrink-0">
-                                        <CurrencyDisplay amount={deposit.currentBalance} currency={deposit.currency} />
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </CardContent>
+
+            <WidgetFooter>
+                <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">
+                    {activeDeposits.length} Active
+                </span>
+                <Link to="/financial/deposits" className="text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
+                    Details <ArrowRight className="h-2.5 w-2.5" />
+                </Link>
+            </WidgetFooter>
         </Card>
     );
 }

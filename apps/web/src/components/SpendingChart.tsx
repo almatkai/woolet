@@ -14,13 +14,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button'; // Added Button
-import { Save, ArrowUpRight, ArrowDownRight, TrendingDown, TrendingUp } from 'lucide-react'; // Added Save and Trash icons
+import { Save, ArrowUpRight, ArrowDownRight, TrendingDown, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react'; // Added Save and Trash icons
 import { toast } from 'sonner'; // Added toast
 import { trpc } from '@/lib/trpc';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatAmountAbbreviated } from '@/components/CurrencyDisplay';
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format, subWeeks, subMonths } from 'date-fns';
+import { formatAmountAbbreviated, CurrencyDisplay } from '@/components/CurrencyDisplay';
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format, subWeeks, subMonths, addWeeks, addMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { BarChart3 } from 'lucide-react';
 
 // Local type definitions for user preferences
 interface UserPreferences {
@@ -43,6 +44,7 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
     const isNarrow = (gridParams?.w ?? 0) <= 1;
     const isCompact = isNarrow || (gridParams?.h ?? 0) <= 2;
     const [period, setPeriod] = useState<'weekly' | 'monthly'>('weekly');
+    const [offset, setOffset] = useState(0);
 
     // Initialize with LocalStorage value if available
     const [categoryIds, setCategoryIds] = useState<string[]>(() => {
@@ -70,6 +72,11 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
             toast.error('Failed to save preferences');
         }
     });
+
+    // Reset offset when period changes
+    useEffect(() => {
+        setOffset(0);
+    }, [period]);
 
     // Sync LocalStorage when state changes
     useEffect(() => {
@@ -115,9 +122,9 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
         });
     };
 
-    // Calculate dates based on period
+    // Calculate dates based on period and offset
     const dateRange = useMemo(() => {
-        const now = new Date();
+        let now = new Date();
         const userPrefs = (user?.preferences as UserPreferences) || {};
         let weekStartsOn = userPrefs.weekStartsOn ?? DEFAULT_WEEK_STARTS_ON;
 
@@ -129,14 +136,15 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
 
         if (period === 'weekly') {
             const dateStartsOn = weekStartsOn as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+            if (offset !== 0) {
+                now = subWeeks(now, offset);
+            }
             const start = startOfWeek(now, { weekStartsOn: dateStartsOn });
             const end = endOfWeek(now, { weekStartsOn: dateStartsOn });
 
             const prevStart = subWeeks(start, 1);
             const prevEnd = subWeeks(end, 1);
 
-            // Use format to get local date string (YYYY-MM-DD) to avoid timezone issues
-            // Then append time to create a proper ISO string in local context
             const startDateStr = format(start, 'yyyy-MM-dd');
             const endDateStr = format(end, 'yyyy-MM-dd');
             const prevStartDateStr = format(prevStart, 'yyyy-MM-dd');
@@ -146,9 +154,13 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
                 start: `${startDateStr}T00:00:00.000Z`,
                 end: `${endDateStr}T23:59:59.999Z`,
                 prevStart: `${prevStartDateStr}T00:00:00.000Z`,
-                prevEnd: `${prevEndDateStr}T23:59:59.999Z`
+                prevEnd: `${prevEndDateStr}T23:59:59.999Z`,
+                label: offset === 0 ? 'This Week' : format(start, 'MMM d') + ' - ' + format(end, 'MMM d')
             };
         } else {
+            if (offset !== 0) {
+                now = subMonths(now, offset);
+            }
             const start = startOfMonth(now);
             const end = endOfMonth(now);
             const prevStart = subMonths(start, 1);
@@ -163,10 +175,11 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
                 start: `${startDateStr}T00:00:00.000Z`,
                 end: `${endDateStr}T23:59:59.999Z`,
                 prevStart: `${prevStartDateStr}T00:00:00.000Z`,
-                prevEnd: `${prevEndDateStr}T23:59:59.999Z`
+                prevEnd: `${prevEndDateStr}T23:59:59.999Z`,
+                label: offset === 0 ? 'This Month' : format(start, 'MMMM yyyy')
             };
         }
-    }, [period, user?.preferences]);
+    }, [period, offset, user?.preferences]);
 
     const { data: categories } = trpc.category.list.useQuery();
     const { data: balanceData } = trpc.account.getTotalBalance.useQuery();
@@ -240,77 +253,119 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
         })) || [];
 
     return (
-        <Card className={cn('dashboard-widget h-full flex flex-col', isCompact && 'dashboard-widget--compact')}>
-            <CardHeader className="pb-2 px-3 pt-3">
-                <div className="flex items-center justify-between gap-2">
-                    <Link to="/spending" className="min-w-0 flex-1 group/header">
-                        <CardTitle className="dashboard-widget__title text-xs sm:text-sm truncate font-bold group-hover/header:underline">Spending Overview</CardTitle>
-                        <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-sm sm:text-base font-bold whitespace-nowrap">{formatCurrency(currentTotal)}</span>
-                            {categoryIds.length > 0 && !isLoading && (
-                                <div className={cn(
-                                    "flex items-center text-[10px] font-medium whitespace-nowrap",
-                                    diff > 0 ? "text-destructive" : diff < 0 ? "text-emerald-500" : "text-muted-foreground"
-                                )}>
-                                    {diff > 0 ? <TrendingUp className="h-3 w-3 mr-0.5" /> : diff < 0 ? <TrendingDown className="h-3 w-3 mr-0.5" /> : null}
-                                    {prevTotal > 0 ? `${Math.abs(percentChange).toFixed(0)}%` : 'New'}
-                                    {!isNarrow && (
-                                        <span className="ml-1 text-muted-foreground font-normal">vs prev.</span>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </Link>
-                    <div className="flex gap-1 sm:gap-1.5 items-center flex-shrink-0">
-                        {!isNarrow && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                onClick={handleSavePreferences}
-                                title="Save current filters as default"
+        <Card className={cn('dashboard-widget h-full flex flex-col rounded-[32px] group overflow-hidden', isCompact && 'dashboard-widget--compact')}>
+            <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-xl cursor-pointer">
+                <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                        <Link to="/spending" className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider hover:underline">
+                            Spending Overview
+                        </Link>
+                        <div className="flex items-center gap-0.5 ml-1">
+                            <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-4 w-4 text-muted-foreground/60 hover:text-foreground" 
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setOffset(prev => prev + 1);
+                                }}
                             >
-                                <Save className="h-3.5 w-3.5" />
+                                <ChevronLeft className="h-3 w-3" />
                             </Button>
-                        )}
-                        <div className={cn('max-w-[100px] sm:max-w-[150px]', isCompact && 'max-w-[80px]')}>
-                            <MultiSelect
-                                options={categoryOptions}
-                                selected={categoryIds}
-                                onChange={setCategoryIds}
-                                placeholder="All Categories"
-                                className={cn(
-                                    'h-7 sm:h-8 px-2 py-0',
-                                    'text-[10px] sm:text-xs font-medium bg-muted/50 border-none hover:bg-muted focus:ring-0',
-                                    isCompact && 'h-6 text-[9px]'
-                                )}
-                            />
+                            <span className="text-[9px] font-bold text-muted-foreground min-w-[50px] text-center">
+                                {dateRange.label}
+                            </span>
+                            <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-4 w-4 text-muted-foreground/60 hover:text-foreground" 
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setOffset(prev => Math.max(0, prev - 1));
+                                }}
+                                disabled={offset === 0}
+                            >
+                                <ChevronRight className="h-3 w-3" />
+                            </Button>
                         </div>
-                        <Tabs value={period} onValueChange={(v) => setPeriod(v as 'weekly' | 'monthly')}>
-                            <TabsList className={cn('h-7 sm:h-8 bg-muted/50 p-1', isCompact && 'h-6 p-0.5')}>
-                                <TabsTrigger
-                                    value="weekly"
-                                    className={cn(
-                                        'h-full px-2 text-[10px] sm:text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm',
-                                        isCompact && 'px-1.5 text-[9px]'
-                                    )}
-                                >
-                                    W
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value="monthly"
-                                    className={cn(
-                                        'h-full px-2 text-[10px] sm:text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm',
-                                        isCompact && 'px-1.5 text-[9px]'
-                                    )}
-                                >
-                                    M
-                                </TabsTrigger>
-                            </TabsList>
-                        </Tabs>
+                    </div>
+                    <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <span className="text-lg sm:text-xl font-bold tracking-tight whitespace-nowrap">
+                            <CurrencyDisplay amount={currentTotal} showSign abbreviate={currentTotal > 1000000} />
+                        </span>
+                        {categoryIds.length > 0 && !isLoading && (
+                            <div className={cn(
+                                "flex items-center text-[10px] font-bold px-1 py-0 rounded-full",
+                                diff > 0 ? "text-rose-600 dark:text-rose-400" : diff < 0 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
+                            )}>
+                                {diff > 0 ? <TrendingUp className="h-2.5 w-2.5 mr-0.5" /> : diff < 0 ? <TrendingDown className="h-2.5 w-2.5 mr-0.5" /> : null}
+                                {prevTotal > 0 ? `${Math.abs(percentChange).toFixed(0)}%` : 'New'}
+                            </div>
+                        )}
+                    </div>
+                </div>
+                <div className="flex gap-1 items-center">
+                    {!isNarrow && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleSavePreferences();
+                            }}
+                            title="Save current filters as default"
+                        >
+                            <Save className="h-3.5 w-3.5" />
+                        </Button>
+                    )}
+                    <div className="p-1.5 bg-purple-500/10 rounded-md group-hover:bg-purple-500/20 transition-colors">
+                        <BarChart3 className="h-4 w-4 text-purple-500" />
                     </div>
                 </div>
             </CardHeader>
+
+            <div className="px-3 py-1 flex items-center justify-between gap-2 border-b border-border/40">
+                <div className={cn('flex-1 min-w-0', isCompact && 'max-w-[120px]')}>
+                    <MultiSelect
+                        options={categoryOptions}
+                        selected={categoryIds}
+                        onChange={setCategoryIds}
+                        placeholder="All Categories"
+                        className={cn(
+                            'h-6 sm:h-7 px-2 py-0',
+                            'text-[10px] sm:text-xs font-medium bg-muted/50 border-none hover:bg-muted focus:ring-0',
+                            isCompact && 'text-[9px]'
+                        )}
+                    />
+                </div>
+                <Tabs value={period} onValueChange={(v) => setPeriod(v as 'weekly' | 'monthly')}>
+                    <TabsList className={cn('h-6 sm:h-7 bg-muted/50 p-1', isCompact && 'p-0.5')}>
+                        <TabsTrigger
+                            value="weekly"
+                            className={cn(
+                                'h-full px-2 text-[9px] sm:text-[10px] data-[state=active]:bg-background data-[state=active]:shadow-sm',
+                                isCompact && 'px-1.5'
+                            )}
+                        >
+                            W
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="monthly"
+                            className={cn(
+                                'h-full px-2 text-[9px] sm:text-[10px] data-[state=active]:bg-background data-[state=active]:shadow-sm',
+                                isCompact && 'px-1.5'
+                            )}
+                        >
+                            M
+                        </TabsTrigger>
+                    </TabsList>
+                </Tabs>
+            </div>
+
             <CardContent className="px-1 sm:px-2 py-1 sm:py-2 flex-1 min-h-0 relative">
                 {categoryIds.length === 0 ? (
                     <div className="absolute inset-0 flex items-center justify-center">

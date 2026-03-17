@@ -5,6 +5,7 @@ import { router, protectedProcedure } from '../lib/trpc';
 import { transactions, currencyBalances, categories, banks, accounts, transactionSplits, splitParticipants, splitPayments, notifications, users } from '../db/schema';
 import { checkEntityLimit } from '../lib/limits';
 import { quickSplitSchema } from '@woolet/shared';
+import { cache, CACHE_KEYS, CACHE_TTL } from '../lib/redis';
 
 export const transactionRouter = router({
     list: protectedProcedure
@@ -243,6 +244,10 @@ export const transactionRouter = router({
                 exchangeRate: input.exchangeRate?.toString(),
                 cashbackAmount: input.cashbackAmount?.toString(),
             }).returning();
+
+            // Invalidate spending stats cache
+            await cache.invalidatePattern(`spending:${ctx.userId}:*`);
+            await cache.del(CACHE_KEYS.userDashboard(ctx.userId!));
 
             // Handle split bills if participants are provided
             if (input.split && input.split.participantIds.length > 0) {
@@ -535,6 +540,10 @@ export const transactionRouter = router({
                     .where(eq(transactions.id, input.id));
             }
 
+            // Invalidate spending stats cache
+            await cache.invalidatePattern(`spending:${ctx.userId}:*`);
+            await cache.del(CACHE_KEYS.userDashboard(ctx.userId!));
+
             return { success: true };
         }),
 
@@ -612,6 +621,11 @@ export const transactionRouter = router({
             }
 
             await ctx.db.delete(transactions).where(eq(transactions.id, input.id));
+
+            // Invalidate spending stats cache
+            await cache.invalidatePattern(`spending:${ctx.userId}:*`);
+            await cache.del(CACHE_KEYS.userDashboard(ctx.userId!));
+
             return { success: true };
         }),
 
@@ -626,6 +640,14 @@ export const transactionRouter = router({
         .query(async ({ ctx, input }) => {
             const startDate = input.startDate.split('T')[0];
             const endDate = input.endDate.split('T')[0];
+            const categoryIds = input.categoryIds || (input.categoryId ? [input.categoryId] : undefined);
+
+            const cacheKey = CACHE_KEYS.spendingStats(ctx.userId!, startDate, endDate, categoryIds);
+            const cachedData = await cache.get<any>(cacheKey);
+            if (cachedData) {
+                console.log('📦 Using cached spending stats');
+                return cachedData;
+            }
 
             // Fetch allowed currencyBalanceIds based on testMode
             const userBanks = await ctx.db.query.banks.findMany({
@@ -656,8 +678,8 @@ export const transactionRouter = router({
                 inArray(transactions.currencyBalanceId, allowedBalanceIds),
             ];
 
-            if (input.categoryIds && input.categoryIds.length > 0) {
-                expenseConditions.push(inArray(transactions.categoryId, input.categoryIds));
+            if (categoryIds && categoryIds.length > 0) {
+                expenseConditions.push(inArray(transactions.categoryId, categoryIds));
             }
             if (input.currencyBalanceId) {
                 expenseConditions.push(eq(transactions.currencyBalanceId, input.currencyBalanceId));
@@ -723,10 +745,14 @@ export const transactionRouter = router({
             // Total is the sum of net spending across all processed transactions
             const total = Object.values(byDate).reduce((sum, amt) => sum + amt, 0);
 
-            return {
+            const result = {
                 timeSeriesData,
                 categoryData,
                 total
             };
+
+            await cache.set(cacheKey, result, CACHE_TTL.spendingStats);
+
+            return result;
         }),
 });

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Area, AreaChart, ResponsiveContainer, XAxis } from 'recharts';
 import { cn } from '@/lib/utils';
+import { WidgetFooter } from './WidgetFooter';
 
 interface AdaptiveMetricWidgetProps {
     title: string;
@@ -11,7 +12,7 @@ interface AdaptiveMetricWidgetProps {
     color?: string; // hex color for chart
     valueColor?: string; // CSS color for the value text
     chartData?: any[];
-    gridParams?: { w: number; h: number };
+    gridParams?: { w: number; h: number; breakpoint?: string };
 }
 
 export function AdaptiveMetricWidget({
@@ -19,74 +20,75 @@ export function AdaptiveMetricWidget({
     icon,
     value,
     subValue,
-    color = "#8884d8",
+    color = "hsl(var(--primary))",
     valueColor,
     chartData,
     gridParams
 }: AdaptiveMetricWidgetProps) {
-    const isExpanded = (gridParams?.w || 1) >= 2;
-    const isCompact = (gridParams?.w ?? 0) <= 1 || (gridParams?.h ?? 0) <= 2;
+    const bp = gridParams?.breakpoint;
+    const isSmallBp = bp === 'sm' || bp === 'xs';
+    const isNarrow = (gridParams?.w ?? 0) <= 1;
+    const isShort = (gridParams?.h ?? 0) <= 2;
+    const isCompact = isNarrow || isShort;
 
     const resolvedIcon = React.isValidElement(icon)
-        ? React.cloneElement(icon, { className: cn('dashboard-widget__icon', icon.props?.className) })
+        ? React.cloneElement(icon as React.ReactElement, { className: cn('h-4 w-4', (icon.props as any)?.className) })
         : icon;
 
-    if (isExpanded && chartData && chartData.length > 0) {
-        return (
-            <Card className={cn('dashboard-widget h-full flex flex-col', isCompact && 'dashboard-widget--compact')}>
-                <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
-                    <CardTitle className="dashboard-widget__title truncate">{title}</CardTitle>
-                    <div className="flex-shrink-0">{resolvedIcon}</div>
-                </CardHeader>
-                <CardContent className="flex-1 min-h-0 flex flex-col p-3 pt-0">
-                    <div className="dashboard-widget__value" style={valueColor ? { color: valueColor } : {}}>{value}</div>
-                    <div className="flex-1 min-h-0 mt-1">
+    return (
+        <Card className={cn('dashboard-widget h-full flex flex-col group rounded-[32px] overflow-hidden', isCompact && 'dashboard-widget--compact')}>
+            <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-xl">
+                <div className="flex flex-col min-w-0 flex-1">
+                    <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">{title}</div>
+                    <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <span className="text-lg font-bold tracking-tight whitespace-nowrap" style={valueColor ? { color: valueColor } : {}}>
+                            {value}
+                        </span>
+                    </div>
+                </div>
+                <div 
+                    className="p-1.5 rounded-md transition-colors bg-muted/50 group-hover:bg-muted"
+                    style={color ? { color: color } : {}}
+                >
+                    {resolvedIcon}
+                </div>
+            </CardHeader>
+
+            <CardContent className="px-3 py-1 flex-1 flex flex-col min-h-0 relative">
+                {chartData && chartData.length > 0 && (
+                    <div className="absolute inset-x-0 bottom-0 h-12 opacity-50 group-hover:opacity-80 transition-opacity pointer-events-none">
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={chartData}>
-                                <defs>
-                                    <linearGradient id={`grad-${title}`} x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor={color} stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <XAxis dataKey="date" hide />
-
                                 <Area
                                     type="monotone"
                                     dataKey="amount"
                                     stroke={color}
-                                    fillOpacity={1}
-                                    fill={`url(#grad-${title})`}
+                                    strokeWidth={1.5}
+                                    fill={color}
+                                    fillOpacity={0.1}
+                                    isAnimationActive={false}
                                 />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
-                    {subValue && <div className="dashboard-widget__sub">{subValue}</div>}
-                </CardContent>
-            </Card>
-        );
-    }
-
-    return (
-        <Card className={cn('dashboard-widget h-full', isCompact && 'dashboard-widget--compact')}>
-            <CardHeader className="dashboard-widget__header flex flex-row items-center justify-between space-y-0 p-2 pb-1">
-                <CardTitle className="dashboard-widget__title truncate">{title}</CardTitle>
-                {isCompact ? (
-                    <div className="dashboard-widget__header-value" style={valueColor ? { color: valueColor } : {}}>
-                        {value}
-                    </div>
-                ) : (
-                    <div className="flex-shrink-0">{resolvedIcon}</div>
                 )}
-            </CardHeader>
-            <CardContent className={isCompact ? 'p-2 pt-1 pb-2 flex-1 flex items-end' : 'p-3 pt-0'}>
-                {!isCompact && <div className="dashboard-widget__value" style={valueColor ? { color: valueColor } : {}}>{value}</div>}
-                {subValue && (
-                    <p className={cn('dashboard-widget__sub truncate', isCompact ? 'w-full' : 'mt-0.5')}>
-                        {subValue}
-                    </p>
+
+                {!isCompact && subValue && (
+                    <div className="relative z-10 py-1">
+                        <div className="text-[10px] text-muted-foreground font-medium truncate">
+                            {subValue}
+                        </div>
+                    </div>
                 )}
             </CardContent>
+
+            {subValue && isCompact && (
+                <WidgetFooter flex={false}>
+                    <div className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider truncate">
+                        {subValue}
+                    </div>
+                </WidgetFooter>
+            )}
         </Card>
     );
 }
