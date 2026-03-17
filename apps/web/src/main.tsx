@@ -16,6 +16,10 @@ import { initErrorTracking, GlitchTip } from './lib/error-tracking';
 
 // Clerk publishable key
 const VITE_CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+// Route Clerk traffic through the app domain in production to avoid cross-site cookie issues.
+const VITE_CLERK_PROXY_URL = import.meta.env.PROD
+    ? (import.meta.env.VITE_CLERK_PROXY_URL || '/clerk')
+    : undefined;
 
 if (!VITE_CLERK_PUBLISHABLE_KEY) {
     console.warn('Missing VITE_CLERK_PUBLISHABLE_KEY - Using demo mode');
@@ -98,7 +102,10 @@ declare global {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-        <ClerkProvider publishableKey={VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_demo'}>
+        <ClerkProvider
+            publishableKey={VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_demo'}
+            {...(VITE_CLERK_PROXY_URL ? { proxyUrl: VITE_CLERK_PROXY_URL } : {})}
+        >
             <PostHogProvider>
                 <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
                     <trpc.Provider client={trpcClient} queryClient={queryClient}>

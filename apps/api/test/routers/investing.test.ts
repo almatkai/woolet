@@ -47,13 +47,20 @@ mock.module("../../src/lib/investing-cache", () => ({
 }));
 
 const mockCache = {
+  get: mock(() => Promise.resolve(null)),
+  set: mock(() => Promise.resolve()),
   del: mock(() => Promise.resolve()),
+  invalidatePattern: mock(() => Promise.resolve()),
 };
 
 mock.module("../../src/lib/redis", () => ({
   cache: mockCache,
   CACHE_KEYS: {
     stockQuote: (id: string) => `quote:${id}`,
+    hierarchy: (userId: string) => `hierarchy:${userId}`,
+    userDashboard: (userId: string) => `dashboard:${userId}`,
+    spendingStats: (userId: string, startDate: string, endDate: string, categoryIds?: string[]) =>
+      `spending:${userId}:${startDate}:${endDate}:${(categoryIds || []).sort().join(',')}`,
   },
 }));
 
