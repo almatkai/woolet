@@ -56,7 +56,7 @@ interface Debt {
     personContact?: string | null;
     amount: string | number;
     type: 'i_owe' | 'they_owe';
-    status: 'pending' | 'partial' | 'paid';
+    status: 'pending' | 'partial' | 'paid' | 'awaiting_approval';
     description?: string | null;
     dueDate?: string | null;
     paidAmount?: string | number | null;
@@ -536,7 +536,7 @@ export function DebtsPage() {
                                     // For now, let's assume the user can find it in the notifications at the top
                                     // or we could show a separate sheet.
                                     // But the notification is already there.
-                                    const notification = incomingDebtRequests?.find(r => r.debtId === debt.id);
+                                    const notification = incomingDebtRequests?.find((r: any) => r.debtId === debt.id);
                                     if (notification) {
                                         // We can't easily trigger the Select from here without state
                                         // so let's just toast a hint or scroll.
