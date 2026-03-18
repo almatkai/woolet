@@ -864,13 +864,12 @@ export function SpendingPage() {
             <div 
                 key={weekNum || 'single'}
                 className={cn(
-                    "col-start-1 row-start-1 relative w-full max-w-[448px] font-mono text-sm sm:text-base pb-8 pt-6 px-6 sm:px-8 transition-all duration-500",
+                    "relative w-full max-w-[448px] font-mono text-sm sm:text-base pb-8 pt-6 px-6 sm:px-8 transition-all duration-500",
                     receiptTheme === 'light' ? "bg-[#fdfdfd] text-[#1a1a1a]" : "bg-[#1a1a1a] text-[#fdfdfd]",
-                    !isActive && "cursor-pointer hover:-translate-y-2 hover:shadow-[0_12px_32px_rgba(0,0,0,0.15)] opacity-95",
+                    !isActive && "cursor-pointer hover:shadow-[0_12px_32px_rgba(0,0,0,0.15)] opacity-95",
                     isActive && "shadow-[0_-8px_30px_rgba(0,0,0,0.08),0_8px_30px_rgba(0,0,0,0.12)]"
                 )}
                 style={{
-                    transform: `translate(${offsetIndex * 32}px, ${offsetIndex * 24}px)`,
                     zIndex: isActive ? 50 : 40 - offsetIndex,
                     margin: '16px 0'
                 }}
@@ -1553,7 +1552,7 @@ export function SpendingPage() {
                     true
                 )
             ) : (
-                <div className="relative w-full max-w-[448px] min-h-[600px]">
+                <div className="flex flex-col items-center gap-12 w-full">
                     {weeksInMonthData.map((week, idx) => {
                         const isActive = activeWeek === week.weekNum;
                         return renderReceipt(
