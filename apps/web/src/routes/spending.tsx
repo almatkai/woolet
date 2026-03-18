@@ -713,17 +713,450 @@ export function SpendingPage() {
     };
 
     const [receiptTheme, setReceiptTheme] = useState<'light' | 'dark'>('light');
+    const [viewMode, setViewMode] = useState<'week' | 'month'>('month');
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [page, setPage] = useState(1);
+    const [activeWeek, setActiveWeek] = useState<number>(1);
+    const ITEMS_PER_PAGE = 15;
 
     const visibleTransactions = (transactionsData?.transactions || []).filter(t => !pendingDeletes.has(t.id));
 
-    return (
-        <div className={cn("space-y-4 md:space-y-6", favoritesWidgetVisible ? "pb-32" : "")}>
-            <PageHeader
-                title="Spending"
-                subtitle="Track your daily expenses"
-                variant="two-mixed"
+    const { monthTransactions, weekTransactions, displayTransactions, paginatedTransactions, hasMore, monthTotal, weekTotal, weeksInMonthData, currentWeekNum } = useMemo(() => {
+        const now = selectedDate;
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        
+        const getWeek = (d: Date) => {
+            const firstDay = new Date(d.getFullYear(), d.getMonth(), 1).getDay();
+            const dayOffset = firstDay === 0 ? 6 : firstDay - 1; // Mon=0, Sun=6
+            return Math.ceil((d.getDate() + dayOffset) / 7);
+        };
+
+        const currentWeekNum = getWeek(now);
+        
+        // Get start and end of week (Monday to Sunday)
+        const d = new Date(now);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        const startOfWeek = new Date(d.setDate(diff));
+        startOfWeek.setHours(0, 0, 0, 0);
+        
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(endOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        const monthTxs = visibleTransactions.filter(tx => {
+            const txDate = new Date(tx.date);
+            return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
+        });
+
+        const weekTxs = monthTxs.filter(tx => {
+            const txDate = new Date(tx.date);
+            return txDate >= startOfWeek && txDate <= endOfWeek;
+        });
+
+        const displayTxs = viewMode === 'week' ? weekTxs : monthTxs;
+        const paginatedTxs = displayTxs.slice(0, page * ITEMS_PER_PAGE);
+        const hasMoreTxs = paginatedTxs.length < displayTxs.length;
+
+        const calcTotal = (txs: Transaction[]) => txs.reduce((acc, tx) => acc + (tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Math.abs(Number(tx.amount))), 0);
+
+        const weeksMap = new Map<number, Transaction[]>();
+        const lastDayOfMonthDate = new Date(currentYear, currentMonth + 1, 0);
+        const totalWeeks = getWeek(lastDayOfMonthDate);
+        
+        for (let i = 1; i <= totalWeeks; i++) {
+            weeksMap.set(i, []);
+        }
+
+        monthTxs.forEach(tx => {
+            const w = getWeek(new Date(tx.date));
+            if (weeksMap.has(w)) {
+                weeksMap.get(w)!.push(tx);
+            }
+        });
+
+        const weeksData = Array.from(weeksMap.entries())
+            .map(([weekNum, txs]) => {
+                const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+                const firstDayOffset = firstDayOfMonth.getDay() === 0 ? 6 : firstDayOfMonth.getDay() - 1;
+                
+                const startDay = (weekNum - 1) * 7 - firstDayOffset + 1;
+                const startDate = new Date(currentYear, currentMonth, startDay);
+                const endDate = new Date(currentYear, currentMonth, startDay + 6);
+                
+                // Clamp to month boundaries
+                const finalStart = startDate < firstDayOfMonth ? firstDayOfMonth : startDate;
+                const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+                const finalEnd = endDate > lastDayOfMonth ? lastDayOfMonth : endDate;
+
+                const dateRange = `${finalStart.getDate()}-${finalEnd.getDate()} ${finalStart.toLocaleString('default', { month: 'short' })}`;
+
+                return {
+                    weekNum,
+                    startDate: finalStart,
+                    dateRange,
+                    transactions: txs,
+                    total: calcTotal(txs)
+                };
+            })
+            .filter(w => {
+                const today = new Date();
+                // If it's current month, don't show future weeks. If it's past month, show all weeks.
+                if (currentYear < today.getFullYear() || (currentYear === today.getFullYear() && currentMonth < today.getMonth())) {
+                    return true;
+                }
+                return w.startDate <= today;
+            })
+            .sort((a, b) => b.weekNum - a.weekNum);
+
+        return {
+            monthTransactions: monthTxs,
+            weekTransactions: weekTxs,
+            displayTransactions: displayTxs,
+            paginatedTransactions: paginatedTxs,
+            hasMore: hasMoreTxs,
+            monthTotal: calcTotal(monthTxs),
+            weekTotal: calcTotal(weekTxs),
+            weeksInMonthData: weeksData,
+            currentWeekNum
+        };
+    }, [visibleTransactions, viewMode, page, selectedDate]);
+
+    useEffect(() => {
+        if (currentWeekNum && activeWeek === 1) {
+            setActiveWeek(currentWeekNum);
+        }
+    }, [currentWeekNum]);
+
+    const renderReceipt = (
+        txs: Transaction[], 
+        title: string, 
+        total: number, 
+        weekNum?: number, 
+        isActive: boolean = true, 
+        offsetIndex: number = 0, 
+        onClick?: () => void,
+        showPagination: boolean = false,
+        dateRange?: string
+    ) => {
+        const receiptDate = isActive && !weekNum ? selectedDate : (txs.length > 0 ? new Date(txs[0].date) : selectedDate);
+        return (
+            <div 
+                key={weekNum || 'single'}
+                className={cn(
+                    "col-start-1 row-start-1 relative w-full max-w-[448px] font-mono text-sm sm:text-base pb-8 pt-6 px-6 sm:px-8 shadow-[0_4px_14px_rgba(0,0,0,0.08)] transition-all duration-500",
+                    receiptTheme === 'light' ? "bg-[#fdfdfd] text-[#1a1a1a]" : "bg-[#1a1a1a] text-[#fdfdfd]",
+                    !isActive && "cursor-pointer hover:-translate-y-2 hover:shadow-[0_12px_32px_rgba(0,0,0,0.15)] opacity-95",
+                    isActive && "shadow-[0_8px_30px_rgba(0,0,0,0.12)]"
+                )}
+                style={{
+                    transform: `translate(${offsetIndex * 32}px, ${offsetIndex * 24}px)`,
+                    zIndex: isActive ? 50 : 40 - offsetIndex,
+                }}
+                onClick={onClick}
             >
+                {/* Active week label */}
+                {weekNum !== undefined && isActive && (
+                    <div className={cn(
+                        "absolute top-4 right-4 font-bold text-lg opacity-80 pointer-events-none z-10",
+                        receiptTheme === 'light' ? "text-[#dc2626]" : "text-[#f87171]"
+                    )} style={{ fontFamily: '"Comic Sans MS", marker, sans-serif' }}>
+                        WEEK {weekNum}
+                        {dateRange && <span className="block text-[10px] text-right -mt-1 font-mono">{dateRange}</span>}
+                    </div>
+                )}
+
+                {/* Top zigzag */}
+                <div className="absolute top-[-8px] left-0 w-full h-[8px] bg-repeat-x" style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='16' height='8' viewBox='0 0 16 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 8L4 0L8 8L12 0L16 8H0Z' fill='${receiptTheme === 'light' ? '%23fdfdfd' : '%231a1a1a'}'/%3E%3C/svg%3E")`
+                }}></div>
+                
+                {/* Receipt Header */}
+                <div className="text-center mb-6 flex flex-col items-center">
+                    <h2 className="text-2xl font-bold uppercase tracking-widest mb-1">Woolet</h2>
+                    <p className="text-xs uppercase tracking-wider mb-2">{title}</p>
+                    <p className="text-xs">{receiptDate.toLocaleDateString()} {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                </div>
+
+                <div className={cn(
+                    "border-b-2 border-dashed mb-4",
+                    receiptTheme === 'light' ? "border-[#1a1a1a]/30" : "border-[#fdfdfd]/30"
+                )}></div>
+
+                {/* Table Header */}
+                <div className="flex justify-between font-bold mb-2 text-xs sm:text-sm uppercase">
+                    <span className="w-8">QTY</span>
+                    <span className="flex-1">DESCRIPTION</span>
+                    <span className="text-right w-24">COST</span>
+                </div>
+
+                {/* Transactions List */}
+                {isLoading ? (
+                    <p className="text-center py-8 text-xs">PRINTING...</p>
+                ) : txs.length === 0 ? (
+                    <p className="text-center py-8 text-xs">NO TRANSACTIONS YET</p>
+                ) : (
+                    <div className="space-y-4">
+                        {txs.map((tx: Transaction) => (
+                            <div key={tx.id} className="group relative">
+                                <div className="flex justify-between items-start text-xs sm:text-sm">
+                                    <span className="w-8 pt-0.5">1</span>
+                                    <div className="flex-1 pr-2">
+                                        <p className="uppercase break-words font-semibold">{tx.description || tx.category?.name || 'UNKNOWN'}</p>
+                                        <p className={cn(
+                                            "text-[10px] mt-0.5 uppercase",
+                                            receiptTheme === 'light' ? "text-[#1a1a1a]/70" : "text-[#fdfdfd]/70"
+                                        )}>
+                                            {tx.category?.icon} {tx.currencyBalance?.account?.name || 'Account'}
+                                        </p>
+                                        <p className={cn(
+                                            "text-[10px] font-mono",
+                                            receiptTheme === 'light' ? "text-[#1a1a1a]/70" : "text-[#fdfdfd]/70"
+                                        )}>
+                                            #{tx.id.slice(0, 8).toUpperCase()}
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1">
+                                        <div className="text-right w-24 pt-0.5">
+                                            <CurrencyDisplay
+                                                amount={tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Math.abs(Number(tx.amount))}
+                                                currency={tx.currencyBalance?.currencyCode}
+                                                showSign
+                                                color={tx.type === 'income'
+                                                    ? (receiptTheme === 'light' ? '#059669' : '#34d399')
+                                                    : (receiptTheme === 'light' ? '#dc2626' : '#f87171')}
+                                                className="whitespace-nowrap font-bold text-sm sm:text-base"
+                                            />
+                                        </div>
+
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className={cn(
+                                                    "h-6 w-6",
+                                                    receiptTheme === 'light' ? "text-[#1a1a1a]" : "text-[#fdfdfd]"
+                                                )}>
+                                                    <MoreHorizontal className="h-3 w-3" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => handleEdit(tx)}>
+                                                    <Pencil className="h-4 w-4 mr-2" />
+                                                    Edit
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    onClick={() => handleDelete(tx)}
+                                                    className="text-red-500"
+                                                >
+                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                    Delete
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
+                                </div>
+                                
+                                {/* Split Bill Details */}
+                                {tx.type === 'expense' && tx.splits && tx.splits.length > 0 && (
+                                    <div className={cn(
+                                        "ml-8 mt-2 pl-2 border-l border-dashed",
+                                        receiptTheme === 'light' ? "border-[#1a1a1a]/30" : "border-[#fdfdfd]/30"
+                                    )}>
+                                        <button
+                                            onClick={() => toggleSplitExpand(tx.id)}
+                                            className={cn(
+                                                "flex items-center gap-1 text-[10px] uppercase tracking-wider px-1 py-0.5 rounded transition-colors",
+                                                receiptTheme === 'light' ? "hover:bg-black/5" : "hover:bg-white/5"
+                                            )}
+                                        >
+                                            {expandedSplits.has(tx.id) ? '[-] ' : '[+] '}
+                                            SPLIT WITH {tx.splits.length}
+                                        </button>
+                                        {expandedSplits.has(tx.id) && (
+                                            <div className="mt-1 space-y-1">
+                                                {tx.splits.map((split: TransactionSplit) => {
+                                                    const owed = Number(split.owedAmount);
+                                                    const paid = Number(split.paidAmount);
+                                                    const remaining = owed - paid;
+                                                    return (
+                                                        <div key={split.id} className="flex justify-between items-center text-[10px]">
+                                                            <span className="uppercase truncate max-w-[100px]">- {split.participant?.name || 'UNKNOWN'}</span>
+                                                            <div className="flex items-center gap-2">
+                                                                {split.status === 'settled' ? (
+                                                                    <span className={cn(
+                                                                        "font-bold",
+                                                                        receiptTheme === 'light' ? "text-[#059669]" : "text-[#34d399]"
+                                                                    )}>PAID</span>
+                                                                ) : (
+                                                                    <>
+                                                                        <span className="font-bold">
+                                                                            OWES <CurrencyDisplay amount={remaining} currency={tx.currencyBalance?.currencyCode} color={receiptTheme === 'light' ? '#dc2626' : '#f87171'} />
+                                                                        </span>
+                                                                        <button
+                                                                            className={cn(
+                                                                                "underline decoration-dashed",
+                                                                                receiptTheme === 'light' ? "hover:text-blue-600" : "hover:text-blue-400"
+                                                                            )}
+                                                                            onClick={() => {
+                                                                                setPaymentAmount(String(remaining));
+                                                                                setRecordPaymentSplit({
+                                                                                    splitId: split.id,
+                                                                                    participantName: split.participant?.name || 'Unknown',
+                                                                                    remaining,
+                                                                                    currencyCode: tx.currencyBalance?.currencyCode || 'USD',
+                                                                                    transactionId: tx.id
+                                                                                });
+                                                                            }}
+                                                                        >
+                                                                            PAY
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                <div className={cn(
+                    "border-t-2 border-dashed mt-6 pt-4 space-y-2",
+                    receiptTheme === 'light' ? "border-[#1a1a1a]/30" : "border-[#fdfdfd]/30"
+                )}>
+                    {!weekNum && viewMode === 'week' && (
+                        <div className="flex justify-between font-bold text-sm uppercase opacity-70">
+                            <span>Weekly Sub-total</span>
+                            <span>
+                                <CurrencyDisplay
+                                    amount={weekTotal}
+                                    currency={txs[0]?.currencyBalance?.currencyCode || 'USD'}
+                                    color={receiptTheme === 'light' ? '#1a1a1a' : '#fdfdfd'}
+                                />
+                            </span>
+                        </div>
+                    )}
+                    <div className="flex justify-between font-bold text-base sm:text-lg uppercase">
+                        <span>{(!weekNum && viewMode === 'week') ? 'Month-to-Date' : 'Order Total'}</span>
+                        <span>
+                            <CurrencyDisplay
+                                amount={!weekNum && viewMode === 'week' ? monthTotal : total}
+                                currency={txs[0]?.currencyBalance?.currencyCode || 'USD'}
+                                color={receiptTheme === 'light' ? '#1a1a1a' : '#fdfdfd'}
+                            />
+                        </span>
+                    </div>
+                </div>
+
+                <div className="mt-8 text-center space-y-2">
+                    <p className="text-xs uppercase tracking-widest">*** THANK YOU! ***</p>
+                    <div className="flex justify-center mt-4">
+                        {/* Fake barcode */}
+                        <div className="flex gap-[2px] h-12 items-end">
+                            {[...Array(40)].map((_, i) => (
+                                <div key={i} className={receiptTheme === 'light' ? "bg-[#1a1a1a]" : "bg-[#fdfdfd]"} style={{ 
+                                    width: `${Math.random() > 0.5 ? 2 : 4}px`, 
+                                    height: `${Math.random() > 0.8 ? 80 : 100}%` 
+                                }}></div>
+                            ))}
+                        </div>
+                    </div>
+                    <p className="text-[10px] mt-1 tracking-widest">{Date.now().toString().slice(-12)}</p>
+                </div>
+
+                {showPagination && hasMore && (
+                    <div className="mt-8 -mx-6 sm:-mx-8">
+                        <div className={cn(
+                            "border-t-2 border-dashed relative flex justify-center",
+                            receiptTheme === 'light' ? "border-[#1a1a1a]/30" : "border-[#fdfdfd]/30"
+                        )}>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setPage(p => p + 1); }}
+                                className={cn(
+                                    "absolute -top-3 px-4 text-[10px] font-bold tracking-widest uppercase hover:underline transition-all",
+                                    receiptTheme === 'light' ? "bg-[#fdfdfd] text-[#1a1a1a]" : "bg-[#1a1a1a] text-[#fdfdfd]"
+                                )}
+                            >
+                                ▼ TEAR HERE FOR MORE (PART {page}/{Math.ceil(displayTransactions.length / ITEMS_PER_PAGE)}) ▼
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Bottom zigzag */}
+                <div className="absolute bottom-[-8px] left-0 w-full h-[8px] bg-repeat-x" style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='16' height='8' viewBox='0 0 16 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0L4 8L8 0L12 8L16 0H0Z' fill='${receiptTheme === 'light' ? '%23fdfdfd' : '%231a1a1a'}'/%3E%3C/svg%3E")`
+                }}></div>
+            </div>
+        );
+    };
+
+    return (
+        <div className={cn("flex flex-col min-h-[calc(100vh-100px)] w-full", favoritesWidgetVisible ? "pb-32" : "pb-12")}>
+            <PageHeader
+                className="w-full px-4"
+                    title="Spending"
+                    subtitle="Track your daily expenses"
+                    variant="two-mixed"
+                >
                 <div className="flex items-center gap-2">
+                    <div className="flex items-center bg-muted rounded-lg p-1">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => {
+                                const prev = new Date(selectedDate);
+                                prev.setMonth(prev.getMonth() - 1);
+                                setSelectedDate(prev);
+                                setPage(1);
+                                if (viewMode === 'week') setActiveWeek(1);
+                            }}
+                        >
+                            <ChevronDown className="h-4 w-4 rotate-90" />
+                        </Button>
+                        <span className="text-xs font-medium px-2 min-w-[80px] text-center">
+                            {selectedDate.toLocaleString('default', { month: 'short', year: 'numeric' })}
+                        </span>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            disabled={selectedDate.getMonth() === new Date().getMonth() && selectedDate.getFullYear() === new Date().getFullYear()}
+                            onClick={() => {
+                                const next = new Date(selectedDate);
+                                next.setMonth(next.getMonth() + 1);
+                                setSelectedDate(next);
+                                setPage(1);
+                                if (viewMode === 'week') setActiveWeek(1);
+                            }}
+                        >
+                            <ChevronDown className="h-4 w-4 -rotate-90" />
+                        </Button>
+                    </div>
+                    <div className="flex items-center bg-muted rounded-lg p-1">
+                        <Button
+                            variant={viewMode === 'week' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => { setViewMode('week'); setPage(1); }}
+                        >
+                            Week
+                        </Button>
+                        <Button
+                            variant={viewMode === 'month' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => { setViewMode('month'); setPage(1); }}
+                        >
+                            Month
+                        </Button>
+                    </div>
                     <div className="flex items-center bg-muted rounded-lg p-1">
                         <Button
                             variant={receiptTheme === 'light' ? 'secondary' : 'ghost'}
@@ -787,6 +1220,7 @@ export function SpendingPage() {
                     />
             </PageHeader>
 
+            <div className="w-full max-w-5xl mx-auto px-4 flex flex-col items-center">
             {incomingSplitRequests && incomingSplitRequests.length > 0 && (
                 <Card className="border-primary/20 bg-primary/5">
                     <CardContent className="p-3 sm:p-4 space-y-3">
@@ -943,205 +1377,45 @@ export function SpendingPage() {
                 </Card>
             )}
 
-            <div className={cn(
-                "relative mx-auto max-w-md w-full font-mono text-sm sm:text-base pb-8 pt-6 px-6 sm:px-8 shadow-[0_4px_14px_rgba(0,0,0,0.08)] mb-12 mt-4 transition-colors duration-300",
-                receiptTheme === 'light' ? "bg-[#fdfdfd] text-[#1a1a1a]" : "bg-[#1a1a1a] text-[#fdfdfd]"
-            )}>
-                {/* Top zigzag */}
-                <div className="absolute top-[-8px] left-0 w-full h-[8px] bg-repeat-x" style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='16' height='8' viewBox='0 0 16 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 8L4 0L8 8L12 0L16 8H0Z' fill='${receiptTheme === 'light' ? '%23fdfdfd' : '%231a1a1a'}'/%3E%3C/svg%3E")`
-                }}></div>
-                
-                {/* Receipt Header */}
-                <div className="text-center mb-6 flex flex-col items-center">
-                    <h2 className="text-2xl font-bold uppercase tracking-widest mb-1">Woolet</h2>
-                    <p className="text-xs uppercase tracking-wider mb-2">Transaction Receipt</p>
-                    <p className="text-xs">{new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                    <p className="text-xs mt-1">STORE MANAGER: USER</p>
-                </div>
+            </div>
 
-                <div className={cn(
-                    "border-b-2 border-dashed mb-4",
-                    receiptTheme === 'light' ? "border-[#1a1a1a]/30" : "border-[#fdfdfd]/30"
-                )}></div>
-
-                {/* Table Header */}
-                <div className="flex justify-between font-bold mb-2 text-xs sm:text-sm uppercase">
-                    <span className="w-8">QTY</span>
-                    <span className="flex-1">DESCRIPTION</span>
-                    <span className="text-right w-24">COST</span>
-                </div>
-
-                {/* Transactions List */}
-                {isLoading ? (
-                    <p className="text-center py-8 text-xs">PRINTING...</p>
-                ) : visibleTransactions.length === 0 ? (
-                    <p className="text-center py-8 text-xs">NO TRANSACTIONS YET</p>
-                ) : (
-                    <div className="space-y-4">
-                        {visibleTransactions.map((tx: Transaction) => (
-                            <div key={tx.id} className="group relative">
-                                <div className="flex justify-between items-start text-xs sm:text-sm">
-                                    <span className="w-8 pt-0.5">1</span>
-                                    <div className="flex-1 pr-2">
-                                        <p className="uppercase break-words font-semibold">{tx.description || tx.category?.name || 'UNKNOWN'}</p>
-                                        <p className={cn(
-                                            "text-[10px] mt-0.5 uppercase",
-                                            receiptTheme === 'light' ? "text-[#1a1a1a]/70" : "text-[#fdfdfd]/70"
-                                        )}>
-                                            {tx.category?.icon} {tx.currencyBalance?.account?.name || 'Account'}
-                                        </p>
-                                        <p className={cn(
-                                            "text-[10px] font-mono",
-                                            receiptTheme === 'light' ? "text-[#1a1a1a]/70" : "text-[#fdfdfd]/70"
-                                        )}>
-                                            #{tx.id.slice(0, 8).toUpperCase()}
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-col items-end gap-1">
-                                        <div className="text-right w-24 pt-0.5">
-                                            <CurrencyDisplay
-                                                amount={tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Math.abs(Number(tx.amount))}
-                                                currency={tx.currencyBalance?.currencyCode}
-                                                showSign
-                                                color={tx.type === 'income'
-                                                    ? (receiptTheme === 'light' ? '#059669' : '#34d399')
-                                                    : (receiptTheme === 'light' ? '#dc2626' : '#f87171')}
-                                                className="whitespace-nowrap font-bold text-sm sm:text-base"
-                                            />
-                                        </div>
-
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className={cn(
-                                                    "h-6 w-6",
-                                                    receiptTheme === 'light' ? "text-[#1a1a1a]" : "text-[#fdfdfd]"
-                                                )}>
-                                                    <MoreHorizontal className="h-3 w-3" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => handleEdit(tx)}>
-                                                    <Pencil className="h-4 w-4 mr-2" />
-                                                    Edit
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                    onClick={() => handleDelete(tx)}
-                                                    className="text-red-500"
-                                                >
-                                                    <Trash2 className="h-4 w-4 mr-2" />
-                                                    Delete
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
-                                </div>
-                                
-                                {/* Split Bill Details */}
-                                {tx.type === 'expense' && tx.splits && tx.splits.length > 0 && (
-                                    <div className={cn(
-                                        "ml-8 mt-2 pl-2 border-l border-dashed",
-                                        receiptTheme === 'light' ? "border-[#1a1a1a]/30" : "border-[#fdfdfd]/30"
-                                    )}>
-                                        <button
-                                            onClick={() => toggleSplitExpand(tx.id)}
-                                            className={cn(
-                                                "flex items-center gap-1 text-[10px] uppercase tracking-wider px-1 py-0.5 rounded transition-colors",
-                                                receiptTheme === 'light' ? "hover:bg-black/5" : "hover:bg-white/5"
-                                            )}
-                                        >
-                                            {expandedSplits.has(tx.id) ? '[-] ' : '[+] '}
-                                            SPLIT WITH {tx.splits.length}
-                                        </button>
-                                        {expandedSplits.has(tx.id) && (
-                                            <div className="mt-1 space-y-1">
-                                                {tx.splits.map((split: TransactionSplit) => {
-                                                    const owed = Number(split.owedAmount);
-                                                    const paid = Number(split.paidAmount);
-                                                    const remaining = owed - paid;
-                                                    return (
-                                                        <div key={split.id} className="flex justify-between items-center text-[10px]">
-                                                            <span className="uppercase truncate max-w-[100px]">- {split.participant?.name || 'UNKNOWN'}</span>
-                                                            <div className="flex items-center gap-2">
-                                                                {split.status === 'settled' ? (
-                                                                    <span className={cn(
-                                                                        "font-bold",
-                                                                        receiptTheme === 'light' ? "text-[#059669]" : "text-[#34d399]"
-                                                                    )}>PAID</span>
-                                                                ) : (
-                                                                    <>
-                                                                        <span className="font-bold">
-                                                                            OWES <CurrencyDisplay amount={remaining} currency={tx.currencyBalance?.currencyCode} color={receiptTheme === 'light' ? '#dc2626' : '#f87171'} />
-                                                                        </span>
-                                                                        <button
-                                                                            className={cn(
-                                                                                "underline decoration-dashed",
-                                                                                receiptTheme === 'light' ? "hover:text-blue-600" : "hover:text-blue-400"
-                                                                            )}
-                                                                            onClick={() => {
-                                                                                setPaymentAmount(String(remaining));
-                                                                                setRecordPaymentSplit({
-                                                                                    splitId: split.id,
-                                                                                    participantName: split.participant?.name || 'Unknown',
-                                                                                    remaining,
-                                                                                    currencyCode: tx.currencyBalance?.currencyCode || 'USD',
-                                                                                    transactionId: tx.id
-                                                                                });
-                                                                            }}
-                                                                        >
-                                                                            PAY
-                                                                        </button>
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                <div className={cn(
-                    "border-t-2 border-dashed mt-6 pt-4",
-                    receiptTheme === 'light' ? "border-[#1a1a1a]/30" : "border-[#fdfdfd]/30"
-                )}>
-                    <div className="flex justify-between font-bold text-base sm:text-lg uppercase">
-                        <span>Order Total</span>
-                        <span>
-                            <CurrencyDisplay
-                                amount={visibleTransactions.reduce((acc: number, tx: Transaction) => acc + (tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Math.abs(Number(tx.amount))), 0)}
-                                currency={visibleTransactions[0]?.currencyBalance?.currencyCode || 'USD'}
-                                color={receiptTheme === 'light' ? '#1a1a1a' : '#fdfdfd'}
-                            />
-                        </span>
-                    </div>
-                </div>
-
-                <div className="mt-8 text-center space-y-2">
-                    <p className="text-xs uppercase tracking-widest">*** THANK YOU! ***</p>
-                    <div className="flex justify-center mt-4">
-                        {/* Fake barcode */}
-                        <div className="flex gap-[2px] h-12 items-end">
-                            {[...Array(40)].map((_, i) => (
-                                <div key={i} className={receiptTheme === 'light' ? "bg-[#1a1a1a]" : "bg-[#fdfdfd]"} style={{ 
-                                    width: `${Math.random() > 0.5 ? 2 : 4}px`, 
-                                    height: `${Math.random() > 0.8 ? 80 : 100}%` 
-                                }}></div>
-                            ))}
+            {/* Receipt section — full width, no container constraints */}
+            <div className="w-full -mx-3 md:-mx-6 flex flex-col items-center">
+            {viewMode === 'week' ? (
+                /* Week mode: vertical list for all screen sizes */
+                <div className="w-full max-w-[448px] mx-auto mb-12 mt-8 flex flex-col gap-6">
+                    {weeksInMonthData.map((weekData) => (
+                        <div key={weekData.weekNum} className="w-full">
+                            {renderReceipt(
+                                weekData.transactions,
+                                `Week ${weekData.weekNum} Receipt`,
+                                weekData.total,
+                                weekData.weekNum,
+                                true,
+                                0,
+                                undefined,
+                                false,
+                                weekData.dateRange
+                            )}
                         </div>
-                    </div>
-                    <p className="text-[10px] mt-1 tracking-widest">{Date.now().toString().slice(-12)}</p>
+                    ))}
                 </div>
+            ) : (
+                /* Month mode: single long receipt with all month transactions */
+                <div className="w-full max-w-[448px] mx-auto mb-12 mt-8 flex justify-center">
+                    {renderReceipt(
+                        paginatedTransactions,
+                        `${selectedDate.toLocaleString('default', { month: 'long' })} Receipt`,
+                        monthTotal,
+                        undefined,
+                        true,
+                        0,
+                        undefined,
+                        true
+                    )}
+                </div>
+            )}
 
-                {/* Bottom zigzag */}
-                <div className="absolute bottom-[-8px] left-0 w-full h-[8px] bg-repeat-x" style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='16' height='8' viewBox='0 0 16 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0L4 8L8 0L12 8L16 0H0Z' fill='${receiptTheme === 'light' ? '%23fdfdfd' : '%231a1a1a'}'/%3E%3C/svg%3E")`
-                }}></div>
             </div>
 
             {/* Edit Transaction Sheet */}

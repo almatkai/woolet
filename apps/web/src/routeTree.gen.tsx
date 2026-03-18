@@ -121,7 +121,8 @@ function RootLayout() {
                     </SignedIn>
                     <main
                         className={cn(
-                            "flex-1 w-full overflow-y-auto overflow-x-hidden",
+                            "flex-1 w-full overflow-y-auto",
+                            location.pathname === "/spending" ? "overflow-x-auto" : "overflow-x-hidden",
                             isSignedIn && !isAuthRoute && !isSettingsRoute ? "p-3 md:p-6" : "p-0",
                             !isAuthRoute && !isSettingsRoute && "max-[470px]:pb-24"
                         )}
