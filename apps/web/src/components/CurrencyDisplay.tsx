@@ -49,37 +49,66 @@ interface CurrencyDisplayProps {
     abbreviate?: boolean;
     showSign?: boolean;
     size?: 'sm' | 'default';
+    /** Inline color - use when you need one solid color for the entire amount (avoids CSS cascade/opacity issues) */
+    color?: string;
 }
 
-export const formatAmountAbbreviated = (amount: string | number): string => {
+export const formatAmountAbbreviated = (amount: string | number, ignoreOpacity: boolean = false): React.ReactNode => {
     const num = Number(amount);
     const absNum = Math.abs(num);
     const sign = num < 0 ? '-' : '';
 
     if (absNum >= 1_000_000) {
-        return sign + (absNum / 1_000_000).toLocaleString('en-US', { maximumFractionDigits: 1 }) + 'm';
+        const formatted = (absNum / 1_000_000).toLocaleString('en-US', { maximumFractionDigits: 1 });
+        return <>{sign}{formatted}m</>;
     }
     if (absNum >= 1_000) {
-        return sign + (absNum / 1_000).toLocaleString('en-US', { maximumFractionDigits: 1 }) + 'k';
+        const formatted = (absNum / 1_000).toLocaleString('en-US', { maximumFractionDigits: 1 });
+        const parts = formatted.split('.');
+        if (parts.length > 1) {
+            return <>{sign}{parts[0]}<span className={ignoreOpacity ? "" : "opacity-50"}>.{parts[1]}k</span></>;
+        }
+        return <>{sign}{formatted}<span className={ignoreOpacity ? "" : "opacity-50"}>k</span></>;
     }
-    return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    
+    const formatted = num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    const parts = formatted.split('.');
+    if (parts.length > 1) {
+         return <>{parts[0]}<span className={ignoreOpacity ? "" : "opacity-50"}>.{parts[1]}</span></>;
+    }
+    return <>{formatted}</>;
 };
 
-export const formatFullAmount = (amount: string | number, currency?: string) => {
+export const formatFullAmount = (amount: string | number, currency?: string, ignoreOpacity: boolean = false): React.ReactNode => {
     const num = Number(amount);
-    if (!currency) return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
-    try {
-        return num.toLocaleString('en-US', { style: 'currency', currency });
-    } catch {
-        return `${currency} ${num.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+    
+    let formattedStr = '';
+    if (!currency) {
+        formattedStr = num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    } else {
+        try {
+            formattedStr = num.toLocaleString('en-US', { style: 'currency', currency });
+        } catch {
+            formattedStr = `${currency} ${num.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+        }
     }
+
+    // Attempt to split by decimal to apply opacity to the decimal part if it exists
+    const parts = formattedStr.split('.');
+    if (parts.length > 1) {
+        return <>{parts[0]}<span className={ignoreOpacity ? "" : "opacity-50"}>.{parts[1]}</span></>;
+    }
+    return <>{formattedStr}</>;
 };
 
-export function CurrencyDisplay({ amount, currency, className, abbreviate = true, showSign = false, size = 'default' }: CurrencyDisplayProps) {
+export function CurrencyDisplay({ amount, currency, className, abbreviate = true, showSign = false, size = 'default', color }: CurrencyDisplayProps) {
     const [open, setOpen] = useState(false);
     const num = Number(amount);
-    const fullAmount = formatFullAmount(amount, currency);
-    const displayAmount = abbreviate ? formatAmountAbbreviated(amount) : formatFullAmount(amount);
+    const fullAmountStr = !currency ? num.toLocaleString('en-US', { maximumFractionDigits: 2 }) : (() => { try { return num.toLocaleString('en-US', { style: 'currency', currency }) } catch { return `${currency} ${num.toLocaleString('en-US', { maximumFractionDigits: 2 })}` } })();
+    
+    const ignoreOpacity = !!color;
+    
+    const displayAmount = abbreviate ? formatAmountAbbreviated(amount, ignoreOpacity) : formatFullAmount(amount, currency, ignoreOpacity);
 
     const sign = showSign && num > 0 ? '+' : '';
 
@@ -91,6 +120,7 @@ export function CurrencyDisplay({ amount, currency, className, abbreviate = true
                 <TooltipTrigger asChild>
                     <span
                         className={cn("cursor-help select-none inline-flex items-baseline gap-1", sizeClasses, className)}
+                        style={color ? { color } : undefined}
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -98,15 +128,15 @@ export function CurrencyDisplay({ amount, currency, className, abbreviate = true
                         }}
                     >
                         {currency && (
-                            <span className="font-medium leading-none">{getCurrencySymbol(currency)}</span>
+                            <span className="font-medium leading-none" style={color ? { color } : undefined}>{getCurrencySymbol(currency)}</span>
                         )}
-                        <span className="font-medium leading-none">
+                        <span className="font-medium leading-none" style={color ? { color } : undefined}>
                             {sign}{displayAmount}
                         </span>
                     </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                    <p>{fullAmount}</p>
+                    <p>{fullAmountStr}</p>
                 </TooltipContent>
             </Tooltip>
         </TooltipProvider>
