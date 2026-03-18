@@ -712,6 +712,8 @@ export function SpendingPage() {
         deleteTimeoutRef.current.set(transaction.id, timeout);
     };
 
+    const [receiptTheme, setReceiptTheme] = useState<'light' | 'dark'>('light');
+
     const visibleTransactions = (transactionsData?.transactions || []).filter(t => !pendingDeletes.has(t.id));
 
     return (
@@ -721,17 +723,37 @@ export function SpendingPage() {
                 subtitle="Track your daily expenses"
                 variant="two-mixed"
             >
-                {/* Shortcuts button - icon-only on mobile */}
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShortcutsListOpen(true)}
-                    title="Shortcuts"
-                    className="px-2 md:px-3 h-8 md:h-9"
-                >
-                    <Bookmark className="h-4 w-4 md:mr-2" />
-                    <span className="hidden md:inline">Shortcuts</span>
-                </Button>
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center bg-muted rounded-lg p-1">
+                        <Button
+                            variant={receiptTheme === 'light' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => setReceiptTheme('light')}
+                        >
+                            Light
+                        </Button>
+                        <Button
+                            variant={receiptTheme === 'dark' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => setReceiptTheme('dark')}
+                        >
+                            Dark
+                        </Button>
+                    </div>
+                    {/* Shortcuts button - icon-only on mobile */}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShortcutsListOpen(true)}
+                        title="Shortcuts"
+                        className="px-2 md:px-3 h-8 md:h-9"
+                    >
+                        <Bookmark className="h-4 w-4 md:mr-2" />
+                        <span className="hidden md:inline">Shortcuts</span>
+                    </Button>
+                </div>
                 <AddTransactionSheet
                         open={transactionSheetOpen}
                         onOpenChange={(nextOpen) => {
@@ -921,299 +943,206 @@ export function SpendingPage() {
                 </Card>
             )}
 
-            <Card className="rounded-[32px] overflow-hidden border-border/40 bg-card shadow-sm">
-                <CardContent className="p-0">
-                    {isLoading ? (
-                        <p className="text-muted-foreground text-center py-8">Loading transactions...</p>
-                    ) : visibleTransactions.length === 0 ? (
-                        <p className="text-muted-foreground text-center py-8">
-                            No transactions yet. Add your first transaction to get started.
-                        </p>
-                    ) : (
-                        <div className="divide-y divide-border/40">
-                            {visibleTransactions.map((tx: Transaction, index: number) => (
-                                <div
-                                    key={tx.id}
-                                    className={cn(
-                                        "p-4 hover:bg-muted/20 transition-colors",
-                                        index === 0 && "rounded-t-[28px]",
-                                        index === visibleTransactions.length - 1 && "rounded-b-[28px]"
-                                    )}
-                                >
-                                    {/* Receipt-style layout */}
-                                    {/* Receipt-style layout */}
-                                    <div className="flex items-start justify-between gap-4">
-                                        {/* Left side: Icon and description */}
-                                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                                            <div className="h-12 w-12 shrink-0 rounded-xl bg-muted/60 flex items-center justify-center text-xl shadow-sm border border-border/30">
-                                                {tx.category?.icon || '📄'}
-                                            </div>
-                                            <div className="flex flex-col min-w-0 flex-1">
-                                                <p className="text-base font-semibold truncate leading-tight">
-                                                    {tx.description || tx.category?.name || 'Unknown'}
-                                                </p>
-                                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                                    <span className="font-mono bg-muted/50 px-1.5 py-0.5 rounded">
-                                                        #{tx.id.slice(0, 8).toUpperCase()}
-                                                    </span>
-                                                    <span className="w-px h-3 bg-border/50" />
-                                                    <span>{new Date(tx.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                                                </div>
-                                            </div>
-                                        </div>
+            <div className={cn(
+                "relative mx-auto max-w-md w-full font-mono text-sm sm:text-base pb-8 pt-6 px-6 sm:px-8 shadow-[0_4px_14px_rgba(0,0,0,0.08)] mb-12 mt-4 transition-colors duration-300",
+                receiptTheme === 'light' ? "bg-[#fdfdfd] text-[#1a1a1a]" : "bg-[#1a1a1a] text-[#fdfdfd]"
+            )}>
+                {/* Top zigzag */}
+                <div className="absolute top-[-8px] left-0 w-full h-[8px] bg-repeat-x" style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='16' height='8' viewBox='0 0 16 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 8L4 0L8 8L12 0L16 8H0Z' fill='${receiptTheme === 'light' ? '%23fdfdfd' : '%231a1a1a'}'/%3E%3C/svg%3E")`
+                }}></div>
+                
+                {/* Receipt Header */}
+                <div className="text-center mb-6 flex flex-col items-center">
+                    <h2 className="text-2xl font-bold uppercase tracking-widest mb-1">Woolet</h2>
+                    <p className="text-xs uppercase tracking-wider mb-2">Transaction Receipt</p>
+                    <p className="text-xs">{new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                    <p className="text-xs mt-1">STORE MANAGER: USER</p>
+                </div>
 
-                                        {/* Right side: Amount and actions */}
-                                        <div className="flex flex-col items-end gap-2">
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex flex-col items-end">
-                                                    <CurrencyDisplay
-                                                        amount={tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Math.abs(Number(tx.amount))}
-                                                        currency={tx.currencyBalance?.currencyCode}
-                                                        showSign
-                                                        className={cn(
-                                                            "text-lg font-bold whitespace-nowrap tracking-tight",
-                                                            tx.type === 'income' ? 'text-emerald-600' : tx.type === 'expense' ? 'text-rose-600' : 'text-foreground'
-                                                        )}
-                                                    />
-                                                    {tx.type === 'expense' && tx.splits && tx.splits.length > 0 && (() => {
-                                                        const totalPaidBack = tx.splits.reduce((acc: number, s: TransactionSplit) => {
-                                                            if (s.status === 'settled') {
-                                                                return acc + Number(s.owedAmount || 0);
-                                                            }
-                                                            return acc + Number(s.paidAmount || 0);
-                                                        }, 0);
-                                                        const netSpend = Math.abs(Number(tx.amount)) - totalPaidBack;
-                                                        return (
-                                                            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground whitespace-nowrap mt-0.5">
-                                                                <span className="text-[10px] uppercase tracking-wider">Net</span>
-                                                                <CurrencyDisplay
-                                                                    amount={netSpend}
-                                                                    currency={tx.currencyBalance?.currencyCode}
-                                                                    abbreviate={true}
-                                                                    className="text-xs"
-                                                                />
-                                                            </div>
-                                                        );
-                                                    })()}
-                                                </div>
+                <div className={cn(
+                    "border-b-2 border-dashed mb-4",
+                    receiptTheme === 'light' ? "border-[#1a1a1a]/30" : "border-[#fdfdfd]/30"
+                )}></div>
 
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => handleEdit(tx)}>
-                                                            <Pencil className="h-4 w-4 mr-2" />
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            onClick={() => handleDelete(tx)}
-                                                            className="text-red-500"
-                                                        >
-                                                            <Trash2 className="h-4 w-4 mr-2" />
-                                                            Delete
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </div>
+                {/* Table Header */}
+                <div className="flex justify-between font-bold mb-2 text-xs sm:text-sm uppercase">
+                    <span className="w-8">QTY</span>
+                    <span className="flex-1">DESCRIPTION</span>
+                    <span className="text-right w-24">COST</span>
+                </div>
 
-                                            {/* Account info */}
-                                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                                                <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
-                                                <span className="truncate max-w-[180px]">
-                                                    {tx.currencyBalance?.account?.bank?.name ? `${tx.currencyBalance.account.bank.name} • ` : ''}
-                                                    {tx.currencyBalance?.account?.name || 'Unknown'}
-                                                </span>
-                                            </div>
-                                        </div>
+                {/* Transactions List */}
+                {isLoading ? (
+                    <p className="text-center py-8 text-xs">PRINTING...</p>
+                ) : visibleTransactions.length === 0 ? (
+                    <p className="text-center py-8 text-xs">NO TRANSACTIONS YET</p>
+                ) : (
+                    <div className="space-y-4">
+                        {visibleTransactions.map((tx: Transaction) => (
+                            <div key={tx.id} className="group relative">
+                                <div className="flex justify-between items-start text-xs sm:text-sm">
+                                    <span className="w-8 pt-0.5">1</span>
+                                    <div className="flex-1 pr-2">
+                                        <p className="uppercase break-words font-semibold">{tx.description || tx.category?.name || 'UNKNOWN'}</p>
+                                        <p className={cn(
+                                            "text-[10px] mt-0.5 uppercase",
+                                            receiptTheme === 'light' ? "text-[#1a1a1a]/70" : "text-[#fdfdfd]/70"
+                                        )}>
+                                            {tx.category?.icon} {tx.currencyBalance?.account?.name || 'Account'}
+                                        </p>
+                                        <p className={cn(
+                                            "text-[10px] font-mono",
+                                            receiptTheme === 'light' ? "text-[#1a1a1a]/70" : "text-[#fdfdfd]/70"
+                                        )}>
+                                            #{tx.id.slice(0, 8).toUpperCase()}
+                                        </p>
                                     </div>
+                                    <div className="flex flex-col items-end gap-1">
+                                        <div className="text-right w-24 pt-0.5">
+                                            <CurrencyDisplay
+                                                amount={tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Math.abs(Number(tx.amount))}
+                                                currency={tx.currencyBalance?.currencyCode}
+                                                showSign
+                                                color={tx.type === 'income'
+                                                    ? (receiptTheme === 'light' ? '#059669' : '#34d399')
+                                                    : (receiptTheme === 'light' ? '#dc2626' : '#f87171')}
+                                                className="whitespace-nowrap font-bold text-sm sm:text-base"
+                                            />
+                                        </div>
 
-                                    {/* Split Bill Details - Collapsible */}
-                                    {tx.type === 'expense' && tx.splits && tx.splits.length > 0 && (
-                                        <div className="mt-3 pt-3 border-t border-border/30">
-                                            <button
-                                                onClick={() => toggleSplitExpand(tx.id)}
-                                                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
-                                            >
-                                                {expandedSplits.has(tx.id) ? (
-                                                    <ChevronUp className="h-3 w-3" />
-                                                ) : (
-                                                    <ChevronDown className="h-3 w-3" />
-                                                )}
-                                                <span className="text-[10px] uppercase tracking-wider">
-                                                    Split with {tx.splits.length} {tx.splits.length === 1 ? 'person' : 'people'}
-                                                </span>
-                                                {(() => {
-                                                    const pendingCount = tx.splits.filter((s: TransactionSplit) => s.status !== 'settled').length;
-                                                    const settledCount = tx.splits.length - pendingCount;
-                                                    if (settledCount === tx.splits.length) {
-                                                        return <span className="text-green-600 ml-1 text-[10px] font-medium">• All settled</span>;
-                                                    } else if (pendingCount > 0) {
-                                                        const pendingTotal = tx.splits
-                                                            .filter((s: TransactionSplit) => s.status !== 'settled')
-                                                            .reduce((acc: number, s: TransactionSplit) => acc + (Number(s.owedAmount) - Number(s.paidAmount)), 0);
-                                                        return (
-                                                            <span className="text-orange-500 ml-1 flex items-center gap-1 text-[10px] font-medium">
-                                                                • <CurrencyDisplay amount={pendingTotal} currency={tx.currencyBalance?.currencyCode} className="text-xs" /> pending
-                                                            </span>
-                                                        );
-                                                    }
-                                                    return null;
-                                                })()}
-                                            </button>
-
-                                            {expandedSplits.has(tx.id) && (
-                                                <div className="mt-2 space-y-2 ml-4">
-                                                    {tx.splits.map((split: TransactionSplit) => (
-                                                        <div key={split.id} className="flex items-center justify-between text-xs p-2 rounded-md bg-muted/30">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className={cn(
+                                                    "h-6 w-6",
+                                                    receiptTheme === 'light' ? "text-[#1a1a1a]" : "text-[#fdfdfd]"
+                                                )}>
+                                                    <MoreHorizontal className="h-3 w-3" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => handleEdit(tx)}>
+                                                    <Pencil className="h-4 w-4 mr-2" />
+                                                    Edit
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    onClick={() => handleDelete(tx)}
+                                                    className="text-red-500"
+                                                >
+                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                    Delete
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
+                                </div>
+                                
+                                {/* Split Bill Details */}
+                                {tx.type === 'expense' && tx.splits && tx.splits.length > 0 && (
+                                    <div className={cn(
+                                        "ml-8 mt-2 pl-2 border-l border-dashed",
+                                        receiptTheme === 'light' ? "border-[#1a1a1a]/30" : "border-[#fdfdfd]/30"
+                                    )}>
+                                        <button
+                                            onClick={() => toggleSplitExpand(tx.id)}
+                                            className={cn(
+                                                "flex items-center gap-1 text-[10px] uppercase tracking-wider px-1 py-0.5 rounded transition-colors",
+                                                receiptTheme === 'light' ? "hover:bg-black/5" : "hover:bg-white/5"
+                                            )}
+                                        >
+                                            {expandedSplits.has(tx.id) ? '[-] ' : '[+] '}
+                                            SPLIT WITH {tx.splits.length}
+                                        </button>
+                                        {expandedSplits.has(tx.id) && (
+                                            <div className="mt-1 space-y-1">
+                                                {tx.splits.map((split: TransactionSplit) => {
+                                                    const owed = Number(split.owedAmount);
+                                                    const paid = Number(split.paidAmount);
+                                                    const remaining = owed - paid;
+                                                    return (
+                                                        <div key={split.id} className="flex justify-between items-center text-[10px]">
+                                                            <span className="uppercase truncate max-w-[100px]">- {split.participant?.name || 'UNKNOWN'}</span>
                                                             <div className="flex items-center gap-2">
-                                                                <div
-                                                                    className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
-                                                                    style={{ backgroundColor: split.participant.color }}
-                                                                >
-                                                                    {split.participant.name.charAt(0).toUpperCase()}
-                                                                </div>
-                                                                <div>
-                                                                    <p className="font-medium truncate max-w-[120px]">{split.participant.name}</p>
-                                                                    <p className="text-[10px] text-muted-foreground">
-                                                                        {split.status === 'settled' ? 'Paid' : split.status === 'partial' ? 'Partial' : 'Pending'}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <CurrencyDisplay
-                                                                    amount={Number(split.owedAmount)}
-                                                                    currency={tx.currencyBalance?.currencyCode}
-                                                                    className="text-xs font-semibold"
-                                                                />
-                                                                {split.status !== 'settled' && split.paidAmount > 0 && (
-                                                                    <p className="text-[10px] text-muted-foreground">
-                                                                        Paid: <CurrencyDisplay amount={Number(split.paidAmount)} currency={tx.currencyBalance?.currencyCode} className="text-[10px]" />
-                                                                    </p>
+                                                                {split.status === 'settled' ? (
+                                                                    <span className={cn(
+                                                                        "font-bold",
+                                                                        receiptTheme === 'light' ? "text-[#059669]" : "text-[#34d399]"
+                                                                    )}>PAID</span>
+                                                                ) : (
+                                                                    <>
+                                                                        <span className="font-bold">
+                                                                            OWES <CurrencyDisplay amount={remaining} currency={tx.currencyBalance?.currencyCode} color={receiptTheme === 'light' ? '#dc2626' : '#f87171'} />
+                                                                        </span>
+                                                                        <button
+                                                                            className={cn(
+                                                                                "underline decoration-dashed",
+                                                                                receiptTheme === 'light' ? "hover:text-blue-600" : "hover:text-blue-400"
+                                                                            )}
+                                                                            onClick={() => {
+                                                                                setPaymentAmount(String(remaining));
+                                                                                setRecordPaymentSplit({
+                                                                                    splitId: split.id,
+                                                                                    participantName: split.participant?.name || 'Unknown',
+                                                                                    remaining,
+                                                                                    currencyCode: tx.currencyBalance?.currencyCode || 'USD',
+                                                                                    transactionId: tx.id
+                                                                                });
+                                                                            }}
+                                                                        >
+                                                                            PAY
+                                                                        </button>
+                                                                    </>
                                                                 )}
                                                             </div>
                                                         </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
 
-                                    {/* Split Bill Details - Collapsible */}
-                                    {tx.type === 'expense' && tx.splits && tx.splits.length > 0 && (
-                                        <div className="ml-13 mt-1 pl-10">
-                                            <button
-                                                onClick={() => toggleSplitExpand(tx.id)}
-                                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                                            >
-                                                {expandedSplits.has(tx.id) ? (
-                                                    <ChevronUp className="h-3 w-3" />
-                                                ) : (
-                                                    <ChevronDown className="h-3 w-3" />
-                                                )}
-                                                <span>
-                                                    Split with {tx.splits.length} {tx.splits.length === 1 ? 'person' : 'people'}
-                                                    {(() => {
-                                                        const pendingCount = tx.splits.filter((s: TransactionSplit) => s.status !== 'settled').length;
-                                                        const settledCount = tx.splits.length - pendingCount;
-                                                        if (settledCount === tx.splits.length) {
-                                                            return <span className="text-green-600 ml-1">• All settled</span>;
-                                                        } else if (pendingCount > 0) {
-                                                            const pendingTotal = tx.splits
-                                                                .filter((s: TransactionSplit) => s.status !== 'settled')
-                                                                .reduce((acc: number, s: TransactionSplit) => acc + (Number(s.owedAmount) - Number(s.paidAmount)), 0);
-                                                            return (
-                                                                <span className="text-orange-500 ml-1 flex items-center gap-1 inline-flex">
-                                                                    • <CurrencyDisplay amount={pendingTotal} currency={tx.currencyBalance?.currencyCode} /> pending
-                                                                </span>
-                                                            );
-                                                        }
-                                                        return null;
-                                                    })()}
-                                                </span>
-                                            </button>
+                <div className={cn(
+                    "border-t-2 border-dashed mt-6 pt-4",
+                    receiptTheme === 'light' ? "border-[#1a1a1a]/30" : "border-[#fdfdfd]/30"
+                )}>
+                    <div className="flex justify-between font-bold text-base sm:text-lg uppercase">
+                        <span>Order Total</span>
+                        <span>
+                            <CurrencyDisplay
+                                amount={visibleTransactions.reduce((acc: number, tx: Transaction) => acc + (tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Math.abs(Number(tx.amount))), 0)}
+                                currency={visibleTransactions[0]?.currencyBalance?.currencyCode || 'USD'}
+                                color={receiptTheme === 'light' ? '#1a1a1a' : '#fdfdfd'}
+                            />
+                        </span>
+                    </div>
+                </div>
 
-                                            {expandedSplits.has(tx.id) && (
-                                                <div className="mt-2 space-y-2 border-l-2 pl-4 py-1">
-                                                    {tx.splits.map((split) => {
-                                                        const owed = Number(split.owedAmount);
-                                                        const paid = Number(split.paidAmount);
-                                                        const remaining = owed - paid;
-                                                        return (
-                                                            <div key={split.id} className="flex items-center justify-between group/split">
-                                                                <div className="flex items-center gap-2">
-                                                                    <div
-                                                                        className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] text-white font-medium"
-                                                                        style={{ backgroundColor: split.participant?.color || '#6366f1' }}
-                                                                    >
-                                                                        {(split.participant?.name || '??').slice(0, 2).toUpperCase()}
-                                                                    </div>
-                                                                    <div>
-                                                                        <p className="text-xs font-medium">{split.participant?.name || 'Unknown'}</p>
-                                                                        <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                                                            {split.status === 'settled'
-                                                                                ? (
-                                                                                    <>
-                                                                                        Paid <CurrencyDisplay amount={owed} currency={tx.currencyBalance?.currencyCode} />
-                                                                                    </>
-                                                                                )
-                                                                                : split.status === 'partial'
-                                                                                    ? (
-                                                                                        <>
-                                                                                            Paid <CurrencyDisplay amount={paid} currency={tx.currencyBalance?.currencyCode} /> of <CurrencyDisplay amount={owed} currency={tx.currencyBalance?.currencyCode} />
-                                                                                        </>
-                                                                                    )
-                                                                                    : (
-                                                                                        <>
-                                                                                            Owes <CurrencyDisplay amount={owed} currency={tx.currencyBalance?.currencyCode} />
-                                                                                        </>
-                                                                                    )}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    {split.status === 'settled' ? (
-                                                                        <span className="text-xs font-semibold text-green-600">✓ Settled</span>
-                                                                    ) : (
-                                                                        <>
-                                                                            <span className="text-xs font-semibold text-orange-500">
-                                                                                <CurrencyDisplay amount={remaining} currency={tx.currencyBalance?.currencyCode} />
-                                                                            </span>
-                                                                            <Button
-                                                                                variant="outline"
-                                                                                size="sm"
-                                                                                className="h-6 text-xs"
-                                                                                onClick={() => {
-                                                                                    setPaymentAmount(String(remaining));
-                                                                                    setRecordPaymentSplit({
-                                                                                        splitId: split.id,
-                                                                                        participantName: split.participant?.name || 'Unknown',
-                                                                                        remaining,
-                                                                                        currencyCode: tx.currencyBalance?.currencyCode || 'USD',
-                                                                                        transactionId: tx.id
-                                                                                    });
-                                                                                }}
-                                                                            >
-                                                                                Record Payment
-                                                                            </Button>
-                                                                        </>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
+                <div className="mt-8 text-center space-y-2">
+                    <p className="text-xs uppercase tracking-widest">*** THANK YOU! ***</p>
+                    <div className="flex justify-center mt-4">
+                        {/* Fake barcode */}
+                        <div className="flex gap-[2px] h-12 items-end">
+                            {[...Array(40)].map((_, i) => (
+                                <div key={i} className={receiptTheme === 'light' ? "bg-[#1a1a1a]" : "bg-[#fdfdfd]"} style={{ 
+                                    width: `${Math.random() > 0.5 ? 2 : 4}px`, 
+                                    height: `${Math.random() > 0.8 ? 80 : 100}%` 
+                                }}></div>
                             ))}
                         </div>
-                    )}
-                </CardContent>
-            </Card>
+                    </div>
+                    <p className="text-[10px] mt-1 tracking-widest">{Date.now().toString().slice(-12)}</p>
+                </div>
+
+                {/* Bottom zigzag */}
+                <div className="absolute bottom-[-8px] left-0 w-full h-[8px] bg-repeat-x" style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='16' height='8' viewBox='0 0 16 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0L4 8L8 0L12 8L16 0H0Z' fill='${receiptTheme === 'light' ? '%23fdfdfd' : '%231a1a1a'}'/%3E%3C/svg%3E")`
+                }}></div>
+            </div>
 
             {/* Edit Transaction Sheet */}
             <Sheet open={!!editingTransaction} onOpenChange={(open) => !open && setEditingTransaction(null)}>
