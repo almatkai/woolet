@@ -60,7 +60,7 @@ export function NotificationsMenu() {
 
     const { data: notificationsData, refetch } = trpc.notification.list.useQuery(
         { limit: 10, unreadOnly: true },
-        { refetchInterval: 30000 }
+        { refetchInterval: 5000 }
     );
 
     // Browser notification effect
@@ -171,8 +171,8 @@ export function NotificationsMenu() {
                     )}
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[calc(100vw-2rem)] sm:w-[380px] rounded-[32px] border-border/40 bg-card/70 backdrop-blur-2xl shadow-2xl p-0 overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border/20 bg-muted/10">
+            <DropdownMenuContent align="end" className="w-[calc(100vw-2rem)] sm:w-[380px] rounded-[32px] border-border/30 bg-card/40 backdrop-blur-3xl shadow-2xl p-0 overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-border/10 bg-white/5">
                     <div className="flex items-center gap-2.5">
                         <div className="p-2 bg-primary/10 rounded-xl">
                             <Bell className="h-4 w-4 text-primary" />
@@ -256,10 +256,10 @@ export function NotificationsMenu() {
                     </ScrollArea>
                 )}
 
-                <div className="p-3 border-t border-border/20 bg-muted/5">
+                <div className="p-3 border-t border-border/10 bg-white/5">
                     <DropdownMenuItem asChild className="p-0">
                         <Link to="/notifications" className="w-full block">
-                            <Button variant="ghost" className="w-full justify-center text-primary font-semibold text-sm rounded-xl h-10 hover:bg-primary/20 transition-colors">
+                            <Button variant="ghost" className="w-full justify-center text-primary font-semibold text-sm rounded-xl h-10 hover:bg-primary/25 transition-colors">
                                 View all notifications
                             </Button>
                         </Link>

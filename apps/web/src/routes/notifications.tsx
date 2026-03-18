@@ -62,7 +62,7 @@ export function NotificationsPage() {
 
     const { data: notificationsData, refetch } = trpc.notification.list.useQuery(
         { limit: 50 },
-        { refetchInterval: 30000 }
+        { refetchInterval: 5000 }
     );
 
     const markAsReadMutation = trpc.notification.markAsRead.useMutation({

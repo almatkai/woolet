@@ -2,8 +2,9 @@ import { z } from 'zod';
 import { eq, desc, sql, and, lt, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../lib/trpc';
-import { debts, currencyBalances, debtPayments, transactions, categories, users } from '../db/schema';
+import { debts, currencyBalances, debtPayments, transactions, categories, users, notifications } from '../db/schema';
 import { checkEntityLimit } from '../lib/limits';
+import { deliverNotificationChannels } from '../services/notification-delivery-service';
 
 export const debtRouter = router({
     list: protectedProcedure
@@ -88,6 +89,9 @@ export const debtRouter = router({
         }))
         .mutation(async ({ ctx, input }) => {
             const normalizedDueDate = input.dueDate?.trim() || null;
+            const normalizedPersonName = input.personName.trim();
+            let resolvedLinkedUserId = input.linkedUserId || null;
+
             // Check test mode limits
             await checkEntityLimit(ctx.db, ctx.userId!, 'debts');
 
@@ -99,8 +103,22 @@ export const debtRouter = router({
                 });
             }
 
-            if (input.linkedUserId) {
-                if (input.linkedUserId === ctx.userId) {
+            if (!resolvedLinkedUserId) {
+                const potentialUsername = normalizedPersonName.replace(/^@/, '');
+                const isUsernameLike = /^[a-zA-Z0-9_]{4,32}$/.test(potentialUsername);
+                if (isUsernameLike) {
+                    const userByUsername = await ctx.db.query.users.findFirst({
+                        where: sql`lower(${users.username}) = ${potentialUsername.toLowerCase()}`,
+                        columns: { id: true },
+                    });
+                    if (userByUsername && userByUsername.id !== ctx.userId) {
+                        resolvedLinkedUserId = userByUsername.id;
+                    }
+                }
+            }
+
+            if (resolvedLinkedUserId) {
+                if (resolvedLinkedUserId === ctx.userId) {
                     throw new TRPCError({
                         code: 'BAD_REQUEST',
                         message: 'You cannot assign a debt to yourself.'
@@ -108,7 +126,7 @@ export const debtRouter = router({
                 }
 
                 const linkedUser = await ctx.db.query.users.findFirst({
-                    where: eq(users.id, input.linkedUserId),
+                    where: eq(users.id, resolvedLinkedUserId),
                     columns: { id: true },
                 });
 
@@ -120,20 +138,52 @@ export const debtRouter = router({
                 }
             }
 
-            // Check balance if lending money and tracked
-            if (input.type === 'they_owe' && input.currencyBalanceId) {
-                const balance = await ctx.db.query.currencyBalances.findFirst({
-                    where: eq(currencyBalances.id, input.currencyBalanceId)
+            if (resolvedLinkedUserId && !input.currencyBalanceId) {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'Linked debt requests require selecting an account.'
                 });
+            }
 
-                if (!balance) {
+            let selectedSourceBalance:
+                | (typeof currencyBalances.$inferSelect & {
+                    account?: {
+                        bank?: {
+                            userId: string | null;
+                        } | null;
+                    } | null;
+                })
+                | null = null;
+
+            if (input.currencyBalanceId) {
+                selectedSourceBalance = await ctx.db.query.currencyBalances.findFirst({
+                    where: eq(currencyBalances.id, input.currencyBalanceId),
+                    with: {
+                        account: {
+                            with: {
+                                bank: true,
+                            },
+                        },
+                    },
+                }) as any;
+
+                if (!selectedSourceBalance) {
                     throw new TRPCError({ code: 'NOT_FOUND', message: 'Balance not found' });
                 }
 
-                if (Number(balance.balance) < input.amount) {
+                if (selectedSourceBalance.account?.bank?.userId !== ctx.userId) {
+                    throw new TRPCError({ code: 'FORBIDDEN', message: 'Account not found' });
+                }
+            }
+
+            // Check balance if lending money and tracked
+            if (input.type === 'they_owe' && input.currencyBalanceId) {
+                const balance = selectedSourceBalance;
+
+                if (!balance || Number(balance.balance) < input.amount) {
                     throw new TRPCError({
                         code: 'BAD_REQUEST',
-                        message: `Insufficient funds. You only have ${balance.balance} ${balance.currencyCode} but are trying to lend ${input.amount}.`
+                        message: `Insufficient funds. You only have ${balance?.balance ?? 0} ${balance?.currencyCode ?? ''} but are trying to lend ${input.amount}.`
                     });
                 }
             }
@@ -142,8 +192,8 @@ export const debtRouter = router({
             const [debt] = await ctx.db.insert(debts).values({
                 currencyBalanceId: input.currencyBalanceId,
                 currencyCode: input.currencyCode,
-                personName: input.personName,
-                linkedUserId: input.linkedUserId,
+                personName: normalizedPersonName,
+                linkedUserId: resolvedLinkedUserId,
                 amount: input.amount.toString(),
                 type: input.type,
                 description: input.description,
@@ -152,12 +202,71 @@ export const debtRouter = router({
                 isTest: ctx.user.testMode,
             }).returning();
 
-            // 3. Skip tracking if not linked to a balance
-            if (!input.currencyBalanceId) {
+            const shouldDeferBorrowFunding = Boolean(resolvedLinkedUserId && input.type === 'i_owe');
+            const debtCurrencyCode = selectedSourceBalance?.currencyCode || input.currencyCode || debt.currencyCode || 'USD';
+
+            // 3. Create Pending Record for Recipient if linked
+            let recipientDebtId: string | null = null;
+            if (resolvedLinkedUserId) {
+                const requesterLabel = ctx.user.name || ctx.user.username || 'Someone';
+                const [recipientDebt] = await ctx.db.insert(debts).values({
+                    userId: resolvedLinkedUserId,
+                    personName: requesterLabel,
+                    linkedUserId: ctx.userId!,
+                    amount: input.amount.toString(),
+                    type: input.type === 'they_owe' ? 'i_owe' : 'they_owe',
+                    description: input.description,
+                    dueDate: normalizedDueDate,
+                    currencyCode: debtCurrencyCode,
+                    status: 'awaiting_approval',
+                    isTest: ctx.user.testMode,
+                }).returning();
+                recipientDebtId = recipientDebt.id;
+
+                const requestMessage = input.type === 'they_owe'
+                    ? `${requesterLabel} ${input.currencyBalanceId ? 'sent' : 'wants to lend'} you ${input.amount.toFixed(2)} ${debtCurrencyCode}. Choose where to receive it.`
+                    : `${requesterLabel} is asking to borrow ${input.amount.toFixed(2)} ${debtCurrencyCode} from you. Choose a funding card to continue.`;
+
+                const [requestNotification] = await ctx.db.insert(notifications).values({
+                    userId: resolvedLinkedUserId,
+                    type: 'debt_reminder',
+                    title: input.type === 'they_owe' ? 'Incoming debt transfer' : 'Borrow request pending',
+                    message: requestMessage,
+                    priority: 'high',
+                    links: { web: '/debts', mobile: 'woolet://financial/debts', universal: 'https://woolet.app/debts' },
+                    entityType: 'debt',
+                    entityId: recipientDebtId,
+                    metadata: {
+                        requestKind: 'debt_transfer_request',
+                        debtId: recipientDebtId,
+                        senderDebtId: debt.id,
+                        requesterUserId: ctx.userId,
+                        requesterName: requesterLabel,
+                        debtType: input.type,
+                        amount: input.amount,
+                        currencyCode: debtCurrencyCode,
+                        requesterCurrencyBalanceId: input.currencyBalanceId ?? null,
+                    },
+                }).returning();
+
+                await deliverNotificationChannels({
+                    userId: resolvedLinkedUserId,
+                    title: requestNotification.title,
+                    message: requestMessage,
+                    url: '/debts',
+                    priority: 'high',
+                    entityType: 'debt',
+                    entityId: recipientDebtId,
+                    metadata: requestNotification.metadata as any,
+                });
+            }
+
+            // 4. Skip tracking if not linked to a balance or deferred
+            if (!input.currencyBalanceId || shouldDeferBorrowFunding) {
                 return debt;
             }
 
-            // 4. Find or Create 'Debt' Category
+            // 5. Find or Create 'Debt' Category
             let category = await ctx.db.query.categories.findFirst({
                 where: (c, { ilike }) => ilike(c.name, 'Debt')
             });
@@ -171,7 +280,7 @@ export const debtRouter = router({
                 category = newCat;
             }
 
-            // 5. Update Balance
+            // 6. Update Balance
             const balanceChange = input.type === 'i_owe'
                 ? sql`${currencyBalances.balance} + ${input.amount}`
                 : sql`${currencyBalances.balance} - ${input.amount}`;
@@ -183,7 +292,7 @@ export const debtRouter = router({
                 })
                 .where(eq(currencyBalances.id, input.currencyBalanceId));
 
-            // 6. Create Transaction
+            // 7. Create Transaction
             await ctx.db.insert(transactions).values({
                 currencyBalanceId: input.currencyBalanceId,
                 categoryId: category.id,
@@ -196,6 +305,363 @@ export const debtRouter = router({
             });
 
             return debt;
+        }),
+
+    listIncomingRequests: protectedProcedure
+        .input(z.object({
+            limit: z.number().int().min(1).max(50).default(20),
+        }).optional())
+        .query(async ({ ctx, input }) => {
+            const rows = await ctx.db.query.notifications.findMany({
+                where: and(
+                    eq(notifications.userId, ctx.userId!),
+                    sql`coalesce(${notifications.actionTaken}, false) = false`,
+                    sql`(${notifications.metadata} ->> 'requestKind') = 'debt_transfer_request'`
+                ),
+                orderBy: [desc(notifications.createdAt)],
+                limit: input?.limit ?? 20,
+            });
+
+            const debtIds = rows
+                .map((row) => (row.metadata as any)?.debtId as string | undefined)
+                .filter((id): id is string => Boolean(id));
+            const requesterIds = rows
+                .map((row) => (row.metadata as any)?.requesterUserId as string | undefined)
+                .filter((id): id is string => Boolean(id));
+
+            const debtRows = debtIds.length > 0
+                ? await ctx.db.query.debts.findMany({
+                    where: and(
+                        inArray(debts.id, debtIds),
+                        eq(debts.lifecycleStatus, 'active')
+                    ),
+                })
+                : [];
+            const requesterRows = requesterIds.length > 0
+                ? await ctx.db.query.users.findMany({
+                    where: inArray(users.id, requesterIds),
+                    columns: {
+                        id: true,
+                        name: true,
+                        username: true,
+                    },
+                })
+                : [];
+
+            const debtMap = new Map(debtRows.map((item) => [item.id, item]));
+            const requesterMap = new Map(requesterRows.map((item) => [item.id, item]));
+
+            return rows
+                .map((notificationRow) => {
+                    const metadata = (notificationRow.metadata || {}) as any;
+                    const debtId = metadata.debtId as string | undefined;
+                    if (!debtId) return null;
+                    const debtRow = debtMap.get(debtId);
+                    if (!debtRow) return null;
+                    const requester = requesterMap.get(metadata.requesterUserId as string);
+                    return {
+                        notificationId: notificationRow.id,
+                        debtId: debtRow.id,
+                        debtType: metadata.debtType || debtRow.type,
+                        amount: Number(metadata.amount ?? debtRow.amount ?? 0),
+                        currencyCode: metadata.currencyCode || debtRow.currencyCode,
+                        personName: debtRow.personName,
+                        description: debtRow.description,
+                        requesterUserId: metadata.requesterUserId as string,
+                        requesterName: requester?.name || requester?.username || metadata.requesterName || 'Friend',
+                        createdAt: notificationRow.createdAt,
+                    };
+                })
+                .filter((item): item is NonNullable<typeof item> => Boolean(item));
+        }),
+
+    respondToIncomingRequest: protectedProcedure
+        .input(z.object({
+            notificationId: z.string().uuid(),
+            decision: z.enum(['approve', 'decline']),
+            currencyBalanceId: z.string().uuid().optional(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const requestNotification = await ctx.db.query.notifications.findFirst({
+                where: and(
+                    eq(notifications.id, input.notificationId),
+                    eq(notifications.userId, ctx.userId!)
+                ),
+            });
+
+            if (!requestNotification) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Request notification not found' });
+            }
+            if (requestNotification.actionTaken) {
+                throw new TRPCError({ code: 'BAD_REQUEST', message: 'Request already processed' });
+            }
+
+            const metadata = (requestNotification.metadata || {}) as any;
+            if (metadata.requestKind !== 'debt_transfer_request' || !metadata.debtId || !metadata.requesterUserId) {
+                throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid debt request payload' });
+            }
+
+            // The requestDebt here is the record assigned to the RESPONDER (recipient of the notification)
+            const responderDebt = await ctx.db.query.debts.findFirst({
+                where: and(
+                    eq(debts.id, metadata.debtId),
+                    eq(debts.userId, ctx.userId!),
+                    eq(debts.lifecycleStatus, 'active')
+                ),
+            });
+
+            if (!responderDebt) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Debt record not found' });
+            }
+
+            // The requesterDebt is the original record created by the person who initiated
+            const requesterDebtId = metadata.senderDebtId || metadata.debtId; // Fallback for old notifications
+            const requesterDebt = await ctx.db.query.debts.findFirst({
+                where: and(
+                    eq(debts.id, requesterDebtId),
+                    eq(debts.userId, metadata.requesterUserId),
+                    eq(debts.lifecycleStatus, 'active')
+                ),
+            });
+
+            if (!requesterDebt) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Original debt request not found' });
+            }
+
+            const requester = await ctx.db.query.users.findFirst({
+                where: eq(users.id, metadata.requesterUserId),
+                columns: { id: true, name: true, username: true, testMode: true },
+            });
+
+            if (!requester) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Requester not found' });
+            }
+
+            const requestAmount = Number(metadata.amount ?? requesterDebt.amount ?? 0);
+            const requestCurrency = metadata.currencyCode || requesterDebt.currencyCode;
+
+            if (input.decision === 'decline') {
+                // If declined, we need to revert requester's balance if they already paid (they_owe)
+                if (requesterDebt.type === 'they_owe') {
+                    const linkedTransactions = await ctx.db.query.transactions.findMany({
+                        where: eq(transactions.debtId, requesterDebt.id),
+                    });
+
+                    for (const tx of linkedTransactions) {
+                        const amount = Number(tx.amount);
+                        const balanceChange = tx.type === 'income'
+                            ? sql`${currencyBalances.balance} - ${amount}`
+                            : sql`${currencyBalances.balance} + ${amount}`;
+
+                        await ctx.db.update(currencyBalances)
+                            .set({
+                                balance: balanceChange,
+                                updatedAt: new Date(),
+                            })
+                            .where(eq(currencyBalances.id, tx.currencyBalanceId));
+                    }
+
+                    await ctx.db.delete(transactions).where(eq(transactions.debtId, requesterDebt.id));
+                }
+
+                // Delete both records
+                await ctx.db.delete(debts).where(inArray(debts.id, [requesterDebt.id, responderDebt.id]));
+
+                await ctx.db.update(notifications)
+                    .set({
+                        actionTaken: true,
+                        actionTakenAt: new Date(),
+                        isRead: true,
+                        readAt: new Date(),
+                        updatedAt: new Date(),
+                    })
+                    .where(eq(notifications.id, requestNotification.id));
+
+                const responderLabel = ctx.user.name || ctx.user.username || 'Friend';
+                await ctx.db.insert(notifications).values({
+                    userId: requester.id,
+                    type: 'debt_reminder',
+                    title: 'Debt request declined',
+                    message: `${responderLabel} declined your debt request.`,
+                    priority: 'medium',
+                    links: { web: '/debts', mobile: 'woolet://financial/debts', universal: 'https://woolet.app/debts' },
+                    entityType: 'debt',
+                    entityId: requesterDebt.id,
+                    metadata: {
+                        requestKind: 'debt_transfer_request',
+                        status: 'declined',
+                    },
+                });
+
+                return { success: true, outcome: 'declined' as const };
+            }
+
+            if (!input.currencyBalanceId) {
+                throw new TRPCError({ code: 'BAD_REQUEST', message: 'Please choose a card' });
+            }
+
+            const selectedBalance = await ctx.db.query.currencyBalances.findFirst({
+                where: eq(currencyBalances.id, input.currencyBalanceId),
+                with: {
+                    account: {
+                        with: {
+                            bank: true,
+                        },
+                    },
+                },
+            });
+
+            if (!selectedBalance || selectedBalance.account.bank.userId !== ctx.userId) {
+                throw new TRPCError({ code: 'FORBIDDEN', message: 'Card not found' });
+            }
+            if (selectedBalance.currencyCode !== requestCurrency) {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: `Selected card currency must be ${requestCurrency}`,
+                });
+            }
+
+            let debtCategory = await ctx.db.query.categories.findFirst({
+                where: (c, { ilike }) => ilike(c.name, 'Debt'),
+            });
+
+            if (!debtCategory) {
+                const [newCat] = await ctx.db.insert(categories).values({
+                    name: 'Debt',
+                    icon: '💸',
+                    color: '#f43f5e',
+                }).returning();
+                debtCategory = newCat;
+            }
+
+            const responderLabel = ctx.user.name || ctx.user.username || 'Friend';
+            const requesterLabel = requester.name || requester.username || responderDebt.personName;
+
+            // responderDebt.type === 'i_owe' means responder is receiving money (Lending from requester)
+            if (responderDebt.type === 'i_owe') {
+                await ctx.db.update(currencyBalances)
+                    .set({
+                        balance: sql`${currencyBalances.balance} + ${requestAmount}`,
+                        updatedAt: new Date(),
+                    })
+                    .where(eq(currencyBalances.id, selectedBalance.id));
+
+                await ctx.db.insert(transactions).values({
+                    currencyBalanceId: selectedBalance.id,
+                    categoryId: debtCategory.id,
+                    amount: requestAmount.toString(),
+                    date: new Date().toISOString().split('T')[0],
+                    type: 'income',
+                    description: `Debt received from ${requesterLabel}`,
+                    debtId: responderDebt.id,
+                    excludeFromMonthlyStats: false,
+                });
+
+                await ctx.db.update(debts)
+                    .set({
+                        currencyBalanceId: selectedBalance.id,
+                        status: 'pending',
+                        updatedAt: new Date(),
+                    })
+                    .where(eq(debts.id, responderDebt.id));
+            } else {
+                // Responder is lending money (Borrow request from requester)
+                const lenderBalance = Number(selectedBalance.balance);
+                if (lenderBalance < requestAmount) {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: `Insufficient funds. Available: ${lenderBalance}, Required: ${requestAmount}`,
+                    });
+                }
+
+                await ctx.db.update(currencyBalances)
+                    .set({
+                        balance: sql`${currencyBalances.balance} - ${requestAmount}`,
+                        updatedAt: new Date(),
+                    })
+                    .where(eq(currencyBalances.id, selectedBalance.id));
+
+                await ctx.db.insert(transactions).values({
+                    currencyBalanceId: selectedBalance.id,
+                    categoryId: debtCategory.id,
+                    amount: requestAmount.toString(),
+                    date: new Date().toISOString().split('T')[0],
+                    type: 'expense',
+                    description: `Debt lent to ${requesterLabel}`,
+                    debtId: responderDebt.id,
+                    excludeFromMonthlyStats: false,
+                });
+
+                await ctx.db.update(debts)
+                    .set({
+                        currencyBalanceId: selectedBalance.id,
+                        status: 'pending',
+                        updatedAt: new Date(),
+                    })
+                    .where(eq(debts.id, responderDebt.id));
+
+                // Also update requester's record and balance if they chose a card
+                if (requesterDebt.currencyBalanceId) {
+                    const requesterTargetBalance = await ctx.db.query.currencyBalances.findFirst({
+                        where: eq(currencyBalances.id, requesterDebt.currencyBalanceId),
+                        with: {
+                            account: {
+                                with: {
+                                    bank: true,
+                                },
+                            },
+                        },
+                    });
+
+                    if (requesterTargetBalance && requesterTargetBalance.account.bank.userId === requester.id) {
+                        await ctx.db.update(currencyBalances)
+                            .set({
+                                balance: sql`${currencyBalances.balance} + ${requestAmount}`,
+                                updatedAt: new Date(),
+                            })
+                            .where(eq(currencyBalances.id, requesterTargetBalance.id));
+
+                        await ctx.db.insert(transactions).values({
+                            currencyBalanceId: requesterTargetBalance.id,
+                            categoryId: debtCategory.id,
+                            amount: requestAmount.toString(),
+                            date: new Date().toISOString().split('T')[0],
+                            type: 'income',
+                            description: `Debt borrowed from ${responderLabel}`,
+                            debtId: requesterDebt.id,
+                            excludeFromMonthlyStats: false,
+                        });
+                    }
+                }
+            }
+
+            await ctx.db.update(notifications)
+                .set({
+                    actionTaken: true,
+                    actionTakenAt: new Date(),
+                    isRead: true,
+                    readAt: new Date(),
+                    updatedAt: new Date(),
+                })
+                .where(eq(notifications.id, requestNotification.id));
+
+            await ctx.db.insert(notifications).values({
+                userId: requester.id,
+                type: 'debt_reminder',
+                title: 'Debt request approved',
+                message: `${responderLabel} approved your debt request.`,
+                priority: 'medium',
+                links: { web: '/debts', mobile: 'woolet://financial/debts', universal: 'https://woolet.app/debts' },
+                entityType: 'debt',
+                entityId: requestDebt.id,
+                metadata: {
+                    requestKind: 'debt_transfer_request',
+                    status: 'approved',
+                    resolverUserId: ctx.userId,
+                },
+            });
+
+            return { success: true, outcome: 'approved' as const };
         }),
 
     addPayment: protectedProcedure

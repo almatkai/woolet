@@ -276,6 +276,11 @@ export function AddDebtSheet({ open: controlledOpen, onOpenChange: controlledOnO
                     </div>
 
                     <div className="space-y-2">
+                        <Label htmlFor="description">Reason / Title (Optional)</Label>
+                        <Input id="description" placeholder="e.g. Lunch, Rent share, Car repair..." {...register('description')} />
+                    </div>
+
+                    <div className="space-y-2">
                         <Label htmlFor="personName">Person/Entity Name</Label>
                         <Input
                             id="personName"
@@ -368,11 +373,6 @@ export function AddDebtSheet({ open: controlledOpen, onOpenChange: controlledOnO
                         <Label htmlFor="dueDate">Due Date (Optional)</Label>
                         <Input id="dueDate" type="date" {...register('dueDate')} />
                         {errors.dueDate && <p className="text-sm text-red-500">{errors.dueDate.message}</p>}
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="description">Description (Optional)</Label>
-                        <Input id="description" placeholder="Notes..." {...register('description')} />
                     </div>
 
                     <SheetFooter>

@@ -143,6 +143,7 @@ export function AddDebtPaymentSheet({ debt, open, onOpenChange }: AddDebtPayment
 
             await Promise.all([
                 utils.debt.list.cancel(),
+                utils.account.list.cancel(),
                 utils.bank.getHierarchy.cancel(),
                 utils.account.getTotalBalance.cancel(),
                 utils.transaction.list.cancel(),
@@ -239,6 +240,7 @@ export function AddDebtPaymentSheet({ debt, open, onOpenChange }: AddDebtPayment
         },
         onSettled: () => {
             utils.debt.list.invalidate();
+            utils.account.list.invalidate();
             utils.bank.getHierarchy.invalidate();
             utils.account.getTotalBalance.invalidate();
             utils.transaction.list.invalidate();

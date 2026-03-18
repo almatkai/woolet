@@ -185,6 +185,11 @@ const formatCurrency = (amount: number, currency = 'USD') => {
 interface Debt {
     id: string;
     personName: string;
+    linkedUser?: {
+        id: string;
+        username: string | null;
+        name: string | null;
+    } | null;
     amount: string | number;
     type: 'i_owe' | 'they_owe';
     status: 'pending' | 'partial' | 'paid';
@@ -223,14 +228,33 @@ export default function DebtsScreen() {
         const currency = debt.currencyBalance?.currencyCode || debt.currencyCode || 'USD';
         const colorStyle = debt.type === 'i_owe' ? styles.amountRed : styles.amountGreen;
 
+        const personNameClean = debt.personName.replace(/^@/, '').toLowerCase();
+        const usernameClean = debt.linkedUser?.username?.toLowerCase();
+        const isDuplicate = usernameClean === personNameClean;
+        const isAwaiting = debt.status === 'awaiting_approval';
+
+        const title = debt.description || (debt.type === 'they_owe' ? 'Lent money' : 'Borrowed money');
+
         return (
-            <View style={[styles.debtItem, isLast && styles.debtItemLast]}>
+            <View style={[styles.debtItem, isLast && styles.debtItemLast, isAwaiting && { opacity: 0.7 }]}>
                 <View style={styles.debtHeader}>
                     <View style={{ flex: 1 }}>
-                        <Text style={styles.personName}>{debt.personName}</Text>
-                        {debt.description && (
-                            <Text style={styles.debtDescription}>{debt.description}</Text>
-                        )}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <Text style={[styles.personName, { fontWeight: '700' }]}>{title}</Text>
+                            {isAwaiting && (
+                                <View style={{ backgroundColor: colors.orange + '20', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 }}>
+                                    <Text style={{ color: colors.orange, fontSize: 10, fontWeight: 'bold' }}>PENDING</Text>
+                                </View>
+                            )}
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                            <Text style={styles.debtDescription}>{debt.personName}</Text>
+                            {debt.linkedUser?.username && !isDuplicate && (
+                                <Text style={[styles.debtDescription, { marginLeft: 4, opacity: 0.6 }]}>
+                                    (@{debt.linkedUser.username})
+                                </Text>
+                            )}
+                        </View>
                         {debt.dueDate && (
                             <Text style={styles.dueDate}>
                                 Due: {new Date(debt.dueDate).toLocaleDateString()}
@@ -306,9 +330,9 @@ export default function DebtsScreen() {
                             )}
                         </View>
 
-                        {/* Lend Me */}
+                        {/* Lends */}
                         <View style={styles.sectionCard}>
-                            <Text style={[styles.sectionTitle, styles.sectionTitleGreen]}>Lend Me</Text>
+                            <Text style={[styles.sectionTitle, styles.sectionTitleGreen]}>Lends</Text>
                             {theyOweDebts.length === 0 ? (
                                 <Text style={styles.emptyText}>No one owes you</Text>
                             ) : (
