@@ -864,14 +864,15 @@ export function SpendingPage() {
             <div 
                 key={weekNum || 'single'}
                 className={cn(
-                    "col-start-1 row-start-1 relative w-full max-w-[448px] font-mono text-sm sm:text-base pb-8 pt-6 px-6 sm:px-8 shadow-[0_4px_14px_rgba(0,0,0,0.08)] transition-all duration-500",
+                    "col-start-1 row-start-1 relative w-full max-w-[448px] font-mono text-sm sm:text-base pb-8 pt-6 px-6 sm:px-8 transition-all duration-500",
                     receiptTheme === 'light' ? "bg-[#fdfdfd] text-[#1a1a1a]" : "bg-[#1a1a1a] text-[#fdfdfd]",
                     !isActive && "cursor-pointer hover:-translate-y-2 hover:shadow-[0_12px_32px_rgba(0,0,0,0.15)] opacity-95",
-                    isActive && "shadow-[0_8px_30px_rgba(0,0,0,0.12)]"
+                    isActive && "shadow-[0_-8px_30px_rgba(0,0,0,0.08),0_8px_30px_rgba(0,0,0,0.12)]"
                 )}
                 style={{
                     transform: `translate(${offsetIndex * 32}px, ${offsetIndex * 24}px)`,
                     zIndex: isActive ? 50 : 40 - offsetIndex,
+                    margin: '16px 0'
                 }}
                 onClick={onClick}
             >
@@ -883,6 +884,98 @@ export function SpendingPage() {
                     )} style={{ fontFamily: '"Comic Sans MS", marker, sans-serif' }}>
                         WEEK {weekNum}
                         {dateRange && <span className="block text-[10px] text-right -mt-1 font-mono">{dateRange}</span>}
+                    </div>
+                )}
+
+                {/* Inline Controls (only on active/main receipt) */}
+                {isActive && (
+                    <div className="flex flex-wrap items-center justify-start gap-2 mb-6 -mt-2">
+                        <div className="flex items-center bg-muted/50 rounded-lg p-0.5 scale-90 origin-left">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const prev = new Date(selectedDate);
+                                    prev.setMonth(prev.getMonth() - 1);
+                                    setSelectedDate(prev);
+                                    setPage(1);
+                                    if (viewMode === 'week') setActiveWeek(1);
+                                }}
+                            >
+                                <ChevronDown className="h-3.5 w-3.5 rotate-90" />
+                            </Button>
+                            <span className="text-[10px] font-bold px-1 min-w-[60px] text-center uppercase">
+                                {selectedDate.toLocaleString('default', { month: 'short', year: 'numeric' })}
+                            </span>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                disabled={selectedDate.getMonth() === new Date().getMonth() && selectedDate.getFullYear() === new Date().getFullYear()}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const next = new Date(selectedDate);
+                                    next.setMonth(next.getMonth() + 1);
+                                    setSelectedDate(next);
+                                    setPage(1);
+                                    if (viewMode === 'week') setActiveWeek(1);
+                                }}
+                            >
+                                <ChevronDown className="h-3.5 w-3.5 -rotate-90" />
+                            </Button>
+                        </div>
+
+                        <div className="flex items-center bg-muted/50 rounded-lg p-0.5 scale-90 origin-left">
+                            <Button
+                                variant={viewMode === 'week' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                className={cn(
+                                    "h-6 px-2 text-[10px] font-bold uppercase",
+                                    viewMode === 'week' && "bg-background shadow-sm hover:bg-background"
+                                )}
+                                onClick={(e) => { e.stopPropagation(); setViewMode('week'); setPage(1); }}
+                            >
+                                Week
+                            </Button>
+                            <Button
+                                variant={viewMode === 'month' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                className={cn(
+                                    "h-6 px-2 text-[10px] font-bold uppercase",
+                                    viewMode === 'month' && "bg-background shadow-sm hover:bg-background"
+                                )}
+                                onClick={(e) => { e.stopPropagation(); setViewMode('month'); setPage(1); }}
+                            >
+                                Month
+                            </Button>
+                        </div>
+
+                        <div className="flex items-center bg-muted/50 rounded-lg p-0.5 scale-90 origin-left">
+                            <Button
+                                variant={receiptTheme === 'light' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                className={cn(
+                                    "h-6 px-2 text-[10px] font-bold uppercase",
+                                    receiptTheme === 'light' && "bg-background shadow-sm hover:bg-background"
+                                )}
+                                onClick={(e) => { e.stopPropagation(); setReceiptTheme('light'); }}
+                            >
+                                Light
+                            </Button>
+                            <Button
+                                variant={receiptTheme === 'dark' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                className={cn(
+                                    "h-6 px-2 text-[10px] font-bold uppercase",
+                                    receiptTheme === 'dark' && "bg-background shadow-sm hover:bg-background"
+                                )}
+                                onClick={(e) => { e.stopPropagation(); setReceiptTheme('dark'); }}
+                            >
+                                Dark
+                            </Button>
+                        </div>
                     </div>
                 )}
 
@@ -1124,76 +1217,6 @@ export function SpendingPage() {
                     variant="two-mixed"
                 >
                 <div className="flex items-center gap-2">
-                    <div className="flex items-center bg-muted rounded-lg p-1">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => {
-                                const prev = new Date(selectedDate);
-                                prev.setMonth(prev.getMonth() - 1);
-                                setSelectedDate(prev);
-                                setPage(1);
-                                if (viewMode === 'week') setActiveWeek(1);
-                            }}
-                        >
-                            <ChevronDown className="h-4 w-4 rotate-90" />
-                        </Button>
-                        <span className="text-xs font-medium px-2 min-w-[80px] text-center">
-                            {selectedDate.toLocaleString('default', { month: 'short', year: 'numeric' })}
-                        </span>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            disabled={selectedDate.getMonth() === new Date().getMonth() && selectedDate.getFullYear() === new Date().getFullYear()}
-                            onClick={() => {
-                                const next = new Date(selectedDate);
-                                next.setMonth(next.getMonth() + 1);
-                                setSelectedDate(next);
-                                setPage(1);
-                                if (viewMode === 'week') setActiveWeek(1);
-                            }}
-                        >
-                            <ChevronDown className="h-4 w-4 -rotate-90" />
-                        </Button>
-                    </div>
-                    <div className="flex items-center bg-muted rounded-lg p-1">
-                        <Button
-                            variant={viewMode === 'week' ? 'secondary' : 'ghost'}
-                            size="sm"
-                            className="h-7 px-2 text-xs"
-                            onClick={() => { setViewMode('week'); setPage(1); }}
-                        >
-                            Week
-                        </Button>
-                        <Button
-                            variant={viewMode === 'month' ? 'secondary' : 'ghost'}
-                            size="sm"
-                            className="h-7 px-2 text-xs"
-                            onClick={() => { setViewMode('month'); setPage(1); }}
-                        >
-                            Month
-                        </Button>
-                    </div>
-                    <div className="flex items-center bg-muted rounded-lg p-1">
-                        <Button
-                            variant={receiptTheme === 'light' ? 'secondary' : 'ghost'}
-                            size="sm"
-                            className="h-7 px-2 text-xs"
-                            onClick={() => setReceiptTheme('light')}
-                        >
-                            Light
-                        </Button>
-                        <Button
-                            variant={receiptTheme === 'dark' ? 'secondary' : 'ghost'}
-                            size="sm"
-                            className="h-7 px-2 text-xs"
-                            onClick={() => setReceiptTheme('dark')}
-                        >
-                            Dark
-                        </Button>
-                    </div>
                     {/* Shortcuts button - icon-only on mobile */}
                     <Button
                         variant="outline"
