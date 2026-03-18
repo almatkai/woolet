@@ -3,6 +3,12 @@
     "globalDependencies": [
         ".env"
     ],
+    "globalEnv": [
+        "PORT",
+        "WEB_PORT",
+        "LANDING_PORT",
+        "WEB_URL"
+    ],
     "tasks": {
         "build": {
             "dependsOn": [

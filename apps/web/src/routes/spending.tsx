@@ -921,7 +921,7 @@ export function SpendingPage() {
                 </Card>
             )}
 
-            <Card className="border-none sm:border shadow-none sm:shadow-sm">
+            <Card className="rounded-[32px] overflow-hidden border-border/40 bg-card shadow-sm">
                 <CardContent className="p-0">
                     {isLoading ? (
                         <p className="text-muted-foreground text-center py-8">Loading transactions...</p>
@@ -930,79 +930,176 @@ export function SpendingPage() {
                             No transactions yet. Add your first transaction to get started.
                         </p>
                     ) : (
-                        <div className="divide-y">
-                            {visibleTransactions.map((tx: Transaction) => (
-                                <div key={tx.id} className="p-3 group hover:bg-muted/30 transition-colors">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <div className="h-10 w-10 shrink-0 rounded-full bg-muted flex items-center justify-center text-lg">
+                        <div className="divide-y divide-border/40">
+                            {visibleTransactions.map((tx: Transaction, index: number) => (
+                                <div
+                                    key={tx.id}
+                                    className={cn(
+                                        "p-4 hover:bg-muted/20 transition-colors",
+                                        index === 0 && "rounded-t-[28px]",
+                                        index === visibleTransactions.length - 1 && "rounded-b-[28px]"
+                                    )}
+                                >
+                                    {/* Receipt-style layout */}
+                                    {/* Receipt-style layout */}
+                                    <div className="flex items-start justify-between gap-4">
+                                        {/* Left side: Icon and description */}
+                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                            <div className="h-12 w-12 shrink-0 rounded-xl bg-muted/60 flex items-center justify-center text-xl shadow-sm border border-border/30">
                                                 {tx.category?.icon || '📄'}
                                             </div>
-                                            <div className="min-w-0">
-                                                <p className="text-sm md:text-base font-semibold truncate">{tx.description || tx.category?.name || 'Unknown'}</p>
-                                                <div className="flex items-center gap-1.5 text-[10px] md:text-sm text-muted-foreground">
-                                                    <span className="whitespace-nowrap">{new Date(tx.date).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })}</span>
-                                                    <span>•</span>
-                                                    <span className="truncate">
-                                                        {tx.currencyBalance?.account?.bank?.name ? `${tx.currencyBalance.account.bank.name} • ` : ''}
-                                                        {tx.currencyBalance?.account?.name || 'Unknown'}
+                                            <div className="flex flex-col min-w-0 flex-1">
+                                                <p className="text-base font-semibold truncate leading-tight">
+                                                    {tx.description || tx.category?.name || 'Unknown'}
+                                                </p>
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                                                    <span className="font-mono bg-muted/50 px-1.5 py-0.5 rounded">
+                                                        #{tx.id.slice(0, 8).toUpperCase()}
                                                     </span>
+                                                    <span className="w-px h-3 bg-border/50" />
+                                                    <span>{new Date(tx.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-1 md:gap-2 ml-2">
-                                            <div className="flex flex-col items-end">
-                                                <CurrencyDisplay
-                                                    amount={tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Math.abs(Number(tx.amount))}
-                                                    currency={tx.currencyBalance?.currencyCode}
-                                                    showSign
-                                                    className={cn(
-                                                        "text-sm md:text-base font-bold whitespace-nowrap",
-                                                        tx.type === 'income' ? 'text-green-600' : tx.type === 'expense' ? 'text-red-600' : 'text-foreground'
-                                                    )}
-                                                />
-                                                {tx.type === 'expense' && tx.splits && tx.splits.length > 0 && (() => {
-                                                    const totalPaidBack = tx.splits.reduce((acc: number, s: TransactionSplit) => {
-                                                        if (s.status === 'settled') {
-                                                            return acc + Number(s.owedAmount || 0);
-                                                        }
-                                                        return acc + Number(s.paidAmount || 0);
-                                                    }, 0);
-                                                    const netSpend = Math.abs(Number(tx.amount)) - totalPaidBack;
-                                                    return (
-                                                        <div className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground whitespace-nowrap">
-                                                            <span>Net:</span>
-                                                            <CurrencyDisplay
-                                                                amount={netSpend}
-                                                                currency={tx.currencyBalance?.currencyCode}
-                                                                abbreviate={true}
-                                                            />
-                                                        </div>
-                                                    );
-                                                })()}
+
+                                        {/* Right side: Amount and actions */}
+                                        <div className="flex flex-col items-end gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex flex-col items-end">
+                                                    <CurrencyDisplay
+                                                        amount={tx.type === 'expense' ? -Math.abs(Number(tx.amount)) : Math.abs(Number(tx.amount))}
+                                                        currency={tx.currencyBalance?.currencyCode}
+                                                        showSign
+                                                        className={cn(
+                                                            "text-lg font-bold whitespace-nowrap tracking-tight",
+                                                            tx.type === 'income' ? 'text-emerald-600' : tx.type === 'expense' ? 'text-rose-600' : 'text-foreground'
+                                                        )}
+                                                    />
+                                                    {tx.type === 'expense' && tx.splits && tx.splits.length > 0 && (() => {
+                                                        const totalPaidBack = tx.splits.reduce((acc: number, s: TransactionSplit) => {
+                                                            if (s.status === 'settled') {
+                                                                return acc + Number(s.owedAmount || 0);
+                                                            }
+                                                            return acc + Number(s.paidAmount || 0);
+                                                        }, 0);
+                                                        const netSpend = Math.abs(Number(tx.amount)) - totalPaidBack;
+                                                        return (
+                                                            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground whitespace-nowrap mt-0.5">
+                                                                <span className="text-[10px] uppercase tracking-wider">Net</span>
+                                                                <CurrencyDisplay
+                                                                    amount={netSpend}
+                                                                    currency={tx.currencyBalance?.currencyCode}
+                                                                    abbreviate={true}
+                                                                    className="text-xs"
+                                                                />
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
+
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onClick={() => handleEdit(tx)}>
+                                                            <Pencil className="h-4 w-4 mr-2" />
+                                                            Edit
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() => handleDelete(tx)}
+                                                            className="text-red-500"
+                                                        >
+                                                            <Trash2 className="h-4 w-4 mr-2" />
+                                                            Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </div>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => handleEdit(tx)}>
-                                                        <Pencil className="h-4 w-4 mr-2" />
-                                                        Edit
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        onClick={() => handleDelete(tx)}
-                                                        className="text-red-500"
-                                                    >
-                                                        <Trash2 className="h-4 w-4 mr-2" />
-                                                        Delete
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+
+                                            {/* Account info */}
+                                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                                <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
+                                                <span className="truncate max-w-[180px]">
+                                                    {tx.currencyBalance?.account?.bank?.name ? `${tx.currencyBalance.account.bank.name} • ` : ''}
+                                                    {tx.currencyBalance?.account?.name || 'Unknown'}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
+
+                                    {/* Split Bill Details - Collapsible */}
+                                    {tx.type === 'expense' && tx.splits && tx.splits.length > 0 && (
+                                        <div className="mt-3 pt-3 border-t border-border/30">
+                                            <button
+                                                onClick={() => toggleSplitExpand(tx.id)}
+                                                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
+                                            >
+                                                {expandedSplits.has(tx.id) ? (
+                                                    <ChevronUp className="h-3 w-3" />
+                                                ) : (
+                                                    <ChevronDown className="h-3 w-3" />
+                                                )}
+                                                <span className="text-[10px] uppercase tracking-wider">
+                                                    Split with {tx.splits.length} {tx.splits.length === 1 ? 'person' : 'people'}
+                                                </span>
+                                                {(() => {
+                                                    const pendingCount = tx.splits.filter((s: TransactionSplit) => s.status !== 'settled').length;
+                                                    const settledCount = tx.splits.length - pendingCount;
+                                                    if (settledCount === tx.splits.length) {
+                                                        return <span className="text-green-600 ml-1 text-[10px] font-medium">• All settled</span>;
+                                                    } else if (pendingCount > 0) {
+                                                        const pendingTotal = tx.splits
+                                                            .filter((s: TransactionSplit) => s.status !== 'settled')
+                                                            .reduce((acc: number, s: TransactionSplit) => acc + (Number(s.owedAmount) - Number(s.paidAmount)), 0);
+                                                        return (
+                                                            <span className="text-orange-500 ml-1 flex items-center gap-1 text-[10px] font-medium">
+                                                                • <CurrencyDisplay amount={pendingTotal} currency={tx.currencyBalance?.currencyCode} className="text-xs" /> pending
+                                                            </span>
+                                                        );
+                                                    }
+                                                    return null;
+                                                })()}
+                                            </button>
+
+                                            {expandedSplits.has(tx.id) && (
+                                                <div className="mt-2 space-y-2 ml-4">
+                                                    {tx.splits.map((split: TransactionSplit) => (
+                                                        <div key={split.id} className="flex items-center justify-between text-xs p-2 rounded-md bg-muted/30">
+                                                            <div className="flex items-center gap-2">
+                                                                <div
+                                                                    className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                                                                    style={{ backgroundColor: split.participant.color }}
+                                                                >
+                                                                    {split.participant.name.charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-medium truncate max-w-[120px]">{split.participant.name}</p>
+                                                                    <p className="text-[10px] text-muted-foreground">
+                                                                        {split.status === 'settled' ? 'Paid' : split.status === 'partial' ? 'Partial' : 'Pending'}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <CurrencyDisplay
+                                                                    amount={Number(split.owedAmount)}
+                                                                    currency={tx.currencyBalance?.currencyCode}
+                                                                    className="text-xs font-semibold"
+                                                                />
+                                                                {split.status !== 'settled' && split.paidAmount > 0 && (
+                                                                    <p className="text-[10px] text-muted-foreground">
+                                                                        Paid: <CurrencyDisplay amount={Number(split.paidAmount)} currency={tx.currencyBalance?.currencyCode} className="text-[10px]" />
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Split Bill Details - Collapsible */}
                                     {tx.type === 'expense' && tx.splits && tx.splits.length > 0 && (
