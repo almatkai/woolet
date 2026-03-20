@@ -64,6 +64,13 @@
       "when": 1772870400000,
       "tag": "0008_debt_linked_user",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1773000000000,
+      "tag": "0009_debt_payment_peer_sync",
+      "breakpoints": true
     }
   ]
 }

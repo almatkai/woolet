@@ -192,7 +192,7 @@ interface Debt {
     } | null;
     amount: string | number;
     type: 'i_owe' | 'they_owe';
-    status: 'pending' | 'partial' | 'paid';
+    status: 'pending' | 'partial' | 'paid' | 'awaiting_approval';
     description?: string | null;
     dueDate?: string | null;
     paidAmount?: string | number | null;
@@ -217,8 +217,14 @@ export default function DebtsScreen() {
         setRefreshing(false);
     }, [refetch]);
 
-    const iOweDebts = debtsData?.debts?.filter((d) => d.type === 'i_owe' && d.status !== 'paid') || [];
-    const theyOweDebts = debtsData?.debts?.filter((d) => d.type === 'they_owe' && d.status !== 'paid') || [];
+    const iOweDebts =
+        debtsData?.debts?.filter(
+            (d) => d.type === 'i_owe' && d.status !== 'paid' && d.status !== 'awaiting_approval',
+        ) || [];
+    const theyOweDebts =
+        debtsData?.debts?.filter(
+            (d) => d.type === 'they_owe' && d.status !== 'paid' && d.status !== 'awaiting_approval',
+        ) || [];
     const historyDebts = debtsData?.debts?.filter((d) => d.status === 'paid') || [];
 
     const getRemaining = (debt: Debt) => Number(debt.amount) - Number(debt.paidAmount || 0);

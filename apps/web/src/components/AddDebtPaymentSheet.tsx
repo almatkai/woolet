@@ -35,6 +35,12 @@ import { Switch } from '@/components/ui/switch';
 interface Debt {
     id: string;
     personName: string;
+    linkedUserId?: string | null;
+    linkedUser?: {
+        id: string;
+        username: string | null;
+        name: string | null;
+    } | null;
     amount: string | number;
     type: 'i_owe' | 'they_owe';
     paidAmount?: string | number | null;
@@ -149,6 +155,10 @@ export function AddDebtPaymentSheet({ debt, open, onOpenChange }: AddDebtPayment
                 utils.transaction.list.cancel(),
             ]);
 
+            if (debt.linkedUserId) {
+                return { skipOptimistic: true as const };
+            }
+
             const snapshot = captureOptimisticFinanceSnapshot(queryClient);
             const previousDebts = utils.debt.list.getData({});
 
@@ -229,17 +239,24 @@ export function AddDebtPaymentSheet({ debt, open, onOpenChange }: AddDebtPayment
 
             return { snapshot, previousDebts };
         },
-        onSuccess: () => {
+        onSuccess: (data: { awaitingPeerApproval?: boolean }) => {
+            if (data?.awaitingPeerApproval) {
+                const who = debt?.linkedUser?.name || debt?.linkedUser?.username || debt?.personName;
+                toast.success(`Sent to ${who} for confirmation`);
+            }
             onOpenChange(false);
             reset();
         },
         onError: (error: any, _variables: any, context: any) => {
-            restoreOptimisticFinanceSnapshot(queryClient, context?.snapshot);
-            utils.debt.list.setData({}, context?.previousDebts);
+            if (context?.snapshot) {
+                restoreOptimisticFinanceSnapshot(queryClient, context.snapshot);
+                utils.debt.list.setData({}, context?.previousDebts);
+            }
             toast.error(error.message);
         },
         onSettled: () => {
             utils.debt.list.invalidate();
+            utils.debt.listIncomingDebtPaymentSync.invalidate();
             utils.account.list.invalidate();
             utils.bank.getHierarchy.invalidate();
             utils.account.getTotalBalance.invalidate();
@@ -439,8 +456,8 @@ export function AddDebtPaymentSheet({ debt, open, onOpenChange }: AddDebtPayment
                     </div>
 
                     <SheetFooter>
-                        <Button type="submit" disabled={addPaymentMutation.isLoading}>
-                            {addPaymentMutation.isLoading ? "Recording..." : "Record Payment"}
+                        <Button type="submit" disabled={addPaymentMutation.isPending}>
+                            {addPaymentMutation.isPending ? "Recording..." : "Record Payment"}
                         </Button>
                     </SheetFooter>
                 </form>

@@ -1,10 +1,197 @@
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { eq, desc, sql, and, lt, inArray } from 'drizzle-orm';
+import { eq, desc, sql, and, lt, inArray, ne } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../lib/trpc';
 import { debts, currencyBalances, debtPayments, transactions, categories, users, notifications } from '../db/schema';
 import { checkEntityLimit } from '../lib/limits';
 import { deliverNotificationChannels } from '../services/notification-delivery-service';
+import { cache, CACHE_KEYS } from '../lib/redis';
+
+/** Bank hierarchy + accounts list are cached; invalidate after any debt-driven balance change */
+async function invalidateDebtBalanceCaches(userIds: (string | null | undefined)[]) {
+    const ids = [...new Set(userIds.filter(Boolean))] as string[];
+    for (const id of ids) {
+        await cache.del(CACHE_KEYS.hierarchy(id));
+        await cache.del(CACHE_KEYS.accounts(id));
+        await cache.del(CACHE_KEYS.userDashboard(id));
+        await cache.invalidatePattern(`spending:${id}:*`);
+    }
+}
+
+async function getDebtRepaymentCategory(db: any) {
+    let category = await db.query.categories.findFirst({
+        where: (c: any, { eq: eqFn }: any) => eqFn(c.name, 'Debt Repayment'),
+    });
+    if (!category) {
+        category = await db.query.categories.findFirst({
+            where: (c: any, { ilike }: any) => ilike(c.name, '%debt%'),
+        });
+    }
+    if (!category) {
+        const [newCat] = await db.insert(categories).values({
+            name: 'Debt Repayment',
+            icon: '💸',
+            color: '#f43f5e',
+        }).returning();
+        category = newCat;
+    }
+    return category;
+}
+
+/** Normalize decimal / driver-specific balance values for comparisons and checks. */
+function parseMoney(value: unknown): number {
+    if (value == null) return 0;
+    if (typeof value === 'bigint') return Number(value);
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+    const s = String(value).replace(/,/g, '').trim();
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : 0;
+}
+
+type DebtPeerShape = {
+    id: string;
+    userId: string | null;
+    linkedUserId: string | null;
+    amount: string;
+    isTest: boolean;
+    createdAt: Date;
+};
+
+async function findMirroredPeerDebt(
+    db: { query: any; update: any },
+    debt: DebtPeerShape,
+    peerLifecycle: 'active' | 'deleting',
+): Promise<(typeof debts.$inferSelect) | null> {
+    if (!debt.linkedUserId || !debt.userId) return null;
+    const whereClause = and(
+        eq(debts.userId, debt.linkedUserId),
+        eq(debts.linkedUserId, debt.userId),
+        eq(debts.amount, debt.amount),
+        eq(debts.isTest, debt.isTest),
+        eq(debts.lifecycleStatus, peerLifecycle),
+        ne(debts.id, debt.id),
+    );
+    const peers = await db.query.debts.findMany({ where: whereClause });
+    if (peers.length === 0) return null;
+    if (peers.length === 1) return peers[0];
+    const t = debt.createdAt.getTime();
+    return peers.reduce((best: (typeof peers)[number], p: (typeof peers)[number]) => {
+        const bestDiff = Math.abs(best.createdAt.getTime() - t);
+        const pDiff = Math.abs(p.createdAt.getTime() - t);
+        return pDiff < bestDiff ? p : best;
+    });
+}
+
+async function revertDebtRelatedTxEffects(
+    db: { query: any; update: any },
+    debtId: string,
+) {
+    const linkedTransactions = await db.query.transactions.findMany({
+        where: eq(transactions.debtId, debtId),
+    });
+
+    for (const tx of linkedTransactions) {
+        const amount = parseMoney(tx.amount);
+        const balanceChange = tx.type === 'income'
+            ? sql`${currencyBalances.balance} - ${amount}`
+            : sql`${currencyBalances.balance} + ${amount}`;
+
+        await db.update(currencyBalances)
+            .set({
+                balance: balanceChange,
+                updatedAt: new Date(),
+            })
+            .where(eq(currencyBalances.id, tx.currencyBalanceId));
+
+        await db.update(transactions)
+            .set({ lifecycleStatus: 'deleting' })
+            .where(eq(transactions.id, tx.id));
+    }
+
+    const payments = await db.query.debtPayments.findMany({
+        where: eq(debtPayments.debtId, debtId),
+    });
+
+    for (const payment of payments) {
+        const paymentTransactions = await db.query.transactions.findMany({
+            where: eq(transactions.debtPaymentId, payment.id),
+        });
+
+        for (const tx of paymentTransactions) {
+            const amount = parseMoney(tx.amount);
+            const balanceChange = tx.type === 'income'
+                ? sql`${currencyBalances.balance} - ${amount}`
+                : sql`${currencyBalances.balance} + ${amount}`;
+
+            await db.update(currencyBalances)
+                .set({
+                    balance: balanceChange,
+                    updatedAt: new Date(),
+                })
+                .where(eq(currencyBalances.id, tx.currencyBalanceId));
+
+            await db.update(transactions)
+                .set({ lifecycleStatus: 'deleting' })
+                .where(eq(transactions.id, tx.id));
+        }
+    }
+}
+
+async function restoreDebtRelatedTxEffects(
+    db: { query: any; update: any },
+    debtId: string,
+) {
+    const linkedTransactions = await db.query.transactions.findMany({
+        where: eq(transactions.debtId, debtId),
+    });
+
+    for (const tx of linkedTransactions) {
+        const amount = parseMoney(tx.amount);
+        const balanceChange = tx.type === 'income'
+            ? sql`${currencyBalances.balance} + ${amount}`
+            : sql`${currencyBalances.balance} - ${amount}`;
+
+        await db.update(currencyBalances)
+            .set({
+                balance: balanceChange,
+                updatedAt: new Date(),
+            })
+            .where(eq(currencyBalances.id, tx.currencyBalanceId));
+
+        await db.update(transactions)
+            .set({ lifecycleStatus: 'active' })
+            .where(eq(transactions.id, tx.id));
+    }
+
+    const payments = await db.query.debtPayments.findMany({
+        where: eq(debtPayments.debtId, debtId),
+    });
+
+    for (const payment of payments) {
+        const paymentTransactions = await db.query.transactions.findMany({
+            where: eq(transactions.debtPaymentId, payment.id),
+        });
+
+        for (const tx of paymentTransactions) {
+            const amount = parseMoney(tx.amount);
+            const balanceChange = tx.type === 'income'
+                ? sql`${currencyBalances.balance} + ${amount}`
+                : sql`${currencyBalances.balance} - ${amount}`;
+
+            await db.update(currencyBalances)
+                .set({
+                    balance: balanceChange,
+                    updatedAt: new Date(),
+                })
+                .where(eq(currencyBalances.id, tx.currencyBalanceId));
+
+            await db.update(transactions)
+                .set({ lifecycleStatus: 'active' })
+                .where(eq(transactions.id, tx.id));
+        }
+    }
+}
 
 export const debtRouter = router({
     list: protectedProcedure
@@ -304,6 +491,7 @@ export const debtRouter = router({
                 excludeFromMonthlyStats: false,
             });
 
+            await invalidateDebtBalanceCaches([ctx.userId]);
             return debt;
         }),
 
@@ -373,6 +561,398 @@ export const debtRouter = router({
                     };
                 })
                 .filter((item): item is NonNullable<typeof item> => Boolean(item));
+        }),
+
+    listIncomingDebtPaymentSync: protectedProcedure
+        .input(z.object({
+            limit: z.number().int().min(1).max(50).default(20),
+        }).optional())
+        .query(async ({ ctx, input }) => {
+            const rows = await ctx.db.query.notifications.findMany({
+                where: and(
+                    eq(notifications.userId, ctx.userId!),
+                    sql`coalesce(${notifications.actionTaken}, false) = false`,
+                    sql`(${notifications.metadata} ->> 'requestKind') = 'debt_repayment_sync'`,
+                ),
+                orderBy: [desc(notifications.createdAt)],
+                limit: input?.limit ?? 20,
+            });
+
+            const out: {
+                notificationId: string;
+                paymentId: string;
+                amount: number;
+                currencyCode: string | null;
+                paymentDate: string;
+                note: string | null;
+                proposerName: string;
+                proposerDebtId: string;
+                peerDebtId: string | null;
+                peerDebtType: 'i_owe' | 'they_owe' | null;
+            }[] = [];
+
+            for (const row of rows) {
+                const meta = (row.metadata || {}) as Record<string, unknown>;
+                const paymentId = meta.paymentId as string | undefined;
+                if (!paymentId) continue;
+
+                const payment = await ctx.db.query.debtPayments.findFirst({
+                    where: eq(debtPayments.id, paymentId),
+                });
+                if (!payment || payment.syncStatus !== 'awaiting_peer') continue;
+
+                const proposerDebt = await ctx.db.query.debts.findFirst({
+                    where: eq(debts.id, (meta.proposerDebtId as string) || payment.debtId),
+                });
+                const proposerUser = await ctx.db.query.users.findFirst({
+                    where: eq(users.id, meta.proposerUserId as string),
+                    columns: { id: true, name: true, username: true },
+                });
+
+                let peerDebtRow = (meta.peerDebtId as string)
+                    ? await ctx.db.query.debts.findFirst({
+                        where: and(
+                            eq(debts.id, meta.peerDebtId as string),
+                            eq(debts.userId, ctx.userId!),
+                        ),
+                    })
+                    : null;
+
+                if (!peerDebtRow && proposerDebt?.linkedUserId) {
+                    peerDebtRow = await findMirroredPeerDebt(ctx.db, {
+                        id: proposerDebt.id,
+                        userId: proposerDebt.userId,
+                        linkedUserId: proposerDebt.linkedUserId,
+                        amount: proposerDebt.amount,
+                        isTest: proposerDebt.isTest,
+                        createdAt: proposerDebt.createdAt,
+                    }, 'active');
+                }
+
+                out.push({
+                    notificationId: row.id,
+                    paymentId: payment.id,
+                    amount: Number(meta.amount ?? payment.amount ?? 0),
+                    currencyCode: (meta.currencyCode as string) || proposerDebt?.currencyCode || null,
+                    paymentDate: (meta.paymentDate as string) || new Date(payment.paidAt as Date | string).toISOString().split('T')[0],
+                    note: (meta.note as string) || payment.note || null,
+                    proposerName: (meta.proposerName as string) || proposerUser?.name || proposerUser?.username || 'Friend',
+                    proposerDebtId: (meta.proposerDebtId as string) || payment.debtId,
+                    peerDebtId: peerDebtRow?.id ?? (meta.peerDebtId as string) ?? null,
+                    peerDebtType: (peerDebtRow?.type as 'i_owe' | 'they_owe') ?? null,
+                });
+            }
+
+            return out;
+        }),
+
+    respondToDebtPaymentSync: protectedProcedure
+        .input(z.object({
+            notificationId: z.string().uuid(),
+            decision: z.enum(['approve', 'decline']),
+            currencyBalanceId: z.string().uuid().optional(),
+            distributions: z.array(z.object({
+                currencyBalanceId: z.string().uuid(),
+                amount: z.number().positive(),
+            })).optional(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const notif = await ctx.db.query.notifications.findFirst({
+                where: and(
+                    eq(notifications.id, input.notificationId),
+                    eq(notifications.userId, ctx.userId!),
+                ),
+            });
+
+            if (!notif) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Notification not found' });
+            }
+            if (notif.actionTaken) {
+                throw new TRPCError({ code: 'BAD_REQUEST', message: 'Already processed' });
+            }
+
+            const meta = (notif.metadata || {}) as Record<string, unknown>;
+            if (meta.requestKind !== 'debt_repayment_sync' || !meta.paymentId) {
+                throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid repayment sync payload' });
+            }
+
+            const payment = await ctx.db.query.debtPayments.findFirst({
+                where: eq(debtPayments.id, meta.paymentId as string),
+            });
+
+            if (!payment || payment.syncStatus !== 'awaiting_peer') {
+                throw new TRPCError({ code: 'BAD_REQUEST', message: 'Payment is not pending peer confirmation' });
+            }
+
+            const proposerDebt = await ctx.db.query.debts.findFirst({
+                where: and(
+                    eq(debts.id, payment.debtId),
+                    eq(debts.lifecycleStatus, 'active'),
+                ),
+                with: {
+                    currencyBalance: true,
+                },
+            });
+
+            if (!proposerDebt || proposerDebt.linkedUserId !== ctx.userId) {
+                throw new TRPCError({ code: 'FORBIDDEN', message: 'Not allowed to respond to this repayment' });
+            }
+
+            const paymentAmount = Number(payment.amount);
+            const debtCurrency = proposerDebt.currencyBalanceId
+                ? (proposerDebt.currencyBalance as { currencyCode: string }).currencyCode
+                : proposerDebt.currencyCode;
+
+            if (input.decision === 'decline') {
+                await ctx.db.delete(debtPayments).where(eq(debtPayments.id, payment.id));
+                await ctx.db.update(notifications)
+                    .set({
+                        actionTaken: true,
+                        actionTakenAt: new Date(),
+                        isRead: true,
+                        readAt: new Date(),
+                        updatedAt: new Date(),
+                    })
+                    .where(eq(notifications.id, notif.id));
+
+                const responderLabel = ctx.user.name || ctx.user.username || 'Friend';
+                await ctx.db.insert(notifications).values({
+                    userId: proposerDebt.userId!,
+                    type: 'debt_reminder',
+                    title: 'Repayment not confirmed',
+                    message: `${responderLabel} declined to confirm your recorded repayment of ${paymentAmount.toFixed(2)} ${debtCurrency || ''}.`,
+                    priority: 'medium',
+                    links: { web: '/debts', mobile: 'woolet://financial/debts', universal: 'https://woolet.app/debts' },
+                    entityType: 'debt',
+                    entityId: proposerDebt.id,
+                    metadata: { kind: 'debt_repayment_declined' },
+                });
+
+                await invalidateDebtBalanceCaches([ctx.userId, proposerDebt.userId]);
+                return { success: true, outcome: 'declined' as const };
+            }
+
+            let peerDistributions = input.distributions;
+            if (!peerDistributions || peerDistributions.length === 0) {
+                if (!input.currencyBalanceId) {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: 'Choose an account for your side of this repayment',
+                    });
+                }
+                peerDistributions = [{ currencyBalanceId: input.currencyBalanceId, amount: paymentAmount }];
+            }
+
+            const totalPeer = peerDistributions.reduce((s, d) => s + d.amount, 0);
+            if (Math.abs(totalPeer - paymentAmount) > 0.01) {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: `Your side must total ${paymentAmount} (got ${totalPeer})`,
+                });
+            }
+
+            const peerBalanceIds = peerDistributions.map((d) => d.currencyBalanceId);
+            const peerBalances = await ctx.db.query.currencyBalances.findMany({
+                where: (table, { inArray }) => inArray(table.id, peerBalanceIds),
+                with: {
+                    account: {
+                        with: {
+                            bank: true,
+                        },
+                    },
+                },
+            });
+
+            for (const b of peerBalances) {
+                if (b.account?.bank?.userId !== ctx.userId) {
+                    throw new TRPCError({ code: 'FORBIDDEN', message: 'Invalid account' });
+                }
+                if (b.currencyCode !== debtCurrency) {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: `Account currency must be ${debtCurrency}`,
+                    });
+                }
+            }
+
+            const proposerDists = (payment.proposerDistributions as { currencyBalanceId: string; amount: number }[] | null) ?? [];
+            if (proposerDists.length === 0) {
+                throw new TRPCError({ code: 'BAD_REQUEST', message: 'Missing proposer payment data' });
+            }
+
+            const propIds = proposerDists.map((d) => d.currencyBalanceId);
+            const propBalances = await ctx.db.query.currencyBalances.findMany({
+                where: (table, { inArray }) => inArray(table.id, propIds),
+                with: {
+                    account: {
+                        with: {
+                            bank: true,
+                        },
+                    },
+                },
+            });
+
+            for (const b of propBalances) {
+                if (b.account?.bank?.userId !== proposerDebt.userId) {
+                    throw new TRPCError({ code: 'FORBIDDEN', message: 'Proposer accounts invalid' });
+                }
+            }
+
+            const peerDebt = await findMirroredPeerDebt(ctx.db, {
+                id: proposerDebt.id,
+                userId: proposerDebt.userId,
+                linkedUserId: proposerDebt.linkedUserId,
+                amount: proposerDebt.amount,
+                isTest: proposerDebt.isTest,
+                createdAt: proposerDebt.createdAt,
+            }, 'active');
+
+            if (!peerDebt) {
+                throw new TRPCError({ code: 'BAD_REQUEST', message: 'Linked debt not found for counterparty' });
+            }
+
+            if (peerDebt.type === 'i_owe') {
+                for (const d of peerDistributions) {
+                    const bal = peerBalances.find((b) => b.id === d.currencyBalanceId);
+                    if (bal && parseMoney(bal.balance) < d.amount - 0.001) {
+                        throw new TRPCError({
+                            code: 'BAD_REQUEST',
+                            message: `Insufficient funds on selected account (need ${d.amount})`,
+                        });
+                    }
+                }
+            }
+
+            const syncGroupId = randomUUID();
+            const paymentDateStr = new Date(payment.paidAt as string | Date).toISOString().split('T')[0];
+
+            const newProposerPaid = Number(proposerDebt.paidAmount) + paymentAmount;
+            const totalProposerDebt = Number(proposerDebt.amount);
+            const newProposerStatus = Math.abs(totalProposerDebt - newProposerPaid) < 0.01 ? 'paid' : 'partial';
+
+            const newPeerPaid = Number(peerDebt.paidAmount) + paymentAmount;
+            const totalPeerDebt = Number(peerDebt.amount);
+            const newPeerStatus = Math.abs(totalPeerDebt - newPeerPaid) < 0.01 ? 'paid' : 'partial';
+
+            await ctx.db.transaction(async (tx) => {
+                const category = await getDebtRepaymentCategory(tx);
+
+                for (const dist of proposerDists) {
+                    const balanceChange = proposerDebt.type === 'they_owe'
+                        ? sql`${currencyBalances.balance} + ${dist.amount}`
+                        : sql`${currencyBalances.balance} - ${dist.amount}`;
+
+                    await tx.update(currencyBalances)
+                        .set({
+                            balance: balanceChange,
+                            updatedAt: new Date(),
+                        })
+                        .where(eq(currencyBalances.id, dist.currencyBalanceId));
+
+                    const debtCreatedDate = new Date(proposerDebt.createdAt);
+                    const repaymentDate = new Date(paymentDateStr);
+                    const isSameMonth = debtCreatedDate.getFullYear() === repaymentDate.getFullYear()
+                        && debtCreatedDate.getMonth() === repaymentDate.getMonth();
+
+                    await tx.insert(transactions).values({
+                        currencyBalanceId: dist.currencyBalanceId,
+                        categoryId: category.id,
+                        amount: dist.amount.toString(),
+                        date: paymentDateStr,
+                        type: proposerDebt.type === 'they_owe' ? 'income' : 'expense',
+                        description: `Repayment ${proposerDebt.type === 'they_owe' ? 'from' : 'to'} ${proposerDebt.personName}${payment.note ? ` - ${payment.note}` : ''}`,
+                        debtPaymentId: payment.id,
+                        excludeFromMonthlyStats: isSameMonth,
+                    });
+                }
+
+                await tx.update(debts)
+                    .set({
+                        paidAmount: newProposerPaid.toString(),
+                        status: newProposerStatus,
+                        updatedAt: new Date(),
+                    })
+                    .where(eq(debts.id, proposerDebt.id));
+
+                await tx.update(debtPayments)
+                    .set({
+                        syncStatus: 'posted',
+                        syncGroupId,
+                    })
+                    .where(eq(debtPayments.id, payment.id));
+
+                const [peerPayment] = await tx.insert(debtPayments).values({
+                    debtId: peerDebt.id,
+                    amount: payment.amount,
+                    paidAt: payment.paidAt,
+                    note: payment.note,
+                    syncStatus: 'posted',
+                    syncGroupId,
+                }).returning();
+
+                for (const dist of peerDistributions) {
+                    const balanceChange = peerDebt.type === 'they_owe'
+                        ? sql`${currencyBalances.balance} + ${dist.amount}`
+                        : sql`${currencyBalances.balance} - ${dist.amount}`;
+
+                    await tx.update(currencyBalances)
+                        .set({
+                            balance: balanceChange,
+                            updatedAt: new Date(),
+                        })
+                        .where(eq(currencyBalances.id, dist.currencyBalanceId));
+
+                    const debtCreatedDate = new Date(peerDebt.createdAt);
+                    const repaymentDate = new Date(paymentDateStr);
+                    const isSameMonth = debtCreatedDate.getFullYear() === repaymentDate.getFullYear()
+                        && debtCreatedDate.getMonth() === repaymentDate.getMonth();
+
+                    await tx.insert(transactions).values({
+                        currencyBalanceId: dist.currencyBalanceId,
+                        categoryId: category.id,
+                        amount: dist.amount.toString(),
+                        date: paymentDateStr,
+                        type: peerDebt.type === 'they_owe' ? 'income' : 'expense',
+                        description: `Repayment ${peerDebt.type === 'they_owe' ? 'from' : 'to'} ${peerDebt.personName}${payment.note ? ` - ${payment.note}` : ''}`,
+                        debtPaymentId: peerPayment.id,
+                        excludeFromMonthlyStats: isSameMonth,
+                    });
+                }
+
+                await tx.update(debts)
+                    .set({
+                        paidAmount: newPeerPaid.toString(),
+                        status: newPeerStatus,
+                        updatedAt: new Date(),
+                    })
+                    .where(eq(debts.id, peerDebt.id));
+
+                await tx.update(notifications)
+                    .set({
+                        actionTaken: true,
+                        actionTakenAt: new Date(),
+                        isRead: true,
+                        readAt: new Date(),
+                        updatedAt: new Date(),
+                    })
+                    .where(eq(notifications.id, notif.id));
+            });
+
+            const proposerLabel = ctx.user.name || ctx.user.username || 'Friend';
+            await ctx.db.insert(notifications).values({
+                userId: proposerDebt.userId!,
+                type: 'debt_reminder',
+                title: 'Repayment confirmed',
+                message: `${proposerLabel} confirmed your repayment of ${paymentAmount.toFixed(2)} ${debtCurrency || ''}.`,
+                priority: 'medium',
+                links: { web: '/debts', mobile: 'woolet://financial/debts', universal: 'https://woolet.app/debts' },
+                entityType: 'debt',
+                entityId: proposerDebt.id,
+                metadata: { kind: 'debt_repayment_confirmed' },
+            });
+
+            await invalidateDebtBalanceCaches([ctx.userId, proposerDebt.userId]);
+            return { success: true, outcome: 'approved' as const };
         }),
 
     respondToIncomingRequest: protectedProcedure
@@ -493,6 +1073,7 @@ export const debtRouter = router({
                     },
                 });
 
+                await invalidateDebtBalanceCaches([ctx.userId, requester.id]);
                 return { success: true, outcome: 'declined' as const };
             }
 
@@ -537,8 +1118,14 @@ export const debtRouter = router({
             const responderLabel = ctx.user.name || ctx.user.username || 'Friend';
             const requesterLabel = requester.name || requester.username || responderDebt.personName;
 
-            // responderDebt.type === 'i_owe' means responder is receiving money (Lending from requester)
-            if (responderDebt.type === 'i_owe') {
+            // Prefer notification metadata (requester's intent); fall back to mirrored debt row types.
+            const requesterIsBorrowing =
+                metadata.debtType != null && metadata.debtType !== ''
+                    ? metadata.debtType === 'i_owe'
+                    : responderDebt.type === 'they_owe';
+
+            // Requester is lending (they_owe): responder receives on selected card.
+            if (!requesterIsBorrowing) {
                 await ctx.db.update(currencyBalances)
                     .set({
                         balance: sql`${currencyBalances.balance} + ${requestAmount}`,
@@ -565,8 +1152,38 @@ export const debtRouter = router({
                     })
                     .where(eq(debts.id, responderDebt.id));
             } else {
-                // Responder is lending money (Borrow request from requester)
-                const lenderBalance = Number(selectedBalance.balance);
+                // Requester is borrowing: responder lends from selected card; borrower must receive on their linked account.
+                if (!requesterDebt.currencyBalanceId) {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: 'Borrower has no receiving account on this request. Decline and ask them to create the request again with a card selected.',
+                    });
+                }
+
+                const requesterTargetBalance = await ctx.db.query.currencyBalances.findFirst({
+                    where: eq(currencyBalances.id, requesterDebt.currencyBalanceId),
+                    with: {
+                        account: {
+                            with: {
+                                bank: true,
+                            },
+                        },
+                    },
+                });
+
+                if (!requesterTargetBalance || requesterTargetBalance.account.bank.userId !== requester.id) {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: 'Borrower\'s receiving account is missing or invalid. Cannot complete transfer.',
+                    });
+                }
+
+                const [freshLenderRow] = await ctx.db
+                    .select({ balance: currencyBalances.balance })
+                    .from(currencyBalances)
+                    .where(eq(currencyBalances.id, selectedBalance.id));
+
+                const lenderBalance = parseMoney(freshLenderRow?.balance);
                 if (lenderBalance < requestAmount) {
                     throw new TRPCError({
                         code: 'BAD_REQUEST',
@@ -574,65 +1191,51 @@ export const debtRouter = router({
                     });
                 }
 
-                await ctx.db.update(currencyBalances)
-                    .set({
-                        balance: sql`${currencyBalances.balance} - ${requestAmount}`,
-                        updatedAt: new Date(),
-                    })
-                    .where(eq(currencyBalances.id, selectedBalance.id));
+                await ctx.db.transaction(async (tx) => {
+                    await tx.update(currencyBalances)
+                        .set({
+                            balance: sql`${currencyBalances.balance} - ${requestAmount}`,
+                            updatedAt: new Date(),
+                        })
+                        .where(eq(currencyBalances.id, selectedBalance.id));
 
-                await ctx.db.insert(transactions).values({
-                    currencyBalanceId: selectedBalance.id,
-                    categoryId: debtCategory.id,
-                    amount: requestAmount.toString(),
-                    date: new Date().toISOString().split('T')[0],
-                    type: 'expense',
-                    description: `Debt lent to ${requesterLabel}`,
-                    debtId: responderDebt.id,
-                    excludeFromMonthlyStats: false,
-                });
-
-                await ctx.db.update(debts)
-                    .set({
+                    await tx.insert(transactions).values({
                         currencyBalanceId: selectedBalance.id,
-                        status: 'pending',
-                        updatedAt: new Date(),
-                    })
-                    .where(eq(debts.id, responderDebt.id));
-
-                // Also update requester's record and balance if they chose a card
-                if (requesterDebt.currencyBalanceId) {
-                    const requesterTargetBalance = await ctx.db.query.currencyBalances.findFirst({
-                        where: eq(currencyBalances.id, requesterDebt.currencyBalanceId),
-                        with: {
-                            account: {
-                                with: {
-                                    bank: true,
-                                },
-                            },
-                        },
+                        categoryId: debtCategory.id,
+                        amount: requestAmount.toString(),
+                        date: new Date().toISOString().split('T')[0],
+                        type: 'expense',
+                        description: `Debt lent to ${requesterLabel}`,
+                        debtId: responderDebt.id,
+                        excludeFromMonthlyStats: false,
                     });
 
-                    if (requesterTargetBalance && requesterTargetBalance.account.bank.userId === requester.id) {
-                        await ctx.db.update(currencyBalances)
-                            .set({
-                                balance: sql`${currencyBalances.balance} + ${requestAmount}`,
-                                updatedAt: new Date(),
-                            })
-                            .where(eq(currencyBalances.id, requesterTargetBalance.id));
+                    await tx.update(debts)
+                        .set({
+                            currencyBalanceId: selectedBalance.id,
+                            status: 'pending',
+                            updatedAt: new Date(),
+                        })
+                        .where(eq(debts.id, responderDebt.id));
 
-                        await ctx.db.insert(transactions).values({
-                            currencyBalanceId: requesterTargetBalance.id,
-                            categoryId: debtCategory.id,
-                            amount: requestAmount.toString(),
-                            date: new Date().toISOString().split('T')[0],
-                            type: 'income',
-                            description: `Debt borrowed from ${responderLabel}`,
-                            debtId: requesterDebt.id,
-                            excludeFromMonthlyStats: false,
-                        });
-                    }
-                }
+                    await tx.update(currencyBalances)
+                        .set({
+                            balance: sql`${currencyBalances.balance} + ${requestAmount}`,
+                            updatedAt: new Date(),
+                        })
+                        .where(eq(currencyBalances.id, requesterTargetBalance.id));
+
+                    await tx.insert(transactions).values({
+                        currencyBalanceId: requesterTargetBalance.id,
+                        categoryId: debtCategory.id,
+                        amount: requestAmount.toString(),
+                        date: new Date().toISOString().split('T')[0],
+                        type: 'income',
+                        description: `Debt borrowed from ${responderLabel}`,
+                        debtId: requesterDebt.id,
+                        excludeFromMonthlyStats: false,
+                    });
+                });
             }
 
             await ctx.db.update(notifications)
@@ -653,7 +1256,7 @@ export const debtRouter = router({
                 priority: 'medium',
                 links: { web: '/debts', mobile: 'woolet://financial/debts', universal: 'https://woolet.app/debts' },
                 entityType: 'debt',
-                entityId: requestDebt.id,
+                entityId: requesterDebt.id,
                 metadata: {
                     requestKind: 'debt_transfer_request',
                     status: 'approved',
@@ -661,6 +1264,7 @@ export const debtRouter = router({
                 },
             });
 
+            await invalidateDebtBalanceCaches([ctx.userId, requester.id]);
             return { success: true, outcome: 'approved' as const };
         }),
 
@@ -726,7 +1330,66 @@ export const debtRouter = router({
                 }
             }
 
-            // 1. Record Debt Payment
+            // Linked debt: counterparty must confirm and choose their account before both ledgers update
+            if (debt.linkedUserId) {
+                const peerDebtShape = await findMirroredPeerDebt(ctx.db, {
+                    id: debt.id,
+                    userId: debt.userId,
+                    linkedUserId: debt.linkedUserId,
+                    amount: debt.amount,
+                    isTest: debt.isTest,
+                    createdAt: debt.createdAt,
+                }, 'active');
+
+                const [paymentRecord] = await ctx.db.insert(debtPayments).values({
+                    debtId: debt.id,
+                    amount: input.amount.toString(),
+                    paidAt: new Date(input.paymentDate),
+                    note: input.note,
+                    syncStatus: 'awaiting_peer',
+                    proposedByUserId: ctx.userId!,
+                    proposerDistributions: input.distributions,
+                }).returning();
+
+                const proposerLabel = ctx.user.name || ctx.user.username || 'Someone';
+                const [requestNotification] = await ctx.db.insert(notifications).values({
+                    userId: debt.linkedUserId,
+                    type: 'debt_reminder',
+                    title: 'Confirm debt repayment',
+                    message: `${proposerLabel} recorded a repayment of ${input.amount.toFixed(2)} ${debtCurrency || ''}. Open Debts to confirm and choose the account for your side.`,
+                    priority: 'high',
+                    links: { web: '/debts', mobile: 'woolet://financial/debts', universal: 'https://woolet.app/debts' },
+                    entityType: 'debt_payment',
+                    entityId: paymentRecord.id,
+                    metadata: {
+                        requestKind: 'debt_repayment_sync',
+                        paymentId: paymentRecord.id,
+                        proposerDebtId: debt.id,
+                        proposerUserId: ctx.userId,
+                        peerDebtId: peerDebtShape?.id ?? null,
+                        amount: input.amount,
+                        currencyCode: debtCurrency,
+                        paymentDate: input.paymentDate,
+                        note: input.note ?? null,
+                        proposerName: proposerLabel,
+                    },
+                }).returning();
+
+                await deliverNotificationChannels({
+                    userId: debt.linkedUserId,
+                    title: requestNotification.title,
+                    message: requestNotification.message,
+                    url: '/debts',
+                    priority: 'high',
+                    entityType: 'debt_payment',
+                    entityId: paymentRecord.id,
+                    metadata: requestNotification.metadata as any,
+                });
+
+                return { success: true, awaitingPeerApproval: true as const, paymentId: paymentRecord.id };
+            }
+
+            // 1. Record Debt Payment (immediate — not linked)
             const [paymentRecord] = await ctx.db.insert(debtPayments).values({
                 debtId: debt.id,
                 amount: input.amount.toString(),
@@ -747,35 +1410,7 @@ export const debtRouter = router({
                 .where(eq(debts.id, debt.id));
 
             // 3. Process Distributions (Update Balance + Create Transaction)
-            // We need a category for 'Debt Repayment'.
-            // For now, we'll try to find one or fail gracefully (or maybe just leave categoryId nullable if schema allowed, but it's not null)
-            // Let's assume there is an 'Income' or 'Transfer' category, or we just pick the first one available if we can't find a specific one.
-            // Ideally, we should seed/ensure a 'Debt Repayment' category exists.
-            // For this iteration, I'll fetch *any* category or a specific one if I knew the seed data.
-            // Better approach: Require category selection in UI? Or just pick one.
-            // Let's search for a category named 'Debt' or 'Income' or 'Transfer'.
-
-            // Find or create 'Debt Repayment' category
-            let category = await ctx.db.query.categories.findFirst({
-                where: (c, { eq }) => eq(c.name, 'Debt Repayment')
-            });
-
-            if (!category) {
-                // Try finding one with 'debt' in name
-                category = await ctx.db.query.categories.findFirst({
-                    where: (c, { ilike }) => ilike(c.name, '%debt%')
-                });
-            }
-
-            if (!category) {
-                // Create it if it doesn't exist
-                const [newCat] = await ctx.db.insert(categories).values({
-                    name: 'Debt Repayment',
-                    icon: '💸',
-                    color: '#f43f5e' // Rose-500 default for debt
-                }).returning();
-                category = newCat;
-            }
+            const category = await getDebtRepaymentCategory(ctx.db);
 
             for (const dist of input.distributions) {
                 // Update Balance
@@ -813,6 +1448,7 @@ export const debtRouter = router({
                 });
             }
 
+            await invalidateDebtBalanceCaches([ctx.userId]);
             return { success: true };
         }),
 
@@ -891,6 +1527,13 @@ export const debtRouter = router({
                 throw new TRPCError({ code: 'NOT_FOUND', message: 'Payment not found' });
             }
 
+            if (payment.syncStatus === 'awaiting_peer') {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'This repayment is waiting for the other person to confirm; it cannot be edited yet.',
+                });
+            }
+
             const debt = payment.debt;
             const updateValues: any = {
                 note: data.note,
@@ -963,18 +1606,7 @@ export const debtRouter = router({
                 }] : []);
 
                 if (finalDistributions.length > 0) {
-                    // Find or create 'Debt Repayment' category (same logic as addPayment)
-                    let category = await ctx.db.query.categories.findFirst({
-                        where: (c, { ilike }) => ilike(c.name, '%debt%')
-                    });
-                    if (!category) {
-                        const [newCat] = await ctx.db.insert(categories).values({
-                            name: 'Debt Repayment',
-                            icon: '💸',
-                            color: '#f43f5e'
-                        }).returning();
-                        category = newCat;
-                    }
+                    const category = await getDebtRepaymentCategory(ctx.db);
 
                     for (const dist of finalDistributions) {
                         // Update Balance
@@ -1014,6 +1646,7 @@ export const debtRouter = router({
                 .set(updateValues)
                 .where(eq(debtPayments.id, id));
 
+            await invalidateDebtBalanceCaches([ctx.userId]);
             return { success: true };
         }),
 
@@ -1089,6 +1722,7 @@ export const debtRouter = router({
             await ctx.db.delete(transactions).where(eq(transactions.debtId, input.id));
 
             await ctx.db.delete(debts).where(eq(debts.id, input.id));
+            await invalidateDebtBalanceCaches([ctx.userId]);
             return { success: true };
         }),
 
@@ -1112,6 +1746,19 @@ export const debtRouter = router({
             }
 
             const debt = payment.debt;
+
+            if (payment.syncStatus === 'awaiting_peer') {
+                if (debt.userId !== ctx.userId) {
+                    throw new TRPCError({ code: 'FORBIDDEN', message: 'Not allowed to cancel this repayment' });
+                }
+                await ctx.db.delete(notifications).where(
+                    sql`(${notifications.metadata}->>'paymentId') = ${payment.id}`,
+                );
+                await ctx.db.delete(debtPayments).where(eq(debtPayments.id, input.id));
+                await invalidateDebtBalanceCaches([ctx.userId, debt.linkedUserId]);
+                return { success: true };
+            }
+
             // 1. Revert Account Balances using linked transactions
             const transactionsToRevert = await ctx.db.query.transactions.findMany({
                 where: eq(transactions.debtPaymentId, input.id)
@@ -1151,6 +1798,7 @@ export const debtRouter = router({
             // 3. Delete Payment (will cascade delete transactions)
             await ctx.db.delete(debtPayments).where(eq(debtPayments.id, input.id));
 
+            await invalidateDebtBalanceCaches([ctx.userId]);
             return { success: true };
         }),
 
@@ -1167,69 +1815,30 @@ export const debtRouter = router({
             if (!debt) return { success: false, message: 'Debt not found' };
             if (debt.lifecycleStatus !== 'active') return { success: true }; // Already deleting/deleted
 
-            // 1. Revert initial debt creation transaction(s)
-            const linkedTransactions = await ctx.db.query.transactions.findMany({
-                where: eq(transactions.debtId, input.id)
-            });
+            const peer = await findMirroredPeerDebt(ctx.db, debt, 'active');
 
-            for (const tx of linkedTransactions) {
-                const amount = Number(tx.amount);
-                // Revert balance: Income -> subtract, Expense -> add
-                const balanceChange = tx.type === 'income'
-                    ? sql`${currencyBalances.balance} - ${amount}`
-                    : sql`${currencyBalances.balance} + ${amount}`;
+            if (peer) {
+                await revertDebtRelatedTxEffects(ctx.db, peer.id);
+            }
+            await revertDebtRelatedTxEffects(ctx.db, input.id);
 
-                await ctx.db.update(currencyBalances)
+            if (peer) {
+                await ctx.db.update(debts)
                     .set({
-                        balance: balanceChange,
-                        updatedAt: new Date()
+                        lifecycleStatus: 'deleting',
+                        updatedAt: new Date(),
                     })
-                    .where(eq(currencyBalances.id, tx.currencyBalanceId));
-
-                // Mark transaction as deleting
-                await ctx.db.update(transactions)
-                    .set({ lifecycleStatus: 'deleting' })
-                    .where(eq(transactions.id, tx.id));
+                    .where(eq(debts.id, peer.id));
             }
 
-            // 2. Revert any payments made
-            const payments = await ctx.db.query.debtPayments.findMany({
-                where: eq(debtPayments.debtId, input.id)
-            });
-
-            for (const payment of payments) {
-                const paymentTransactions = await ctx.db.query.transactions.findMany({
-                    where: eq(transactions.debtPaymentId, payment.id)
-                });
-
-                for (const tx of paymentTransactions) {
-                    const amount = Number(tx.amount);
-                    const balanceChange = tx.type === 'income'
-                        ? sql`${currencyBalances.balance} - ${amount}`
-                        : sql`${currencyBalances.balance} + ${amount}`;
-
-                    await ctx.db.update(currencyBalances)
-                        .set({
-                            balance: balanceChange,
-                            updatedAt: new Date()
-                        })
-                        .where(eq(currencyBalances.id, tx.currencyBalanceId));
-
-                    // Mark transaction as deleting
-                    await ctx.db.update(transactions)
-                        .set({ lifecycleStatus: 'deleting' })
-                        .where(eq(transactions.id, tx.id));
-                }
-            }
-
-            // 3. Mark Debt as Deleting
             await ctx.db.update(debts)
                 .set({
                     lifecycleStatus: 'deleting',
-                    updatedAt: new Date()
+                    updatedAt: new Date(),
                 })
                 .where(eq(debts.id, input.id));
 
+            await invalidateDebtBalanceCaches([ctx.userId, peer?.userId]);
             return { success: true };
         }),
 
@@ -1246,69 +1855,30 @@ export const debtRouter = router({
             if (!debt) return { success: false, message: 'Debt not found' };
             if (debt.lifecycleStatus !== 'deleting') return { success: true }; // Can only undo 'deleting'
 
-            // 1. Restore initial debt creation transaction(s)
-            const linkedTransactions = await ctx.db.query.transactions.findMany({
-                where: eq(transactions.debtId, input.id)
-            });
+            const peer = await findMirroredPeerDebt(ctx.db, debt, 'deleting');
 
-            for (const tx of linkedTransactions) {
-                const amount = Number(tx.amount);
-                // Restore balance: Income -> add, Expense -> subtract
-                const balanceChange = tx.type === 'income'
-                    ? sql`${currencyBalances.balance} + ${amount}`
-                    : sql`${currencyBalances.balance} - ${amount}`;
+            if (peer) {
+                await restoreDebtRelatedTxEffects(ctx.db, peer.id);
+            }
+            await restoreDebtRelatedTxEffects(ctx.db, input.id);
 
-                await ctx.db.update(currencyBalances)
+            if (peer) {
+                await ctx.db.update(debts)
                     .set({
-                        balance: balanceChange,
-                        updatedAt: new Date()
+                        lifecycleStatus: 'active',
+                        updatedAt: new Date(),
                     })
-                    .where(eq(currencyBalances.id, tx.currencyBalanceId));
-
-                // Mark transaction as active
-                await ctx.db.update(transactions)
-                    .set({ lifecycleStatus: 'active' })
-                    .where(eq(transactions.id, tx.id));
+                    .where(eq(debts.id, peer.id));
             }
 
-            // 2. Restore any payments made
-            const payments = await ctx.db.query.debtPayments.findMany({
-                where: eq(debtPayments.debtId, input.id)
-            });
-
-            for (const payment of payments) {
-                const paymentTransactions = await ctx.db.query.transactions.findMany({
-                    where: eq(transactions.debtPaymentId, payment.id)
-                });
-
-                for (const tx of paymentTransactions) {
-                    const amount = Number(tx.amount);
-                    const balanceChange = tx.type === 'income'
-                        ? sql`${currencyBalances.balance} + ${amount}`
-                        : sql`${currencyBalances.balance} - ${amount}`;
-
-                    await ctx.db.update(currencyBalances)
-                        .set({
-                            balance: balanceChange,
-                            updatedAt: new Date()
-                        })
-                        .where(eq(currencyBalances.id, tx.currencyBalanceId));
-
-                    // Mark transaction as active
-                    await ctx.db.update(transactions)
-                        .set({ lifecycleStatus: 'active' })
-                        .where(eq(transactions.id, tx.id));
-                }
-            }
-
-            // 3. Mark Debt as Active
             await ctx.db.update(debts)
                 .set({
                     lifecycleStatus: 'active',
-                    updatedAt: new Date()
+                    updatedAt: new Date(),
                 })
                 .where(eq(debts.id, input.id));
 
+            await invalidateDebtBalanceCaches([ctx.userId, peer?.userId]);
             return { success: true };
         }),
 });
