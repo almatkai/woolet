@@ -18,28 +18,45 @@ redis.on('connect', () => {
 // Cache helper functions
 export const cache = {
     async get<T>(key: string): Promise<T | null> {
-        const data = await redis.get(key);
-        if (!data) return null;
-        return JSON.parse(data) as T;
+        try {
+            const data = await redis.get(key);
+            if (!data) return null;
+            return JSON.parse(data) as T;
+        } catch (err) {
+            console.warn(`Redis get failed for key "${key}":`, err);
+            return null;
+        }
     },
 
     async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
-        const data = JSON.stringify(value);
-        if (ttlSeconds) {
-            await redis.setex(key, ttlSeconds, data);
-        } else {
-            await redis.set(key, data);
+        try {
+            const data = JSON.stringify(value);
+            if (ttlSeconds) {
+                await redis.setex(key, ttlSeconds, data);
+            } else {
+                await redis.set(key, data);
+            }
+        } catch (err) {
+            console.warn(`Redis set failed for key "${key}":`, err);
         }
     },
 
     async del(key: string): Promise<void> {
-        await redis.del(key);
+        try {
+            await redis.del(key);
+        } catch (err) {
+            console.warn(`Redis del failed for key "${key}":`, err);
+        }
     },
 
     async invalidatePattern(pattern: string): Promise<void> {
-        const keys = await redis.keys(pattern);
-        if (keys.length > 0) {
-            await redis.del(...keys);
+        try {
+            const keys = await redis.keys(pattern);
+            if (keys.length > 0) {
+                await redis.del(...keys);
+            }
+        } catch (err) {
+            console.warn(`Redis invalidatePattern failed for "${pattern}":`, err);
         }
     },
 };
