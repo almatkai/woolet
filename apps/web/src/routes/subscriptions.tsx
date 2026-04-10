@@ -160,11 +160,11 @@ export function SubscriptionsPage() {
     if (isLoadingSubscriptions) {
         return (
             <div className="space-y-6">
-                <div className="h-8 w-48 bg-muted animate-pulse rounded" />
-                <div className="grid grid-cols-4 gap-3 md:gap-4">
-                    <div className="col-span-2 h-28 bg-muted animate-pulse rounded-lg" />
-                    <div className="col-span-1 h-28 bg-muted animate-pulse rounded-lg" />
-                    <div className="col-span-1 h-28 bg-muted animate-pulse rounded-lg" />
+                <div className="h-8 w-48 bg-muted animate-pulse rounded-md" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                    <div className="h-28 bg-muted animate-pulse rounded-lg sm:col-span-2 lg:col-span-2" />
+                    <div className="h-28 bg-muted animate-pulse rounded-lg" />
+                    <div className="h-28 bg-muted animate-pulse rounded-lg" />
                 </div>
             </div>
         );
@@ -178,15 +178,15 @@ export function SubscriptionsPage() {
                 subtitle="Manage your recurring payments"
                 variant="one"
             >
-                <Button onClick={() => setShowAddSubscription(true)} className="gap-2">
+                <Button size="sm" onClick={() => setShowAddSubscription(true)} className="gap-2 rounded-toolbar">
                     <Plus className="h-4 w-4" />
                     Add
                 </Button>
             </PageHeader>
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-4 gap-3 md:gap-4">
-                <Card className="col-span-2">
+            {/* Summary Cards — stack on mobile; Total spans full width on sm–md */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                <Card className="sm:col-span-2 lg:col-span-2">
                     <CardHeader className="pb-1 px-3 md:px-6 pt-3 md:pt-6">
                         <CardDescription className="text-xs md:text-sm">Total Monthly</CardDescription>
                     </CardHeader>
@@ -206,7 +206,7 @@ export function SubscriptionsPage() {
                         </div>
                     </CardContent>
                 </Card>
-                <Card className="col-span-1">
+                <Card>
                     <CardHeader className="pb-1 px-3 md:px-6 pt-3 md:pt-6">
                         <CardDescription className="text-xs md:text-sm">Active</CardDescription>
                     </CardHeader>
@@ -214,7 +214,7 @@ export function SubscriptionsPage() {
                         <div className="text-xl md:text-3xl font-bold">{activeCount}</div>
                     </CardContent>
                 </Card>
-                <Card className="col-span-1">
+                <Card>
                     <CardHeader className="pb-1 px-3 md:px-6 pt-3 md:pt-6">
                         <CardDescription className="text-xs md:text-sm">This Week</CardDescription>
                     </CardHeader>
@@ -226,7 +226,7 @@ export function SubscriptionsPage() {
 
             {/* View Toggle */}
             <Tabs value={view} onValueChange={(v) => setView(v as 'timeline' | 'calendar')}>
-                <TabsList className="grid w-full max-w-[400px] grid-cols-2 mx-auto md:ml-0">
+                <TabsList className="grid w-full max-w-md grid-cols-2 mx-auto md:mx-0 md:ml-0 rounded-lg">
                     <TabsTrigger value="timeline" className="flex items-center gap-2">
                         <Clock className="h-4 w-4" />
                         Timeline
@@ -245,8 +245,8 @@ export function SubscriptionsPage() {
                                 <Clock className="h-12 w-12 text-muted-foreground mb-4" />
                                 <h3 className="text-lg font-semibold">No upcoming payments</h3>
                                 <p className="text-muted-foreground mb-4">Add subscriptions to see your payment timeline</p>
-                                <Button onClick={() => setShowAddSubscription(true)}>
-                                    <Plus className="h-4 w-4 mr-2" />
+                                <Button onClick={() => setShowAddSubscription(true)} className="rounded-toolbar gap-2">
+                                    <Plus className="h-4 w-4" />
                                     Add Subscription
                                 </Button>
                             </CardContent>
@@ -311,7 +311,7 @@ export function SubscriptionsPage() {
                                                                 <Button
                                                                     size="sm"
                                                                     onClick={() => setPayingSubscription(item.subscription)}
-                                                                    className="h-7 sm:h-8 px-2 text-xs"
+                                                                    className="h-7 sm:h-8 px-2 text-xs rounded-toolbar"
                                                                 >
                                                                     <Wallet className="h-3.5 w-3.5 mr-1" />
                                                                     Pay
@@ -432,7 +432,17 @@ export function SubscriptionsPage() {
                 </CardHeader>
                 <CardContent>
                     {allItems.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-4">No subscriptions yet</p>
+                        <div className="flex flex-col items-center justify-center py-10 text-center gap-3">
+                            <p className="text-muted-foreground text-sm">No subscriptions yet</p>
+                            <Button
+                                size="sm"
+                                onClick={() => setShowAddSubscription(true)}
+                                className="rounded-toolbar gap-2"
+                            >
+                                <Plus className="h-4 w-4" />
+                                Add subscription
+                            </Button>
+                        </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {allItems.map((sub: Subscription) => {
@@ -492,7 +502,7 @@ export function SubscriptionsPage() {
                                                 <Button
                                                     variant="secondary"
                                                     size="sm"
-                                                    className="w-full mt-3"
+                                                    className="w-full mt-3 rounded-toolbar"
                                                     onClick={() => setPayingSubscription(sub)}
                                                 >
                                                     <Wallet className="h-4 w-4 mr-2" />
@@ -582,7 +592,7 @@ export function SubscriptionsPage() {
 
                                     {!item.isPaid && !sub.isLinked && sub.status === 'active' && (
                                         <Button
-                                            className="w-full h-8 text-xs mt-1"
+                                            className="w-full h-8 text-xs mt-1 rounded-toolbar"
                                             onClick={() => {
                                                 setPayingSubscription(sub);
                                                 setSelectedDaySubscriptions(null);
