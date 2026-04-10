@@ -12,7 +12,7 @@ export function WidgetFooter({ children, className, flex = true }: WidgetFooterP
     return (
         <div
             className={cn(
-                'dashboard-widget__footer px-6 py-1.5 border-t border-border/50 bg-muted/20',
+                'px-6 py-1.5 border-t border-border/50 bg-muted/20',
                 flex && 'flex items-center justify-between',
                 className
             )}

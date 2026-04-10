@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, timestamp, decimal, date, index, boolean, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, uuid, timestamp, decimal, date, index, boolean } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { currencyBalances } from './currency-balances';
 import { transactions } from './transactions';
@@ -36,13 +36,6 @@ export const debtPayments = pgTable('debt_payments', {
     amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
     paidAt: timestamp('paid_at').defaultNow().notNull(),
     note: text('note'),
-    /** posted = applied; awaiting_peer = linked debt, waiting for counterparty account + confirm */
-    syncStatus: text('sync_status').notNull().default('posted'),
-    proposedByUserId: text('proposed_by_user_id'),
-    proposerDistributions: jsonb('proposer_distributions').$type<
-        { currencyBalanceId: string; amount: number }[] | null
-    >(),
-    syncGroupId: uuid('sync_group_id'),
 });
 
 export const debtsRelations = relations(debts, ({ one, many }) => ({

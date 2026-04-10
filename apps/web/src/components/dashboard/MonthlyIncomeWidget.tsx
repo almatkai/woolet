@@ -95,7 +95,7 @@ export function MonthlyIncomeWidget({ gridParams }: { gridParams?: GridParams })
 
     if (isLoading) {
         return (
-            <Card className={cn('dashboard-widget h-full overflow-hidden', isCompact && 'dashboard-widget--compact')}>
+            <Card className={cn('dashboard-widget h-full rounded-[32px] overflow-hidden', isCompact && 'dashboard-widget--compact')}>
                 <CardHeader className="p-3 pb-2">
                     <Skeleton className="h-4 w-24" />
                     <Skeleton className="h-7 w-28 mt-1" />
@@ -108,9 +108,9 @@ export function MonthlyIncomeWidget({ gridParams }: { gridParams?: GridParams })
     }
 
     return (
-        <Card className={cn('dashboard-widget h-full flex flex-col group overflow-hidden', isCompact && 'dashboard-widget--compact')}>
-            <div className="flex-1 flex flex-col min-h-0 min-w-0">
-                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between">
+        <Card className={cn('dashboard-widget h-full flex flex-col group overflow-hidden rounded-[32px]', isCompact && 'dashboard-widget--compact')}>
+            <Link to="/spending" className="block flex-1 flex flex-col min-h-0">
+                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-xl cursor-pointer">
                     <div className="flex flex-col min-w-0 flex-1">
                         <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Monthly Income</div>
                         <div className="flex items-baseline gap-1.5 flex-wrap">
@@ -179,14 +179,14 @@ export function MonthlyIncomeWidget({ gridParams }: { gridParams?: GridParams })
                         </div>
                     )}
                 </CardContent>
-            </div>
+            </Link>
 
             <WidgetFooter>
                 <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                     <Calendar className="h-2.5 w-2.5" />
                     {transactions.length}
                 </span>
-                <Link to="/spending" className="dashboard-widget__footer-action text-[9px] font-bold text-emerald-600 hover:underline uppercase tracking-wider">
+                <Link to="/spending" className="text-[9px] font-bold text-emerald-600 hover:underline uppercase tracking-wider">
                     Details
                 </Link>
             </WidgetFooter>

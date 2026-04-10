@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Pencil, Trash2, MoreHorizontal, Banknote, Plus, Info, UserCheck, ArrowLeftRight } from 'lucide-react';
+import { Pencil, Trash2, MoreHorizontal, Banknote, Plus, Info, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -43,13 +43,11 @@ import {
 } from '@/components/ui/tooltip';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { trpc } from '@/lib/trpc';
-import { formatAccountLabel } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface Debt {
     id: string;
     personName: string;
-    linkedUserId?: string | null;
     linkedUser?: {
         id: string;
         username: string | null;
@@ -86,19 +84,6 @@ interface Debt {
     }[];
 }
 
-type IncomingDebtPaymentSyncRow = {
-    notificationId: string;
-    paymentId: string;
-    amount: number;
-    currencyCode: string | null;
-    paymentDate: string;
-    note: string | null;
-    proposerName: string;
-    proposerDebtId: string;
-    peerDebtId: string | null;
-    peerDebtType: 'i_owe' | 'they_owe' | null;
-};
-
 const editDebtSchema = z.object({
     personName: z.string().min(1, "Name is required").max(100),
     amount: z.number().positive("Amount must be positive"),
@@ -124,7 +109,6 @@ type EditPaymentForm = z.infer<typeof editPaymentSchema>;
 export function DebtsPage() {
     const { data: debtsData, isLoading } = trpc.debt.list.useQuery({}) as { data: { debts: Debt[], total: number } | undefined, isLoading: boolean };
     const { data: incomingDebtRequests } = trpc.debt.listIncomingRequests.useQuery({ limit: 10 }, { refetchInterval: 5000 });
-    const { data: incomingDebtPaymentSync } = trpc.debt.listIncomingDebtPaymentSync.useQuery({ limit: 10 }, { refetchInterval: 5000 });
     const { data: incomingSplitRequests } = trpc.splitBill.listIncomingRequests.useQuery({ limit: 10 });
     const { data: pendingIncomingReceipts } = trpc.splitBill.listPendingIncomingReceipts.useQuery({ limit: 10 });
     const { data: pendingSplits, isLoading: isLoadingSplits } = trpc.splitBill.getPendingSplits.useQuery({});
@@ -167,7 +151,6 @@ export function DebtsPage() {
     const [splitPaymentDate, setSplitPaymentDate] = useState(new Date().toISOString().split('T')[0]);
     const [splitPaymentAccountId, setSplitPaymentAccountId] = useState('');
     const [incomingDebtAccountSelections, setIncomingDebtAccountSelections] = useState<Record<string, string>>({});
-    const [repaymentSyncAccountSelections, setRepaymentSyncAccountSelections] = useState<Record<string, string>>({});
     const [receiptAccountSelections, setReceiptAccountSelections] = useState<Record<string, string>>({});
     const [respondingSplitId, setRespondingSplitId] = useState<string | null>(null);
     const [payNowRequest, setPayNowRequest] = useState<any | null>(null);
@@ -258,22 +241,6 @@ export function DebtsPage() {
         },
     });
 
-    const respondToDebtPaymentSync = trpc.debt.respondToDebtPaymentSync.useMutation({
-        onSuccess: () => {
-            utils.debt.listIncomingDebtPaymentSync.invalidate();
-            utils.debt.list.invalidate();
-            utils.notification.list.invalidate();
-            utils.transaction.list.invalidate();
-            utils.account.list.invalidate();
-            utils.account.getTotalBalance.invalidate();
-            utils.bank.getHierarchy.invalidate();
-            toast.success('Repayment confirmed');
-        },
-        onError: (error: any) => {
-            toast.error(error.message || 'Failed to respond');
-        },
-    });
-
     const { register, handleSubmit, reset, formState: { errors } } = useForm<EditDebtForm>({
         resolver: zodResolver(editDebtSchema),
     });
@@ -322,7 +289,7 @@ export function DebtsPage() {
                 acc.currencyBalances?.forEach((cb: any) => {
                     options.push({
                         id: cb.id,
-                        label: `${formatAccountLabel(bank.name, acc.name, acc.last4Digits)} - ${cb.currencyCode}`,
+                        label: `[${bank.name}] ${acc.name}`,
                         currencyCode: cb.currencyCode,
                         balance: Number(cb.balance),
                     });
@@ -481,15 +448,9 @@ export function DebtsPage() {
 
     const getRemaining = (debt: Debt) => Number(debt.amount) - Number(debt.paidAmount || 0);
     const isSettled = (debt: Debt) => getRemaining(debt) <= 0.01;
-    /** Linked transfer not yet approved/declined — shown under Debt Requests only */
-    const isAwaitingApproval = (debt: Debt) => debt.status === 'awaiting_approval';
 
-    const iOweActive = allDebts.filter(
-        (d) => d.type === 'i_owe' && !isSettled(d) && !isAwaitingApproval(d),
-    );
-    const theyOweActive = allDebts.filter(
-        (d) => d.type === 'they_owe' && !isSettled(d) && !isAwaitingApproval(d),
-    );
+    const iOweActive = allDebts.filter(d => d.type === 'i_owe' && !isSettled(d));
+    const theyOweActive = allDebts.filter(d => d.type === 'they_owe' && !isSettled(d));
     const historyDebts = allDebts.filter(d => isSettled(d));
 
     const detailPayments = detailDebt?.payments || [];
@@ -767,12 +728,7 @@ export function DebtsPage() {
                             </p>
                         </div>
                         <div className="space-y-2">
-                            {pendingIncomingReceipts.map((receipt: any) => {
-                                const receiptAccountId = receiptAccountSelections[receipt.paymentId];
-                                const receiptSelectedOpt = receiptAccountId
-                                    ? currencyOptions.find((o) => o.id === receiptAccountId)
-                                    : undefined;
-                                return (
+                            {pendingIncomingReceipts.map((receipt: any) => (
                                 <div key={receipt.paymentId} className="rounded-lg border bg-background p-3">
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
@@ -791,14 +747,7 @@ export function DebtsPage() {
                                     </div>
                                     <div className="mt-2 flex flex-wrap items-end gap-2">
                                         <div className="min-w-[260px] flex-1 space-y-1">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <Label className="text-xs text-muted-foreground">Receive to account</Label>
-                                                {receiptSelectedOpt && (
-                                                    <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-muted/50 border shrink-0">
-                                                        Balance: {receiptSelectedOpt.balance.toLocaleString()} {receiptSelectedOpt.currencyCode}
-                                                    </span>
-                                                )}
-                                            </div>
+                                            <Label className="text-xs text-muted-foreground">Receive to account</Label>
                                             <Select
                                                 value={receiptAccountSelections[receipt.paymentId]}
                                                 onValueChange={(val) => {
@@ -808,7 +757,7 @@ export function DebtsPage() {
                                                     }));
                                                 }}
                                             >
-                                                <SelectTrigger className="min-h-14">
+                                                <SelectTrigger>
                                                     <SelectValue placeholder="Select account" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -816,10 +765,7 @@ export function DebtsPage() {
                                                         .filter((opt) => opt.currencyCode === receipt.currencyCode)
                                                         .map((opt) => (
                                                             <SelectItem key={opt.id} value={opt.id}>
-                                                                <div className="flex flex-col items-start py-1">
-                                                                    <span className="font-medium text-sm">{opt.label}</span>
-                                                                    <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
-                                                                </div>
+                                                                {opt.label} ({opt.currencyCode})
                                                             </SelectItem>
                                                         ))}
                                                 </SelectContent>
@@ -841,8 +787,7 @@ export function DebtsPage() {
                                         </Button>
                                     </div>
                                 </div>
-                                );
-                            })}
+                            ))}
                         </div>
                     </CardContent>
                 </Card>
@@ -887,16 +832,9 @@ export function DebtsPage() {
                                         </div>
                                         <div className="mt-2 space-y-2">
                                             <div className="space-y-1">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <Label className="text-xs text-muted-foreground">
-                                                        {isFundingRequest ? 'Pay from card' : 'Receive to card'}
-                                                    </Label>
-                                                    {selectedAccount && (
-                                                        <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-muted/50 border shrink-0">
-                                                            Balance: {selectedAccount.balance.toLocaleString()} {selectedAccount.currencyCode}
-                                                        </span>
-                                                    )}
-                                                </div>
+                                                <Label className="text-xs text-muted-foreground">
+                                                    {isFundingRequest ? 'Pay from card' : 'Receive to card'}
+                                                </Label>
                                                 <Select
                                                     value={selectedAccountId}
                                                     onValueChange={(val) => {
@@ -906,7 +844,7 @@ export function DebtsPage() {
                                                         }));
                                                     }}
                                                 >
-                                                    <SelectTrigger className="min-h-14">
+                                                    <SelectTrigger>
                                                         <SelectValue placeholder="Select card" />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -914,10 +852,7 @@ export function DebtsPage() {
                                                             .filter((opt) => opt.currencyCode === request.currencyCode)
                                                             .map((opt) => (
                                                                 <SelectItem key={opt.id} value={opt.id}>
-                                                                    <div className="flex flex-col items-start py-1">
-                                                                        <span className="font-medium text-sm">{opt.label}</span>
-                                                                        <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
-                                                                    </div>
+                                                                    {opt.label} ({opt.currencyCode})
                                                                 </SelectItem>
                                                             ))}
                                                     </SelectContent>
@@ -966,136 +901,6 @@ export function DebtsPage() {
                     </CardContent>
                 </Card>
             )}
-
-            {incomingDebtPaymentSync && incomingDebtPaymentSync.length > 0 && (
-                <Card className="border-amber-500/20 bg-amber-500/5 mb-3">
-                    <CardContent className="p-3 sm:p-4 space-y-3">
-                        <div className="flex items-center gap-2">
-                            <ArrowLeftRight className="h-4 w-4 text-amber-600" />
-                            <p className="text-sm font-semibold">
-                                Confirm linked repayments ({incomingDebtPaymentSync.length})
-                            </p>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            Someone recorded a repayment on a shared debt. Choose the account for your side, then approve.
-                        </p>
-                        <div className="space-y-2">
-                            {incomingDebtPaymentSync.map((item: IncomingDebtPaymentSyncRow) => {
-                                const selectedAccountId = repaymentSyncAccountSelections[item.notificationId];
-                                const selectedAccount = currencyOptions.find((opt) => opt.id === selectedAccountId);
-                                const isPayFrom = item.peerDebtType === 'i_owe';
-                                const isInsufficient = Boolean(
-                                    isPayFrom &&
-                                    selectedAccount &&
-                                    Number(item.amount || 0) > selectedAccount.balance
-                                );
-
-                                return (
-                                    <div key={item.notificationId} className="rounded-lg border bg-background p-3 transition-all duration-300">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="min-w-0">
-                                                <p className="text-sm font-medium truncate">
-                                                    {item.proposerName}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground truncate">
-                                                    Recorded repayment · {item.paymentDate}
-                                                </p>
-                                            </div>
-                                            <CurrencyDisplay
-                                                amount={Number(item.amount || 0)}
-                                                currency={item.currencyCode ?? undefined}
-                                                className="text-sm font-semibold"
-                                            />
-                                        </div>
-                                        {item.note ? (
-                                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.note}</p>
-                                        ) : null}
-                                        <div className="mt-2 space-y-2">
-                                            <div className="space-y-1">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <Label className="text-xs text-muted-foreground">
-                                                        {isPayFrom ? 'Pay from card' : 'Receive to card'}
-                                                    </Label>
-                                                    {selectedAccount && (
-                                                        <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-muted/50 border shrink-0">
-                                                            Balance: {selectedAccount.balance.toLocaleString()} {selectedAccount.currencyCode}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <Select
-                                                    value={selectedAccountId}
-                                                    onValueChange={(val) => {
-                                                        setRepaymentSyncAccountSelections((prev) => ({
-                                                            ...prev,
-                                                            [item.notificationId]: val,
-                                                        }));
-                                                    }}
-                                                >
-                                                    <SelectTrigger className="min-h-14">
-                                                        <SelectValue placeholder="Select card" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {currencyOptions
-                                                            .filter((opt) => opt.currencyCode === item.currencyCode)
-                                                            .map((opt) => (
-                                                                <SelectItem key={opt.id} value={opt.id}>
-                                                                    <div className="flex flex-col items-start py-1">
-                                                                        <span className="font-medium text-sm">{opt.label}</span>
-                                                                        <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
-                                                                    </div>
-                                                                </SelectItem>
-                                                            ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            {isInsufficient && (
-                                                <p className="text-xs text-red-500">
-                                                    Insufficient funds in selected card.
-                                                </p>
-                                            )}
-                                            <div className="flex flex-wrap gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    disabled={
-                                                        !selectedAccountId ||
-                                                        isInsufficient ||
-                                                        respondToDebtPaymentSync.isPending
-                                                    }
-                                                    onClick={() => {
-                                                        if (!selectedAccountId) return;
-                                                        respondToDebtPaymentSync.mutate({
-                                                            notificationId: item.notificationId,
-                                                            decision: 'approve',
-                                                            currencyBalanceId: selectedAccountId,
-                                                        });
-                                                    }}
-                                                >
-                                                    Approve
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="text-destructive hover:text-destructive"
-                                                    disabled={respondToDebtPaymentSync.isPending}
-                                                    onClick={() => {
-                                                        respondToDebtPaymentSync.mutate({
-                                                            notificationId: item.notificationId,
-                                                            decision: 'decline',
-                                                        });
-                                                    }}
-                                                >
-                                                    Decline
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-
             <div className="grid gap-3 md:grid-cols-2">
                 <Card>
                     <CardHeader>
@@ -1781,7 +1586,7 @@ export function DebtsPage() {
                         <div className="space-y-2">
                             <Label>Paid from your account</Label>
                             <Select value={payNowPayerAccountId} onValueChange={setPayNowPayerAccountId}>
-                                <SelectTrigger className="min-h-14">
+                                <SelectTrigger>
                                     <SelectValue placeholder="Select your account" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1789,10 +1594,7 @@ export function DebtsPage() {
                                         .filter((opt) => opt.currencyCode === payNowRequest?.transaction?.currencyBalance?.currencyCode)
                                         .map((opt) => (
                                             <SelectItem key={opt.id} value={opt.id}>
-                                                <div className="flex flex-col items-start py-1">
-                                                    <span className="font-medium text-sm">{opt.label}</span>
-                                                    <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
-                                                </div>
+                                                {opt.label} ({opt.currencyCode})
                                             </SelectItem>
                                         ))}
                                 </SelectContent>

@@ -4,9 +4,9 @@ import { useForm } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Pencil, Trash2, MoreHorizontal, Star, StarOff, Bookmark, X, Plus, Check, ChevronDown, ChevronUp, UserCheck, XCircle, AlertCircle, ArrowLeftRight } from 'lucide-react';
+import { Pencil, Trash2, MoreHorizontal, Star, StarOff, Bookmark, X, Plus, Check, ChevronDown, ChevronUp, UserCheck, XCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn, formatAccountLabel } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/PageHeader';
 import { AddTransactionSheet } from '@/components/AddTransactionSheet';
 import { Card, CardContent } from '@/components/ui/card';
@@ -135,26 +135,12 @@ interface TransactionShortcut {
 const SHORTCUTS_STORAGE_KEY = 'woolet :transaction-macros'; // Keep same key for backward compatibility
 const FAVORITES_WIDGET_KEY = 'woolet :favorites-widget-visible';
 
-type IncomingDebtPaymentSyncRow = {
-    notificationId: string;
-    paymentId: string;
-    amount: number;
-    currencyCode: string | null;
-    paymentDate: string;
-    note: string | null;
-    proposerName: string;
-    proposerDebtId: string;
-    peerDebtId: string | null;
-    peerDebtType: 'i_owe' | 'they_owe' | null;
-};
-
 export function SpendingPage() {
     const queryClient = useQueryClient();
     const { data: transactionsData, isLoading } = trpc.transaction.list.useQuery({ hideAdjustments: true }) as { data: { transactions: Transaction[] } | undefined, isLoading: boolean };
     const { data: incomingSplitRequests } = trpc.splitBill.listIncomingRequests.useQuery({ limit: 10 });
     const { data: pendingIncomingReceipts } = trpc.splitBill.listPendingIncomingReceipts.useQuery({ limit: 10 });
     const { data: incomingDebtRequests } = trpc.debt.listIncomingRequests.useQuery({ limit: 10 }, { refetchInterval: 5000 });
-    const { data: incomingDebtPaymentSync } = trpc.debt.listIncomingDebtPaymentSync.useQuery({ limit: 10 }, { refetchInterval: 5000 });
     const { data: banks } = trpc.bank.getHierarchy.useQuery();
     const { data: categories } = trpc.category.list.useQuery();
     const utils = trpc.useUtils();
@@ -274,7 +260,6 @@ export function SpendingPage() {
     const [showOverpayConfirm, setShowOverpayConfirm] = useState(false);
     const [receiptAccountSelections, setReceiptAccountSelections] = useState<Record<string, string>>({});
     const [incomingDebtAccountSelections, setIncomingDebtAccountSelections] = useState<Record<string, string>>({});
-    const [repaymentSyncAccountSelections, setRepaymentSyncAccountSelections] = useState<Record<string, string>>({});
 
     const toggleSplitExpand = (txId: string) => {
         setExpandedSplits(prev => {
@@ -389,22 +374,6 @@ export function SpendingPage() {
         },
         onError: (error: any) => {
             toast.error(error.message || 'Failed to process debt request');
-        },
-    });
-
-    const respondToDebtPaymentSync = trpc.debt.respondToDebtPaymentSync.useMutation({
-        onSuccess: () => {
-            utils.debt.listIncomingDebtPaymentSync.invalidate();
-            utils.debt.list.invalidate();
-            utils.notification.list.invalidate();
-            utils.transaction.list.invalidate();
-            utils.account.list.invalidate();
-            utils.account.getTotalBalance.invalidate();
-            utils.bank.getHierarchy.invalidate();
-            toast.success('Repayment confirmed');
-        },
-        onError: (error: any) => {
-            toast.error(error.message || 'Failed to respond');
         },
     });
 
@@ -592,12 +561,12 @@ export function SpendingPage() {
     const currencyOptions = useMemo(() => {
         if (!banks) return [];
         const options: { id: string; label: string; currencyCode: string; balance: number }[] = [];
-        banks.forEach((bank: any) => {
-            bank.accounts?.forEach((acc: any) => {
-                acc.currencyBalances?.forEach((cb: any) => {
+        banks.forEach((bank: { name: string; accounts: Array<{ name: string; currencyBalances: Array<{ id: string; balance: string | number; currencyCode: string }> }> }) => {
+            bank.accounts.forEach((acc) => {
+                acc.currencyBalances.forEach((cb) => {
                     options.push({
                         id: cb.id,
-                        label: `${formatAccountLabel(bank.name, acc.name, acc.last4Digits)} - ${cb.currencyCode}`,
+                        label: `[${bank.name}] ${acc.name} `,
                         currencyCode: cb.currencyCode,
                         balance: Number(cb.balance),
                     });
@@ -901,6 +870,7 @@ export function SpendingPage() {
                     isActive && "shadow-[0_-8px_30px_rgba(0,0,0,0.08),0_8px_30px_rgba(0,0,0,0.12)]"
                 )}
                 style={{
+                    zIndex: isActive ? 50 : 40 - offsetIndex,
                     margin: '16px 0'
                 }}
                 onClick={onClick}
@@ -1359,7 +1329,7 @@ export function SpendingPage() {
                                                 setRespondingSplitId(request.id);
                                                 respondToIncomingSplit.mutate({
                                                     splitId: request.id,
-                                                    decision: 'decline',
+                                                    decision: 'disapprove',
                                                 });
                                             }}
                                         >
@@ -1383,12 +1353,7 @@ export function SpendingPage() {
                             </p>
                         </div>
                         <div className="space-y-2">
-                            {pendingIncomingReceipts.map((receipt: any) => {
-                                const receiptAccountId = receiptAccountSelections[receipt.paymentId];
-                                const receiptSelectedOpt = receiptAccountId
-                                    ? currencyOptions.find((o) => o.id === receiptAccountId)
-                                    : undefined;
-                                return (
+                            {pendingIncomingReceipts.map((receipt: any) => (
                                 <div key={receipt.paymentId} className="rounded-lg border bg-background p-3">
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
@@ -1407,14 +1372,7 @@ export function SpendingPage() {
                                     </div>
                                     <div className="mt-2 flex flex-wrap items-end gap-2">
                                         <div className="min-w-[260px] flex-1 space-y-1">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <Label className="text-xs text-muted-foreground">Receive to account</Label>
-                                                {receiptSelectedOpt && (
-                                                    <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-muted/50 border shrink-0">
-                                                        Balance: {receiptSelectedOpt.balance.toLocaleString()} {receiptSelectedOpt.currencyCode}
-                                                    </span>
-                                                )}
-                                            </div>
+                                            <Label className="text-xs text-muted-foreground">Receive to account</Label>
                                             <Select
                                                 value={receiptAccountSelections[receipt.paymentId]}
                                                 onValueChange={(val) => {
@@ -1424,7 +1382,7 @@ export function SpendingPage() {
                                                     }));
                                                 }}
                                             >
-                                                <SelectTrigger className="min-h-14">
+                                                <SelectTrigger>
                                                     <SelectValue placeholder="Select account" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -1432,10 +1390,7 @@ export function SpendingPage() {
                                                         .filter((opt) => opt.currencyCode === receipt.currencyCode)
                                                         .map((opt) => (
                                                             <SelectItem key={opt.id} value={opt.id}>
-                                                                <div className="flex flex-col items-start py-1">
-                                                                    <span className="font-medium text-sm">{opt.label}</span>
-                                                                    <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
-                                                                </div>
+                                                                {opt.label} ({opt.currencyCode})
                                                             </SelectItem>
                                                         ))}
                                                 </SelectContent>
@@ -1457,8 +1412,7 @@ export function SpendingPage() {
                                         </Button>
                                     </div>
                                 </div>
-                                );
-                            })}
+                            ))}
                         </div>
                     </CardContent>
                 </Card>
@@ -1529,7 +1483,7 @@ export function SpendingPage() {
                                                             onClick={() => {
                                                                 respondToIncomingDebtRequest.mutate({
                                                                     notificationId: request.notificationId,
-                                                                    decision: 'decline',
+                                                                    decision: 'disapprove',
                                                                 });
                                                             }}
                                                             disabled={respondToIncomingDebtRequest.isPending}
@@ -1544,16 +1498,9 @@ export function SpendingPage() {
                                         </div>
                                         <div className="mt-3 space-y-2">
                                         <div className="space-y-1">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                                                    {isFundingRequest ? 'Pay from' : 'Receive to'}
-                                                </Label>
-                                                {selectedAccount && (
-                                                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-muted/50 border shrink-0">
-                                                        Balance: {selectedAccount.balance.toLocaleString()} {selectedAccount.currencyCode}
-                                                    </span>
-                                                )}
-                                            </div>
+                                            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                                                {isFundingRequest ? 'Pay from' : 'Receive to'}
+                                            </Label>
                                             <Select
                                                 value={selectedAccountId}
                                                 onValueChange={(val) => {
@@ -1563,7 +1510,7 @@ export function SpendingPage() {
                                                     }));
                                                 }}
                                             >
-                                                <SelectTrigger className="min-h-14 text-xs">
+                                                <SelectTrigger className="h-8 text-xs">
                                                     <SelectValue placeholder="Select account" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -1571,10 +1518,7 @@ export function SpendingPage() {
                                                         .filter((opt) => opt.currencyCode === request.currencyCode)
                                                         .map((opt) => (
                                                             <SelectItem key={opt.id} value={opt.id} className="text-xs">
-                                                                <div className="flex flex-col items-start py-1">
-                                                                    <span className="font-medium text-sm">{opt.label}</span>
-                                                                    <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
-                                                                </div>
+                                                                {opt.label} ({opt.currencyCode}) - <CurrencyDisplay amount={opt.balance} currency={opt.currencyCode} />
                                                             </SelectItem>
                                                         ))}
                                                 </SelectContent>
@@ -1594,137 +1538,6 @@ export function SpendingPage() {
                 </CardContent>
             </Card>
         )}
-
-            {incomingDebtPaymentSync && incomingDebtPaymentSync.length > 0 && (
-                <Card className="border-amber-500/20 bg-amber-500/5">
-                    <CardContent className="p-3 sm:p-4 space-y-3">
-                        <div className="flex items-center gap-2">
-                            <ArrowLeftRight className="h-4 w-4 text-amber-600" />
-                            <p className="text-sm font-semibold">
-                                Confirm linked repayments ({incomingDebtPaymentSync.length})
-                            </p>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            Someone recorded a repayment on a shared debt. Choose the account for your side, then approve.
-                        </p>
-                        <div className="space-y-2">
-                            {incomingDebtPaymentSync.map((item: IncomingDebtPaymentSyncRow) => {
-                                const selectedAccountId = repaymentSyncAccountSelections[item.notificationId];
-                                const selectedAccount = currencyOptions.find((opt) => opt.id === selectedAccountId);
-                                const isPayFrom = item.peerDebtType === 'i_owe';
-                                const isInsufficient = Boolean(
-                                    isPayFrom &&
-                                    selectedAccount &&
-                                    Number(item.amount || 0) > selectedAccount.balance
-                                );
-
-                                return (
-                                    <div key={item.notificationId} className="rounded-lg border bg-background p-3">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="min-w-0">
-                                                <p className="text-sm font-medium truncate">
-                                                    {item.proposerName}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground truncate">
-                                                    Recorded repayment · {item.paymentDate}
-                                                </p>
-                                            </div>
-                                            <CurrencyDisplay
-                                                amount={Number(item.amount || 0)}
-                                                currency={item.currencyCode ?? undefined}
-                                                className="text-sm font-semibold"
-                                            />
-                                        </div>
-                                        {item.note ? (
-                                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.note}</p>
-                                        ) : null}
-                                        <div className="mt-3 space-y-2">
-                                            <div className="space-y-1">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                                                        {isPayFrom ? 'Pay from' : 'Receive to'}
-                                                    </Label>
-                                                    {selectedAccount && (
-                                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-muted/50 border shrink-0">
-                                                            Balance: {selectedAccount.balance.toLocaleString()} {selectedAccount.currencyCode}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <Select
-                                                    value={selectedAccountId}
-                                                    onValueChange={(val) => {
-                                                        setRepaymentSyncAccountSelections((prev) => ({
-                                                            ...prev,
-                                                            [item.notificationId]: val,
-                                                        }));
-                                                    }}
-                                                >
-                                                    <SelectTrigger className="min-h-14 text-xs">
-                                                        <SelectValue placeholder="Select account" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {currencyOptions
-                                                            .filter((opt) => opt.currencyCode === item.currencyCode)
-                                                            .map((opt) => (
-                                                                <SelectItem key={opt.id} value={opt.id} className="text-xs">
-                                                                    <div className="flex flex-col items-start py-1">
-                                                                        <span className="font-medium text-sm">{opt.label}</span>
-                                                                        <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
-                                                                    </div>
-                                                                </SelectItem>
-                                                            ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            {isInsufficient && (
-                                                <p className="text-[10px] text-destructive flex items-center gap-1 font-medium">
-                                                    <AlertCircle className="h-3 w-3" />
-                                                    Insufficient balance
-                                                </p>
-                                            )}
-                                            <div className="flex flex-wrap gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    className="text-xs h-8"
-                                                    disabled={
-                                                        !selectedAccountId ||
-                                                        isInsufficient ||
-                                                        respondToDebtPaymentSync.isPending
-                                                    }
-                                                    onClick={() => {
-                                                        if (!selectedAccountId) return;
-                                                        respondToDebtPaymentSync.mutate({
-                                                            notificationId: item.notificationId,
-                                                            decision: 'approve',
-                                                            currencyBalanceId: selectedAccountId,
-                                                        });
-                                                    }}
-                                                >
-                                                    Approve
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="text-xs h-8 text-destructive hover:text-destructive"
-                                                    disabled={respondToDebtPaymentSync.isPending}
-                                                    onClick={() => {
-                                                        respondToDebtPaymentSync.mutate({
-                                                            notificationId: item.notificationId,
-                                                            decision: 'decline',
-                                                        });
-                                                    }}
-                                                >
-                                                    Decline
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
 
         <div className="flex flex-col items-center gap-12 mt-12 mb-24">
             {viewMode === 'month' ? (
@@ -1777,16 +1590,13 @@ export function SpendingPage() {
                                 }}
                                 value={watchedCurrencyBalanceId}
                             >
-                                <SelectTrigger className="min-h-14">
+                                <SelectTrigger>
                                     <SelectValue placeholder="Select account" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {currencyOptions.map((opt) => (
                                         <SelectItem key={opt.id} value={opt.id}>
-                                            <div className="flex flex-col items-start py-1">
-                                                <span className="font-medium text-sm">{opt.label}</span>
-                                                <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
-                                            </div>
+                                            {opt.label} • {opt.currencyCode}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -2008,7 +1818,7 @@ export function SpendingPage() {
                         <div className="space-y-2">
                             <Label>Paid from your account</Label>
                             <Select value={payNowPayerAccountId} onValueChange={setPayNowPayerAccountId}>
-                                <SelectTrigger className="min-h-14">
+                                <SelectTrigger>
                                     <SelectValue placeholder="Select your account" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -2016,10 +1826,7 @@ export function SpendingPage() {
                                         .filter((opt) => opt.currencyCode === payNowRequest?.transaction?.currencyBalance?.currencyCode)
                                         .map((opt) => (
                                             <SelectItem key={opt.id} value={opt.id}>
-                                                <div className="flex flex-col items-start py-1">
-                                                    <span className="font-medium text-sm">{opt.label}</span>
-                                                    <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
-                                                </div>
+                                                {opt.label} ({opt.currencyCode})
                                             </SelectItem>
                                         ))}
                                 </SelectContent>
@@ -2193,16 +2000,13 @@ export function SpendingPage() {
                         <div className="space-y-2">
                             <Label>Account</Label>
                             <Select onValueChange={(val) => setShortcutValue('currencyBalanceId', val)} value={watchedShortcutCurrencyBalanceId}>
-                                <SelectTrigger className="min-h-14">
+                                <SelectTrigger>
                                     <SelectValue placeholder="Select account" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {currencyOptions.map((opt) => (
                                         <SelectItem key={opt.id} value={opt.id}>
-                                            <div className="flex flex-col items-start py-1">
-                                                <span className="font-medium text-sm">{opt.label}</span>
-                                                <span className="text-xs text-muted-foreground">{opt.currencyCode} • {opt.balance.toLocaleString()}</span>
-                                            </div>
+                                            {opt.label} • {opt.currencyCode}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
