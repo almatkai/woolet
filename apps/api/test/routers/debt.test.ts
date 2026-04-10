@@ -17,7 +17,12 @@ describe("Debt Router", () => {
         const mockBalance = {
             id: balanceId,
             balance: "1000",
-            currencyCode: "USD"
+            currencyCode: "USD",
+            account: {
+                bank: {
+                    userId: "test-user-id"
+                }
+            }
         };
 
         const mockDb = {

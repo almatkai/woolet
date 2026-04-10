@@ -653,7 +653,7 @@ export const debtRouter = router({
                 priority: 'medium',
                 links: { web: '/debts', mobile: 'woolet://financial/debts', universal: 'https://woolet.app/debts' },
                 entityType: 'debt',
-                entityId: requestDebt.id,
+                entityId: requesterDebt.id,
                 metadata: {
                     requestKind: 'debt_transfer_request',
                     status: 'approved',
