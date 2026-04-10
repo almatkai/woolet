@@ -39,7 +39,7 @@ export function CurrencyExchangeWidget({ gridParams }: { gridParams?: GridParams
 
     if (isLoading) {
         return (
-            <Card className="dashboard-widget h-full rounded-[32px] overflow-hidden">
+            <Card className="dashboard-widget h-full overflow-hidden">
                 <CardHeader className="p-3 pb-2">
                     <Skeleton className="h-4 w-24" />
                 </CardHeader>
@@ -56,9 +56,9 @@ export function CurrencyExchangeWidget({ gridParams }: { gridParams?: GridParams
     const displayRate = isReversed ? (1 / rate) : rate;
 
     return (
-        <Card className={cn('dashboard-widget h-full flex flex-col group rounded-[32px] overflow-hidden', isCompact && 'dashboard-widget--compact')}>
+        <Card className={cn('dashboard-widget h-full flex flex-col group overflow-hidden', isCompact && 'dashboard-widget--compact')}>
             <div className="flex-1 flex flex-col min-h-0">
-                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-xl cursor-pointer" onClick={() => setIsReversed(!isReversed)}>
+                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setIsReversed(!isReversed)}>
                     <div className="flex flex-col min-w-0 flex-1">
                         <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Exchange Rates</div>
                         <div className="flex items-baseline gap-1.5 flex-wrap">
@@ -101,7 +101,7 @@ export function CurrencyExchangeWidget({ gridParams }: { gridParams?: GridParams
                     <TrendingUp className="h-2.5 w-2.5" />
                     Market Rates
                 </span>
-                <Link to="/accounts" className="text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
+                <Link to="/accounts" className="dashboard-widget__footer-action text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
                     Details <ArrowRight className="h-2.5 w-2.5" />
                 </Link>
             </WidgetFooter>

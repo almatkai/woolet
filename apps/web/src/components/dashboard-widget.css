@@ -1,7 +1,20 @@
+/* Card shell: between app default (~0.5rem) and the old 32px widgets */
 .dashboard-widget {
+    --dashboard-widget-radius: 1.25rem;
+    --dashboard-widget-radius-sm: 0.3125rem; /* 5px — tighter for nested chips, rows, icon wells */
     @apply transition-all duration-500 ease-bounce-out border-border/40 bg-card min-w-0 shadow-sm;
-    border-radius: 32px !important;
-    overflow: hidden; /* Keep content contained inside large rounding */
+    border-radius: var(--dashboard-widget-radius) !important;
+    overflow: hidden;
+}
+
+/* Footer “Details / Manage” */
+.dashboard-widget__footer-action {
+    border-radius: var(--dashboard-widget-radius-sm);
+}
+
+.dashboard-widget__footer-action:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
 }
 
 .dashboard-widget:hover {

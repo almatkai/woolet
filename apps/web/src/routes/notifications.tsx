@@ -147,7 +147,7 @@ export function NotificationsPage() {
 
                 <TabsContent value={activeTab} className="mt-4">
                     {filteredNotifications.length === 0 ? (
-                        <Card className="dashboard-widget h-full rounded-[32px] overflow-hidden">
+                        <Card className="dashboard-widget h-full overflow-hidden">
                             <CardHeader className="p-3 pb-2">
                                 <Bell className="h-8 w-8 text-muted-foreground mb-2" />
                             </CardHeader>
@@ -169,7 +169,7 @@ export function NotificationsPage() {
                                 return (
                                     <Card
                                         key={notification.id}
-                                        className="dashboard-widget h-auto rounded-[32px] overflow-hidden group"
+                                        className="dashboard-widget h-auto overflow-hidden group"
                                     >
                                         <div className="relative overflow-hidden">
                                             <div 

@@ -36,8 +36,8 @@ export function AdaptiveMetricWidget({
         : icon;
 
     return (
-        <Card className={cn('dashboard-widget h-full flex flex-col group rounded-[32px] overflow-hidden', isCompact && 'dashboard-widget--compact')}>
-            <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-xl">
+        <Card className={cn('dashboard-widget h-full flex flex-col group overflow-hidden', isCompact && 'dashboard-widget--compact')}>
+            <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between">
                 <div className="flex flex-col min-w-0 flex-1">
                     <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">{title}</div>
                     <div className="flex items-baseline gap-1.5 flex-wrap">

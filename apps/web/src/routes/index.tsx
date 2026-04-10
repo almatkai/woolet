@@ -1,4 +1,5 @@
 import React from 'react';
+import { cn } from '@/lib/utils';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { Navigate } from '@tanstack/react-router';
 import {
@@ -51,7 +52,7 @@ export function Dashboard() {
                                     setIsEditing(false);
                                     dashboardGridRef.current?.handleCancel();
                                 }}
-                                className="gap-2 flex-1 sm:flex-none"
+                                className={cn('gap-2 flex-1 sm:flex-none rounded-toolbar')}
                             >
                                 <X className="h-4 w-4" />
                                 Cancel
@@ -62,7 +63,7 @@ export function Dashboard() {
                                     setIsEditing(false);
                                     dashboardGridRef.current?.handleSave();
                                 }}
-                                className="gap-2 flex-1 sm:flex-none"
+                                className={cn('gap-2 flex-1 sm:flex-none rounded-toolbar')}
                             >
                                 <Save className="h-4 w-4" />
                                 Save Layout
@@ -70,13 +71,18 @@ export function Dashboard() {
                         </>
                     ) : (
                         <>
-                            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="gap-2 flex-1 sm:flex-none">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsEditing(true)}
+                                className={cn('gap-2 flex-1 sm:flex-none rounded-toolbar')}
+                            >
                                 <Pencil className="h-4 w-4" />
                                 Edit Layout
                             </Button>
                             <UniversalAddSheet
                                 trigger={
-                                    <Button size="sm" className="gap-2 flex-1 sm:flex-none">
+                                    <Button size="sm" className={cn('gap-2 flex-1 sm:flex-none rounded-toolbar')}>
                                         <Plus className="h-4 w-4" />
                                         Add
                                     </Button>
