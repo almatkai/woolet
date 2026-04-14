@@ -1,4 +1,5 @@
 
+
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
@@ -59,15 +60,11 @@ export const formatAmountAbbreviated = (amount: string | number, ignoreOpacity: 
     const sign = num < 0 ? '-' : '';
 
     if (absNum >= 1_000_000) {
-        const formatted = (absNum / 1_000_000).toLocaleString('en-US', { maximumFractionDigits: 1 });
-        return <>{sign}{formatted}m</>;
+        const formatted = Math.floor(absNum / 1_000_000).toLocaleString('en-US');
+        return <>{sign}{formatted}<span className={ignoreOpacity ? "" : "opacity-50"}>m</span></>;
     }
     if (absNum >= 1_000) {
-        const formatted = (absNum / 1_000).toLocaleString('en-US', { maximumFractionDigits: 1 });
-        const parts = formatted.split('.');
-        if (parts.length > 1) {
-            return <>{sign}{parts[0]}<span className={ignoreOpacity ? "" : "opacity-50"}>.{parts[1]}k</span></>;
-        }
+        const formatted = Math.floor(absNum / 1_000).toLocaleString('en-US');
         return <>{sign}{formatted}<span className={ignoreOpacity ? "" : "opacity-50"}>k</span></>;
     }
     
@@ -86,11 +83,7 @@ export const formatFullAmount = (amount: string | number, currency?: string, ign
     if (!currency) {
         formattedStr = num.toLocaleString('en-US', { maximumFractionDigits: 2 });
     } else {
-        try {
-            formattedStr = num.toLocaleString('en-US', { style: 'currency', currency });
-        } catch {
-            formattedStr = `${currency} ${num.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
-        }
+        formattedStr = num.toLocaleString('en-US', { maximumFractionDigits: 2 });
     }
 
     // Attempt to split by decimal to apply opacity to the decimal part if it exists
@@ -114,12 +107,14 @@ export function CurrencyDisplay({ amount, currency, className, abbreviate = true
 
     const sizeClasses = size === 'sm' ? 'text-xs' : '';
 
+    const isAbbreviated = abbreviate && (Math.abs(num) >= 1000);
+
     return (
         <TooltipProvider>
             <Tooltip open={open} onOpenChange={setOpen}>
                 <TooltipTrigger asChild>
                     <span
-                        className={cn("cursor-help select-none inline-flex items-baseline gap-1", sizeClasses, className)}
+                        className={cn("cursor-help select-none inline-flex items-baseline", sizeClasses, className)}
                         style={color ? { color } : undefined}
                         onClick={(e) => {
                             e.preventDefault();
@@ -128,9 +123,9 @@ export function CurrencyDisplay({ amount, currency, className, abbreviate = true
                         }}
                     >
                         {currency && (
-                            <span className="font-medium leading-none" style={color ? { color } : undefined}>{getCurrencySymbol(currency)}</span>
+                            <span className="font-medium leading-none opacity-40 mr-0.5" style={color ? { color } : undefined}>{getCurrencySymbol(currency)}</span>
                         )}
-                        <span className="font-medium leading-none" style={color ? { color } : undefined}>
+                        <span className={cn("font-medium leading-none tracking-tight", !isAbbreviated && "tracking-tighter")} style={color ? { color } : undefined}>
                             {sign}{displayAmount}
                         </span>
                     </span>

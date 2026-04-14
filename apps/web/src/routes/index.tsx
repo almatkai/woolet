@@ -46,7 +46,6 @@ export function Dashboard() {
                         <>
                             <Button
                                 variant="outline"
-                                size="sm"
                                 onClick={() => {
                                     setIsEditing(false);
                                     dashboardGridRef.current?.handleCancel();
@@ -57,7 +56,6 @@ export function Dashboard() {
                                 Cancel
                             </Button>
                             <Button
-                                size="sm"
                                 onClick={() => {
                                     setIsEditing(false);
                                     dashboardGridRef.current?.handleSave();
@@ -70,13 +68,13 @@ export function Dashboard() {
                         </>
                     ) : (
                         <>
-                            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="gap-2 flex-1 sm:flex-none">
+                            <Button variant="secondary" onClick={() => setIsEditing(true)} className="gap-2 flex-1 sm:flex-none">
                                 <Pencil className="h-4 w-4" />
                                 Edit Layout
                             </Button>
                             <UniversalAddSheet
                                 trigger={
-                                    <Button size="sm" className="gap-2 flex-1 sm:flex-none">
+                                    <Button className="gap-2 flex-1 sm:flex-none">
                                         <Plus className="h-4 w-4" />
                                         Add
                                     </Button>

@@ -95,12 +95,12 @@ export default function CreditsPage() {
                 {credits && credits.filter((c: Credit) => c.status === 'active').length > 0 && (
                     <Button variant="secondary" onClick={() => setShowCompoundPayment(true)} className="gap-2 flex-1 sm:flex-none">
                         <Wallet className="h-4 w-4" />
-                        Pay All Credits
+                        Pay All
                     </Button>
                 )}
                 <Button onClick={() => setShowAddCredit(true)} className="gap-2 flex-1 sm:flex-none">
                     <Plus className="h-4 w-4" />
-                    Add Credit
+                    Add
                 </Button>
             </PageHeader>
 

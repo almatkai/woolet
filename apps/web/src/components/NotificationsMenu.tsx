@@ -171,10 +171,10 @@ export function NotificationsMenu() {
                     )}
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[calc(100vw-2rem)] sm:w-[380px] rounded-[32px] border-border/30 bg-card/40 backdrop-blur-3xl shadow-2xl p-0 overflow-hidden">
+            <DropdownMenuContent align="end" className="w-[calc(100vw-2rem)] sm:w-[380px] rounded-lg border-border/30 bg-card/40 backdrop-blur-3xl shadow-2xl p-0 overflow-hidden">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-border/10 bg-white/5">
                     <div className="flex items-center gap-2.5">
-                        <div className="p-2 bg-primary/10 rounded-xl">
+                        <div className="p-2 bg-primary/10 rounded-md">
                             <Bell className="h-4 w-4 text-primary" />
                         </div>
                         <span className="font-bold text-base">Notifications</span>
@@ -189,7 +189,7 @@ export function NotificationsMenu() {
                             variant="ghost"
                             size="sm"
                             onClick={() => markAllAsReadMutation.mutate()}
-                            className="h-8 text-xs text-muted-foreground hover:text-foreground hover:bg-primary/10 rounded-lg px-2.5"
+                            className="h-8 text-xs text-muted-foreground hover:text-foreground hover:bg-primary/10 rounded-md px-2.5"
                         >
                             <Check className="h-3.5 w-3.5 mr-1.5" />
                             Mark all read
@@ -216,7 +216,7 @@ export function NotificationsMenu() {
                                     <DropdownMenuItem
                                         key={notification.id}
                                         className={cn(
-                                            "flex items-start gap-3.5 px-3 py-3 cursor-pointer rounded-2xl transition-all border border-transparent",
+                                            "flex items-start gap-3.5 px-3 py-3 cursor-pointer rounded-md transition-all border border-transparent",
                                             isUnread ? "bg-primary/10 hover:bg-primary/15 border-primary/10" : "hover:bg-muted/40"
                                         )}
                                         onClick={() => handleNotificationClick(notification)}
@@ -259,7 +259,7 @@ export function NotificationsMenu() {
                 <div className="p-3 border-t border-border/10 bg-white/5">
                     <DropdownMenuItem asChild className="p-0">
                         <Link to="/notifications" className="w-full block">
-                            <Button variant="ghost" className="w-full justify-center text-primary font-semibold text-sm rounded-xl h-10 hover:bg-primary/25 transition-colors">
+                            <Button variant="ghost" className="w-full justify-center text-primary font-semibold text-sm rounded-md h-10 hover:bg-primary/25 transition-colors">
                                 View all notifications
                             </Button>
                         </Link>

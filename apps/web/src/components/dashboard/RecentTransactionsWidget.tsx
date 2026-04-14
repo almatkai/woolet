@@ -102,7 +102,7 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
 
     if (isLoading) {
         return (
-            <Card className="dashboard-widget h-full rounded-[32px] overflow-hidden">
+            <Card className="dashboard-widget h-full rounded-lg overflow-hidden">
                 <CardHeader className="p-3 pb-2">
                     <Skeleton className="h-4 w-24" />
                 </CardHeader>
@@ -115,9 +115,8 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
     }
 
     return (
-        <Card className={cn('dashboard-widget h-full flex flex-col group rounded-[32px] overflow-hidden', isCompact && 'dashboard-widget--compact')}>
-            <Link to="/spending" className="block flex-1 flex flex-col min-h-0">
-                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-xl cursor-pointer">
+        <Card className={cn('dashboard-widget h-full flex flex-col group rounded-lg overflow-hidden', isCompact && 'dashboard-widget--compact')}>
+                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-lg cursor-pointer">
                     <div className="flex flex-col min-w-0 flex-1">
                         <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Recent Activity</div>
                         <div className="flex items-baseline gap-1.5 flex-wrap">
@@ -127,7 +126,7 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
                             </span>
                         </div>
                     </div>
-                    <div className="p-1.5 bg-muted rounded-md group-hover:bg-muted/80 transition-colors">
+                    <div className="p-1.5 bg-muted rounded-sm group-hover:bg-muted/80 transition-colors">
                         <History className="h-4 w-4 text-muted-foreground" />
                     </div>
                 </CardHeader>
@@ -171,15 +170,14 @@ export function RecentTransactionsWidget({ gridParams }: { gridParams?: { w: num
                         )}
                     </div>
                 </CardContent>
-            </Link>
 
-            <WidgetFooter>
+            <WidgetFooter to="/spending">
                 <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">
                     {period === 'all' ? 'All Time' : period === 'week' ? 'This Week' : 'This Month'}
                 </span>
-                <Link to="/spending" className="text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
+                <div className="text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
                     View All <ArrowRight className="h-2.5 w-2.5" />
-                </Link>
+                </div>
             </WidgetFooter>
         </Card>
     );

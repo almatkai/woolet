@@ -294,7 +294,7 @@ export function SpendingChart({ gridParams }: { gridParams?: { w: number; h: num
                     </div>
                     <div className="flex items-baseline gap-1.5 flex-wrap">
                         <span className="text-lg sm:text-xl font-bold tracking-tight whitespace-nowrap">
-                            <CurrencyDisplay amount={currentTotal} showSign abbreviate={currentTotal > 1000000} />
+                            <CurrencyDisplay amount={currentTotal} showSign abbreviate={currentTotal >= 1000} />
                         </span>
                         {categoryIds.length > 0 && !isLoading && (
                             <div className={cn(

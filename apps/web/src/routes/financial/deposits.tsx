@@ -91,9 +91,9 @@ export default function DepositsPage() {
                 subtitle="Manage your savings and deposits"
                 variant="one"
             >
-                <Button onClick={() => setShowAddDeposit(true)} className="gap-2">
+                <Button onClick={() => setShowAddDeposit(true)} className="gap-2 flex-1 sm:flex-none">
                     <Plus className="h-4 w-4" />
-                    Add Deposit
+                    Add
                 </Button>
             </PageHeader>
 

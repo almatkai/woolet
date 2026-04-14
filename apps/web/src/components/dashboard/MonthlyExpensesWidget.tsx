@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { TrendingDown, TrendingUp, ArrowDownRight, CreditCard, Calendar } from 'lucide-react';
+import { TrendingDown, TrendingUp, ArrowDownRight, CreditCard, Calendar, ArrowRight } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -95,7 +95,7 @@ export function MonthlyExpensesWidget({ gridParams }: { gridParams?: GridParams 
 
     if (isLoading) {
         return (
-            <Card className={cn('dashboard-widget h-full rounded-[32px] overflow-hidden', isCompact && 'dashboard-widget--compact')}>
+            <Card className={cn('dashboard-widget h-full rounded-lg overflow-hidden', isCompact && 'dashboard-widget--compact')}>
                 <CardHeader className="p-3 pb-2">
                     <Skeleton className="h-4 w-24" />
                     <Skeleton className="h-7 w-28 mt-1" />
@@ -108,14 +108,13 @@ export function MonthlyExpensesWidget({ gridParams }: { gridParams?: GridParams 
     }
 
     return (
-        <Card className={cn('dashboard-widget h-full flex flex-col group rounded-[32px] overflow-hidden', isCompact && 'dashboard-widget--compact')}>
-            <Link to="/spending" className="block flex-1 flex flex-col min-h-0">
-                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-xl cursor-pointer">
+        <Card className={cn('dashboard-widget h-full flex flex-col group rounded-lg overflow-hidden', isCompact && 'dashboard-widget--compact')}>
+                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-lg cursor-pointer">
                     <div className="flex flex-col min-w-0 flex-1">
                         <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Monthly Expenses</div>
                         <div className="flex items-baseline gap-1.5 flex-wrap">
                             <span className="text-lg sm:text-xl font-bold tracking-tight text-rose-600 dark:text-rose-500 whitespace-nowrap">
-                                <CurrencyDisplay amount={-totalExpense} abbreviate={totalExpense > 1000000} />
+                                <CurrencyDisplay amount={-totalExpense} abbreviate={totalExpense >= 1000} />
                             </span>
                             <div className={cn(
                                 "flex items-center text-[10px] font-bold px-1 py-0 rounded-full",
@@ -126,7 +125,7 @@ export function MonthlyExpensesWidget({ gridParams }: { gridParams?: GridParams 
                             </div>
                         </div>
                     </div>
-                    <div className="p-1.5 bg-rose-500/10 rounded-md group-hover:bg-rose-500/20 transition-colors">
+                    <div className="p-1.5 bg-rose-500/10 rounded-sm group-hover:bg-rose-500/20 transition-colors">
                         <ArrowDownRight className="h-4 w-4 text-rose-500" />
                     </div>
                 </CardHeader>
@@ -166,7 +165,7 @@ export function MonthlyExpensesWidget({ gridParams }: { gridParams?: GridParams 
                     {isTall && transactions.length > 0 && (
                         <div className="mt-2 space-y-1 overflow-hidden relative z-10">
                             {transactions.slice(0, 2).map(tx => (
-                                <div key={tx.id} className="flex items-center justify-between p-1.5 rounded-md bg-background/60 backdrop-blur-sm border border-rose-500/10">
+                                <div key={tx.id} className="flex items-center justify-between p-1.5 rounded-sm bg-background/60 backdrop-blur-sm border border-rose-500/10">
                                     <div className="flex items-center gap-1.5 min-w-0">
                                         <span className="text-sm">{tx.category?.icon || '💸'}</span>
                                         <span className="text-[10px] font-bold truncate leading-tight">{tx.description || tx.category?.name || 'Expense'}</span>
@@ -179,16 +178,15 @@ export function MonthlyExpensesWidget({ gridParams }: { gridParams?: GridParams 
                         </div>
                     )}
                 </CardContent>
-            </Link>
 
-            <WidgetFooter>
+            <WidgetFooter to="/spending">
                 <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                     <Calendar className="h-2.5 w-2.5" />
                     {transactions.length} Transactions
                 </span>
-                <Link to="/spending" className="text-[9px] font-bold text-rose-600 hover:underline uppercase tracking-wider">
-                    Details
-                </Link>
+                <div className="text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
+                    Details <ArrowRight className="h-2.5 w-2.5" />
+                </div>
             </WidgetFooter>
         </Card>
     );

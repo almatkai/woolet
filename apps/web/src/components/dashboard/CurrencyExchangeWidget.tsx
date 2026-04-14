@@ -39,7 +39,7 @@ export function CurrencyExchangeWidget({ gridParams }: { gridParams?: GridParams
 
     if (isLoading) {
         return (
-            <Card className="dashboard-widget h-full rounded-[32px] overflow-hidden">
+            <Card className="dashboard-widget h-full rounded-lg overflow-hidden">
                 <CardHeader className="p-3 pb-2">
                     <Skeleton className="h-4 w-24" />
                 </CardHeader>
@@ -56,9 +56,9 @@ export function CurrencyExchangeWidget({ gridParams }: { gridParams?: GridParams
     const displayRate = isReversed ? (1 / rate) : rate;
 
     return (
-        <Card className={cn('dashboard-widget h-full flex flex-col group rounded-[32px] overflow-hidden', isCompact && 'dashboard-widget--compact')}>
+        <Card className={cn('dashboard-widget h-full flex flex-col group rounded-lg overflow-hidden', isCompact && 'dashboard-widget--compact')}>
             <div className="flex-1 flex flex-col min-h-0">
-                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-xl cursor-pointer" onClick={() => setIsReversed(!isReversed)}>
+                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-lg cursor-pointer" onClick={() => setIsReversed(!isReversed)}>
                     <div className="flex flex-col min-w-0 flex-1">
                         <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Exchange Rates</div>
                         <div className="flex items-baseline gap-1.5 flex-wrap">
@@ -70,7 +70,7 @@ export function CurrencyExchangeWidget({ gridParams }: { gridParams?: GridParams
                             </span>
                         </div>
                     </div>
-                    <div className="p-1.5 bg-indigo-500/10 rounded-md group-hover:bg-indigo-500/20 transition-colors">
+                    <div className="p-1.5 bg-indigo-500/10 rounded-sm group-hover:bg-indigo-500/20 transition-colors">
                         <ArrowRightLeft className="h-4 w-4 text-indigo-500" />
                     </div>
                 </CardHeader>
@@ -81,7 +81,7 @@ export function CurrencyExchangeWidget({ gridParams }: { gridParams?: GridParams
                             const r = exchangeRates?.[currency] || 0;
                             const dRate = isReversed ? (1 / r) : r;
                             return (
-                                <div key={currency} className="flex items-center justify-between gap-2 p-1.5 rounded-md bg-muted/40 hover:bg-muted/60 transition-colors">
+                                <div key={currency} className="flex items-center justify-between gap-2 p-1.5 rounded-sm bg-muted/40 hover:bg-muted/60 transition-colors">
                                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
                                         <span className="text-sm leading-none flex-shrink-0">{CURRENCY_FLAGS[currency]}</span>
                                         <span className="text-[10px] font-bold truncate uppercase">{currency}</span>
@@ -96,14 +96,14 @@ export function CurrencyExchangeWidget({ gridParams }: { gridParams?: GridParams
                 </CardContent>
             </div>
 
-            <WidgetFooter>
+            <WidgetFooter to="/accounts">
                 <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                     <TrendingUp className="h-2.5 w-2.5" />
                     Market Rates
                 </span>
-                <Link to="/accounts" className="text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
+                <div className="text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
                     Details <ArrowRight className="h-2.5 w-2.5" />
-                </Link>
+                </div>
             </WidgetFooter>
         </Card>
     );

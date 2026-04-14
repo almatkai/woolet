@@ -495,7 +495,7 @@ export function DebtsPage() {
         const title = debt.description || (debt.type === 'they_owe' ? 'Lent money' : 'Borrowed money');
 
         return (
-            <div className={`border rounded-lg p-3 space-y-2 ${isAwaiting ? 'bg-muted/30 border-dashed' : ''}`}>
+            <div className={`border rounded-md p-3 space-y-2 ${isAwaiting ? 'bg-muted/30 border-dashed' : ''}`}>
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
@@ -635,7 +635,14 @@ export function DebtsPage() {
                 subtitle="Track payables and receivables"
                 variant="one"
             >
-                <AddDebtSheet />
+                <AddDebtSheet
+                    trigger={
+                        <Button className="gap-2 flex-1 sm:flex-none">
+                            <Plus className="h-4 w-4" />
+                            Add
+                        </Button>
+                    }
+                />
             </PageHeader>
             {incomingSplitRequests && incomingSplitRequests.length > 0 && (
                 <Card className="border-primary/20 bg-primary/5">
@@ -648,7 +655,7 @@ export function DebtsPage() {
                         </div>
                         <div className="space-y-2">
                             {incomingSplitRequests.map((request: any) => (
-                                <div key={request.id} className="rounded-lg border bg-background p-3">
+                                <div key={request.id} className="rounded-md border bg-background p-3">
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
                                             <p className="text-sm font-medium truncate">
@@ -729,7 +736,7 @@ export function DebtsPage() {
                         </div>
                         <div className="space-y-2">
                             {pendingIncomingReceipts.map((receipt: any) => (
-                                <div key={receipt.paymentId} className="rounded-lg border bg-background p-3">
+                                <div key={receipt.paymentId} className="rounded-md border bg-background p-3">
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
                                             <p className="text-sm font-medium truncate">
@@ -814,7 +821,7 @@ export function DebtsPage() {
                                 );
 
                                 return (
-                                    <div key={request.notificationId} id={`notification-${request.notificationId}`} className="rounded-lg border bg-background p-3 transition-all duration-300">
+                                    <div key={request.notificationId} id={`notification-${request.notificationId}`} className="rounded-md border bg-background p-3 transition-all duration-300">
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="min-w-0">
                                                 <p className="text-sm font-medium truncate">
@@ -911,7 +918,7 @@ export function DebtsPage() {
                         {isLoading ? (
                             <div className="space-y-3">
                                 {Array.from({ length: 3 }).map((_, i) => (
-                                    <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+                                    <div key={i} className="flex items-center justify-between p-3 border rounded-md">
                                         <Skeleton className="h-5 w-24" />
                                         <Skeleton className="h-5 w-16" />
                                     </div>
@@ -968,7 +975,7 @@ export function DebtsPage() {
                         {(isLoading || isLoadingSplits) ? (
                             <div className="space-y-3">
                                 {Array.from({ length: 3 }).map((_, i) => (
-                                    <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+                                    <div key={i} className="flex items-center justify-between p-3 border rounded-md">
                                         <Skeleton className="h-5 w-24" />
                                         <Skeleton className="h-5 w-16" />
                                     </div>
@@ -1105,7 +1112,7 @@ export function DebtsPage() {
                     {isLoading ? (
                         <div className="space-y-3">
                             {Array.from({ length: 2 }).map((_, i) => (
-                                <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+                                <div key={i} className="flex items-center justify-between p-3 border rounded-md">
                                     <Skeleton className="h-5 w-24" />
                                     <Skeleton className="h-5 w-16" />
                                 </div>
@@ -1163,7 +1170,7 @@ export function DebtsPage() {
                     </SheetHeader>
                     {detailDebt && (
                         <div className="flex h-[min(70vh,700px)] flex-col gap-4 pt-4">
-                            <div className="grid grid-cols-2 gap-2 rounded-lg border p-2">
+                            <div className="grid grid-cols-2 gap-2 rounded-md border p-2">
                                 <div>
                                     <p className="text-xs text-muted-foreground">Type</p>
                                     <p className="text-sm font-medium">{detailDebt.type === 'i_owe' ? 'Payable' : 'Receivable'}</p>
@@ -1211,7 +1218,7 @@ export function DebtsPage() {
                             </div>
 
                             {(detailDebt.description || detailDebt.personContact) && (
-                                <div className="space-y-1 rounded-lg border p-2">
+                                <div className="space-y-1 rounded-md border p-2">
                                     {detailDebt.description && (
                                         <div>
                                             <p className="text-xs text-muted-foreground">Description</p>

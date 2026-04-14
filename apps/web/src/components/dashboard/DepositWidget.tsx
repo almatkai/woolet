@@ -29,7 +29,7 @@ export function DepositWidget({ gridParams }: { gridParams?: GridParams }) {
 
     if (isLoading) {
         return (
-            <Card className="dashboard-widget h-full rounded-[32px] overflow-hidden">
+            <Card className="dashboard-widget h-full rounded-lg overflow-hidden">
                 <CardHeader className="p-3 pb-2">
                     <Skeleton className="h-4 w-24" />
                 </CardHeader>
@@ -42,14 +42,13 @@ export function DepositWidget({ gridParams }: { gridParams?: GridParams }) {
     }
 
     return (
-        <Card className={cn('dashboard-widget h-full flex flex-col group rounded-[32px] overflow-hidden', isCompact && 'dashboard-widget--compact')}>
-            <Link to="/financial/deposits" className="block flex-1 flex flex-col min-h-0">
-                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-xl cursor-pointer">
+        <Card className={cn('dashboard-widget h-full flex flex-col group rounded-lg overflow-hidden', isCompact && 'dashboard-widget--compact')}>
+                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-lg cursor-pointer">
                     <div className="flex flex-col min-w-0 flex-1">
                         <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Savings & Deposits</div>
                         <div className="flex items-baseline gap-2 flex-wrap">
                             <span className="text-lg font-bold tracking-tight whitespace-nowrap">
-                                <CurrencyDisplay amount={totalBalance} abbreviate={totalBalance > 1000000} />
+                                <CurrencyDisplay amount={totalBalance} abbreviate={totalBalance >= 1000} />
                             </span>
                             {totalEarned > 0 && (
                                 <div className="flex items-center text-[10px] font-bold text-emerald-600 dark:text-emerald-500">
@@ -59,7 +58,7 @@ export function DepositWidget({ gridParams }: { gridParams?: GridParams }) {
                             )}
                         </div>
                     </div>
-                    <div className="p-1.5 bg-emerald-500/10 rounded-md group-hover:bg-emerald-500/20 transition-colors">
+                    <div className="p-1.5 bg-emerald-500/10 rounded-sm group-hover:bg-emerald-500/20 transition-colors">
                         <PiggyBank className="h-4 w-4 text-emerald-500" />
                     </div>
                 </CardHeader>
@@ -72,7 +71,7 @@ export function DepositWidget({ gridParams }: { gridParams?: GridParams }) {
                             </div>
                         ) : (
                             visibleDeposits.map((deposit: any) => (
-                                <div key={deposit.id} className="flex items-center justify-between gap-2 p-1.5 rounded-md bg-muted/40 hover:bg-muted/60 transition-colors group/item">
+                                <div key={deposit.id} className="flex items-center justify-between gap-2 p-1.5 rounded-sm bg-muted/40 hover:bg-muted/60 transition-colors group/item">
                                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
                                         <Wallet className="h-3 w-3 text-emerald-500 flex-shrink-0" />
                                         <div className="flex flex-col min-w-0">
@@ -90,15 +89,14 @@ export function DepositWidget({ gridParams }: { gridParams?: GridParams }) {
                         )}
                     </div>
                 </CardContent>
-            </Link>
 
-            <WidgetFooter>
+            <WidgetFooter to="/accounts">
                 <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">
                     {activeDeposits.length} Active
                 </span>
-                <Link to="/financial/deposits" className="text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
+                <div className="text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
                     Details <ArrowRight className="h-2.5 w-2.5" />
-                </Link>
+                </div>
             </WidgetFooter>
         </Card>
     );

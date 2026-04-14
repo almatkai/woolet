@@ -870,7 +870,7 @@ export function SpendingPage() {
                     isActive && "shadow-[0_-8px_30px_rgba(0,0,0,0.08),0_8px_30px_rgba(0,0,0,0.12)]"
                 )}
                 style={{
-                    zIndex: isActive ? 50 : 40 - offsetIndex,
+                    zIndex: isActive ? 10 : 9 - offsetIndex,
                     margin: '16px 0'
                 }}
                 onClick={onClick}

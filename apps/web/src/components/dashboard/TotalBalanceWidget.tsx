@@ -87,7 +87,7 @@ export function TotalBalanceWidget({ gridParams }: { gridParams?: GridParams }) 
 
     if (isLoading) {
         return (
-            <Card className={cn('dashboard-widget h-full rounded-[32px] overflow-hidden', isCompact && 'dashboard-widget--compact')}>
+            <Card className={cn('dashboard-widget h-full rounded-lg overflow-hidden', isCompact && 'dashboard-widget--compact')}>
                 <CardHeader className="p-3 pb-2">
                     <Skeleton className="h-4 w-24" />
                     <Skeleton className="h-7 w-28 mt-1" />
@@ -100,60 +100,58 @@ export function TotalBalanceWidget({ gridParams }: { gridParams?: GridParams }) 
     }
 
     return (
-        <Card className={cn('dashboard-widget h-full flex flex-col group overflow-hidden rounded-[32px]', isCompact && 'dashboard-widget--compact')}>
-            <Link to="/accounts" className="block flex-1 flex flex-col min-h-0">
-                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-xl cursor-pointer">
-                    <div className="flex flex-col min-w-0 flex-1">
-                        <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Total Balance</div>
-                        <div className="flex items-baseline gap-1.5 flex-wrap">
-                            <span className="text-lg sm:text-xl font-bold tracking-tight whitespace-nowrap">
-                                <CurrencyDisplay amount={primaryAmount} currency={primaryCurrency} abbreviate={primaryAmount > 1000000} />
+        <Card className={cn('dashboard-widget h-full flex flex-col group overflow-hidden rounded-lg', isCompact && 'dashboard-widget--compact')}>
+            <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-muted/30 transition-colors rounded-t-lg cursor-pointer">
+                <div className="flex flex-col min-w-0 flex-1">
+                    <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Total Balance</div>
+                    <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <span className="text-lg sm:text-xl font-bold tracking-tight whitespace-nowrap">
+                            <CurrencyDisplay amount={primaryAmount} currency={primaryCurrency} abbreviate={primaryAmount >= 1000} />
+                        </span>
+                        {activeBalances.length > 1 && (
+                            <span className="text-[9px] text-muted-foreground font-medium bg-muted px-1 rounded uppercase">
+                                +{activeBalances.length - 1} more
                             </span>
-                            {activeBalances.length > 1 && (
-                                <span className="text-[9px] text-muted-foreground font-medium bg-muted px-1 rounded uppercase">
-                                    +{activeBalances.length - 1} more
-                                </span>
-                            )}
-                        </div>
+                        )}
                     </div>
-                    <div className="p-1.5 bg-primary/10 rounded-md group-hover:bg-primary/20 transition-colors">
-                        <Wallet className="h-4 w-4 text-primary" />
-                    </div>
-                </CardHeader>
+                </div>
+                <div className="p-1.5 bg-primary/10 rounded-sm group-hover:bg-primary/20 transition-colors">
+                    <Wallet className="h-4 w-4 text-primary" />
+                </div>
+            </CardHeader>
 
-                <CardContent className="px-3 py-1 flex-1 flex flex-col min-h-0">
-                    <div className="flex-1 space-y-1.5 overflow-hidden py-1">
-                        {visibleAccounts.map((account, i) => {
-                            const colors = ['text-blue-500', 'text-emerald-500', 'text-purple-500', 'text-amber-500'];
-                            return (
-                                <div
-                                    key={account.accountId}
-                                    className="flex items-center justify-between gap-2 p-1.5 rounded-md bg-muted/40 hover:bg-muted/60 transition-colors"
-                                >
-                                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                                        <Landmark className={cn("h-3 w-3 flex-shrink-0", colors[i % colors.length])} />
-                                        <span className="text-[10px] font-bold truncate leading-tight">{account.accountName}</span>
-                                    </div>
-                                    <span className="text-[10px] font-bold whitespace-nowrap">
-                                        <CurrencyDisplay
-                                            amount={account.totalBalance}
-                                            abbreviate
-                                        />
-                                    </span>
+            <CardContent className="px-3 py-1 flex-1 flex flex-col min-h-0">
+                <div className="flex-1 space-y-1.5 overflow-hidden py-1">
+                    {visibleAccounts.map((account, i) => {
+                        const colors = ['text-blue-500', 'text-emerald-500', 'text-purple-500', 'text-amber-500'];
+                        return (
+                            <div
+                                key={account.accountId}
+                                className="flex items-center justify-between gap-2 p-1.5 rounded-sm bg-muted/40 hover:bg-muted/60 transition-colors"
+                            >
+                                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                    <Landmark className={cn("h-3 w-3 flex-shrink-0", colors[i % colors.length])} />
+                                    <span className="text-[10px] font-bold truncate leading-tight">{account.accountName}</span>
                                 </div>
-                            );
-                        })}
-                    </div>
-                </CardContent>
-            </Link>
+                                <span className="text-[10px] font-bold whitespace-nowrap">
+                                    <CurrencyDisplay
+                                        amount={account.totalBalance}
+                                        abbreviate
+                                    />
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+            </CardContent>
 
-            <WidgetFooter>
+            <WidgetFooter to="/accounts">
                 <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">
                     {totalAccounts} Accounts
                 </span>
-                <Link to="/accounts" className="text-[9px] font-bold text-primary hover:underline uppercase tracking-wider">
-                    Manage
-                </Link>
+                <div className="text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
+                    Manage <ArrowRight className="h-2.5 w-2.5" />
+                </div>
             </WidgetFooter>
         </Card>
     );

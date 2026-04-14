@@ -32,7 +32,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CurrencySelect } from '@/components/CurrencySelect';
-import { Building2, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, DollarSign, Wallet, PieChart, BarChart3, LineChart, Trophy, Trash2, ExternalLink, Cpu, Droplets, Stethoscope, Globe, Newspaper } from 'lucide-react';
+import { Building2, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, DollarSign, Wallet, PieChart, BarChart3, LineChart, Trophy, Trash2, ExternalLink, Cpu, Droplets, Stethoscope, Globe, Newspaper, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/PageHeader';
@@ -400,7 +400,7 @@ export function InvestingPage() {
             >
                 <SeeInvestingAccountsSheet
                     trigger={
-                        <Button variant="outline" size="sm" className="gap-2 flex-1 sm:flex-none">
+                        <Button variant="secondary" className="gap-2 flex-1 sm:flex-none">
                             <Building2 className="h-4 w-4" />
                             Accounts
                         </Button>
@@ -409,8 +409,8 @@ export function InvestingPage() {
                 <AddInvestmentSheet
                     trigger={
                         <Button className="gap-2 flex-1 sm:flex-none">
-                            <TrendingUp className="h-4 w-4" />
-                            Add Investment
+                            <Plus className="h-4 w-4" />
+                            Add
                         </Button>
                     }
                 />

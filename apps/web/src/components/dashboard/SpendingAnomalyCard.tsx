@@ -15,9 +15,8 @@ export function SpendingAnomalyCard() {
     if (!anomalies) return null;
 
     return (
-        <Card className="dashboard-widget border-orange-200 dark:border-orange-900 bg-orange-50/10 dark:bg-orange-900/10 group rounded-[32px] overflow-hidden">
-            <Link to="/spending" className="block flex-1 flex flex-col min-h-0">
-                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-orange-100/20 dark:hover:bg-orange-800/20 transition-colors rounded-t-xl cursor-pointer">
+        <Card className="dashboard-widget border-orange-200 dark:border-orange-900 bg-orange-50/10 dark:bg-orange-900/10 group rounded-lg overflow-hidden">
+                <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between hover:bg-orange-100/20 dark:hover:bg-orange-800/20 transition-colors rounded-t-lg cursor-pointer">
                     <div className="flex flex-col min-w-0 flex-1">
                         <div className="text-[11px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider mb-0.5">AI Insights</div>
                         <div className="flex items-baseline gap-1.5 flex-wrap">
@@ -26,7 +25,7 @@ export function SpendingAnomalyCard() {
                             </span>
                         </div>
                     </div>
-                    <div className="p-1.5 bg-orange-500/10 rounded-md group-hover:bg-orange-500/20 transition-colors">
+                    <div className="p-1.5 bg-orange-500/10 rounded-sm group-hover:bg-orange-500/20 transition-colors">
                         <AlertTriangle className="h-4 w-4 text-orange-500" />
                     </div>
                 </CardHeader>
@@ -38,15 +37,14 @@ export function SpendingAnomalyCard() {
                         )}
                     </div>
                 </CardContent>
-            </Link>
 
             <div className="px-3 py-1.5 border-t border-orange-200/50 dark:border-orange-900/50 bg-orange-50/20 dark:bg-orange-900/20 flex items-center justify-between">
                 <span className="text-[9px] font-medium text-orange-600/80 dark:text-orange-400/80 uppercase tracking-wider">
                     AI Powered Analysis
                 </span>
-                <Link to="/spending" className="text-[9px] font-bold text-orange-600 dark:text-orange-400 flex items-center gap-0.5 hover:underline uppercase tracking-wider">
+                <div className="text-[9px] font-bold text-primary flex items-center gap-0.5 hover:underline uppercase tracking-wider">
                     Details <ArrowRight className="h-2.5 w-2.5" />
-                </Link>
+                </div>
             </div>
         </Card>
     );

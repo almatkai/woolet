@@ -178,7 +178,7 @@ export function SubscriptionsPage() {
                 subtitle="Manage your recurring payments"
                 variant="one"
             >
-                <Button size="sm" onClick={() => setShowAddSubscription(true)} className="gap-2 rounded-toolbar">
+                <Button onClick={() => setShowAddSubscription(true)} className="gap-2 flex-1 sm:flex-none">
                     <Plus className="h-4 w-4" />
                     Add
                 </Button>
