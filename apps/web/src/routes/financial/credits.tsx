@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ActionButton } from '@/components/ui/action-button';
 import { Badge } from '@/components/ui/badge';
 import { Plus, CreditCard, Trash2, Edit, DollarSign, Calendar, Percent, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
@@ -93,15 +94,15 @@ export default function CreditsPage() {
                 variant="two-with-text"
             >
                 {credits && credits.filter((c: Credit) => c.status === 'active').length > 0 && (
-                    <Button variant="secondary" onClick={() => setShowCompoundPayment(true)} className="gap-2 flex-1 sm:flex-none">
+                    <ActionButton variant="secondary" onClick={() => setShowCompoundPayment(true)} className="flex-1 sm:flex-none">
                         <Wallet className="h-4 w-4" />
                         Pay All
-                    </Button>
+                    </ActionButton>
                 )}
-                <Button onClick={() => setShowAddCredit(true)} className="gap-2 flex-1 sm:flex-none">
+                <ActionButton onClick={() => setShowAddCredit(true)} className="flex-1 sm:flex-none">
                     <Plus className="h-4 w-4" />
                     Add
-                </Button>
+                </ActionButton>
             </PageHeader>
 
             {/* Summary Cards */}
@@ -111,7 +112,7 @@ export default function CreditsPage() {
                         <CardDescription className="text-xs md:text-sm whitespace-nowrap">Total Principal</CardDescription>
                     </CardHeader>
                     <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
-                        <div className="text-base md:text-2xl font-bold truncate">
+                        <div className="text-base md:text-xl font-bold truncate">
                             <CurrencyDisplay amount={totalPrincipal} currency={primaryCurrency} abbreviate={false} />
                         </div>
                     </CardContent>
@@ -121,7 +122,7 @@ export default function CreditsPage() {
                         <CardDescription className="text-xs md:text-sm whitespace-nowrap">Total Remaining</CardDescription>
                     </CardHeader>
                     <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
-                        <div className="text-base md:text-2xl font-bold text-red-500 truncate">
+                        <div className="text-base md:text-xl font-bold text-red-500 truncate">
                             <CurrencyDisplay amount={totalRemaining} currency={primaryCurrency} abbreviate={false} />
                         </div>
                     </CardContent>
@@ -131,7 +132,7 @@ export default function CreditsPage() {
                         <CardDescription className="text-xs md:text-sm whitespace-nowrap">Monthly Payments</CardDescription>
                     </CardHeader>
                     <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
-                        <div className="text-base md:text-2xl font-bold truncate">
+                        <div className="text-base md:text-xl font-bold truncate">
                             <CurrencyDisplay amount={totalMonthly} currency={primaryCurrency} abbreviate={false} />
                         </div>
                     </CardContent>

@@ -5,8 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Home, Trash2, Edit, DollarSign, Percent, MapPin, Wallet, CheckCircle2, Circle, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/PageHeader';
+import { ActionButton } from '@/components/ui/action-button';
 import { AddMortgageSheet } from '@/components/AddMortgageSheet';
 import { MortgagePaymentSheet } from '@/components/MortgagePaymentSheet';
+import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -71,12 +75,14 @@ export default function MortgagesPage() {
     const totalRemaining = mortgages?.reduce((sum: number, m: any) => sum + Number(m.remainingBalance), 0) || 0;
     const totalMonthly = mortgages?.reduce((sum: number, m: any) => sum + Number(m.monthlyPayment), 0) || 0;
 
+    const primaryCurrency = mortgages?.[0]?.currency || 'KZT';
+
     const getStatusBadge = (status: string) => {
         switch (status) {
-            case 'active': return <Badge variant="default">Active</Badge>;
-            case 'paid_off': return <Badge variant="secondary" className="bg-green-500/20 text-green-500">Paid Off</Badge>;
-            case 'defaulted': return <Badge variant="destructive">Defaulted</Badge>;
-            default: return <Badge variant="outline">{status}</Badge>;
+            case 'active': return <Badge variant="default" className="h-5 text-[9px] uppercase tracking-wider font-bold">Active</Badge>;
+            case 'paid_off': return <Badge variant="secondary" className="h-5 text-[9px] uppercase tracking-wider font-bold bg-green-500/20 text-green-500">Paid Off</Badge>;
+            case 'defaulted': return <Badge variant="destructive" className="h-5 text-[9px] uppercase tracking-wider font-bold">Defaulted</Badge>;
+            default: return <Badge variant="outline" className="h-5 text-[9px] uppercase tracking-wider font-bold">{status}</Badge>;
         }
     };
 
@@ -99,46 +105,46 @@ export default function MortgagesPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold">Mortgages</h1>
-                    <p className="hidden sm:block text-muted-foreground">Manage your properties and loans</p>
-                </div>
-                <Button onClick={() => setShowAddMortgage(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Mortgage
-                </Button>
-            </div>
+            <PageHeader
+                title="Mortgages"
+                subtitle="Manage your properties and loans"
+                variant="one"
+            >
+                <ActionButton onClick={() => setShowAddMortgage(true)} className="sm:flex-none">
+                    <Plus className="h-4 w-4" />
+                    Add
+                </ActionButton>
+            </PageHeader>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Total Principal</CardDescription>
+                    <CardHeader className="pb-1 px-4 pt-4">
+                        <CardDescription className="text-xs">Total Principal</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">
-                            {totalPrincipal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    <CardContent className="px-4 pb-4">
+                        <div className="text-xl font-bold">
+                            <CurrencyDisplay amount={totalPrincipal} currency={primaryCurrency} abbreviate={false} />
                         </div>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Total Remaining</CardDescription>
+                    <CardHeader className="pb-1 px-4 pt-4">
+                        <CardDescription className="text-xs">Total Remaining</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-orange-500">
-                            {totalRemaining.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    <CardContent className="px-4 pb-4">
+                        <div className="text-xl font-bold text-orange-500">
+                            <CurrencyDisplay amount={totalRemaining} currency={primaryCurrency} abbreviate={false} />
                         </div>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Monthly Payments</CardDescription>
+                    <CardHeader className="pb-1 px-4 pt-4">
+                        <CardDescription className="text-xs">Monthly Payments</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">
-                            {totalMonthly.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    <CardContent className="px-4 pb-4">
+                        <div className="text-xl font-bold">
+                            <CurrencyDisplay amount={totalMonthly} currency={primaryCurrency} abbreviate={false} />
                         </div>
                     </CardContent>
                 </Card>
@@ -171,81 +177,92 @@ export default function MortgagesPage() {
                                 className="absolute bottom-0 left-0 h-1 bg-orange-500 transition-all"
                                 style={{ width: `${getPayoffPercentage(mortgage)}%` }}
                             />
-                            <CardHeader className="pb-2">
-                                <div className="flex items-center justify-between gap-2 overflow-hidden">
-                                    <div className="min-w-0">
-                                        <CardTitle className="text-lg flex items-center gap-2 truncate">
-                                            <Home className="h-4 w-4 flex-shrink-0" />
-                                            {mortgage.propertyName}
-                                        </CardTitle>
-                                        {mortgage.propertyAddress && (
-                                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1 truncate">
-                                                <MapPin className="h-3 w-3 flex-shrink-0" />
-                                                {mortgage.propertyAddress}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                        <Badge 
-                                            variant={isPaidThisMonth ? "secondary" : "destructive"} 
-                                            className={isPaidThisMonth ? "bg-green-500/20 text-green-500 flex items-center gap-1" : "flex items-center gap-1"}
-                                        >
-                                            {isPaidThisMonth ? (
-                                                <><CheckCircle2 className="h-3 w-3" /> Paid</>
-                                            ) : (
-                                                <><Circle className="h-3 w-3" /> Unpaid</>
+                            <CardHeader className="pb-2 px-4 pt-4">
+                                    <div className="flex flex-row sm:flex-row items-start justify-between gap-3 overflow-hidden">
+                                        <div className="min-w-0 flex-1">
+                                            <CardTitle className="text-sm font-bold flex items-start gap-2 whitespace-normal break-words leading-tight">
+                                                <Home className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                                                {mortgage.propertyName}
+                                            </CardTitle>
+                                            {mortgage.propertyAddress && (
+                                                <div className="flex items-start gap-1 text-[10px] text-muted-foreground mt-0.5 whitespace-normal break-words leading-tight">
+                                                    <MapPin className="h-2.5 w-2.5 mt-0.5 flex-shrink-0" />
+                                                    {mortgage.propertyAddress}
+                                                </div>
                                             )}
-                                        </Badge>
-                                        {getStatusBadge(mortgage.status)}
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => setEditingMortgage(mortgage)}
-                                        >
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => setDeletingMortgage(mortgage)}
-                                        >
-                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
+                                        </div>
+                                        <div className="flex flex-col gap-1.5 flex-shrink-0 items-end">
+                                            {/* Row 1: Status & Edit */}
+                                            <div className="flex items-center gap-1.5">
+                                                {getStatusBadge(mortgage.status)}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 hover:bg-muted"
+                                                    onClick={() => setEditingMortgage(mortgage)}
+                                                >
+                                                    <Edit className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </div>
+                                            {/* Row 2: Paid/Unpaid & Trash */}
+                                            <div className="flex items-center gap-1.5">
+                                                <Badge 
+                                                    variant={isPaidThisMonth ? "secondary" : "destructive"} 
+                                                    className={cn(
+                                                        "h-5 px-1.5 text-[9px] uppercase tracking-wider font-bold flex items-center gap-0.5",
+                                                        isPaidThisMonth ? "bg-green-500/10 text-green-500 border-green-500/20" : ""
+                                                    )}
+                                                >
+                                                    {isPaidThisMonth ? (
+                                                        <><CheckCircle2 className="h-2.5 w-2.5" /> Paid</>
+                                                    ) : (
+                                                        <><Circle className="h-2.5 w-2.5" /> Unpaid</>
+                                                    )}
+                                                </Badge>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 hover:bg-destructive/10"
+                                                    onClick={() => setDeletingMortgage(mortgage)}
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                                </Button>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
                             </CardHeader>
-                            <CardContent className="space-y-3">
-                                <div className="grid grid-cols-2 gap-4 text-sm">
+                            <CardContent className="space-y-3 px-4 pb-4">
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                                     <div className="flex items-center gap-2">
-                                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                                        <DollarSign className="h-3 w-3 text-muted-foreground" />
                                         <span className="text-muted-foreground">Principal:</span>
                                         <span className="font-medium">
-                                            {mortgage.currency} {Number(mortgage.principalAmount).toLocaleString()}
+                                            <CurrencyDisplay amount={mortgage.principalAmount} currency={mortgage.currency} abbreviate={false} />
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Percent className="h-4 w-4 text-muted-foreground" />
+                                        <Percent className="h-3 w-3 text-muted-foreground" />
                                         <span className="text-muted-foreground">Rate:</span>
                                         <span className="font-medium">{mortgage.interestRate}%</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                                        <Calendar className="h-3 w-3 text-muted-foreground" />
                                         <span className="text-muted-foreground">Monthly:</span>
                                         <span className="font-medium">
-                                            {mortgage.currency} {Number(mortgage.monthlyPayment).toLocaleString()}
+                                            <CurrencyDisplay amount={mortgage.monthlyPayment} currency={mortgage.currency} abbreviate={false} />
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <DollarSign className="h-4 w-4 text-orange-500" />
-                                        <span className="text-muted-foreground">Remaining:</span>
+                                        <DollarSign className="h-3 w-3 text-orange-500" />
+                                        <span className="text-muted-foreground">Rem:</span>
                                         <span className="font-medium text-orange-500">
-                                            {mortgage.currency} {Number(mortgage.remainingBalance).toLocaleString()}
+                                            <CurrencyDisplay amount={mortgage.remainingBalance} currency={mortgage.currency} abbreviate={false} />
                                         </span>
                                     </div>
                                 </div>
-                                <div className="text-xs text-muted-foreground">
-                                    {getPayoffPercentage(mortgage)}% paid off • {mortgage.termYears} year term
-                                    {mortgage.paymentDay && ` • Due on day ${mortgage.paymentDay}`}
+                                <div className="text-[10px] text-muted-foreground pt-1 border-t border-dashed">
+                                    {getPayoffPercentage(mortgage)}% paid • {mortgage.termYears}y term
+                                    {mortgage.paymentDay && ` • Day ${mortgage.paymentDay}`}
                                 </div>
 
                                 {/* Make Payment Button */}

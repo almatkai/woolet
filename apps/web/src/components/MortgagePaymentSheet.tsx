@@ -15,7 +15,9 @@ import {
     SheetFooter,
 } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Home, Wallet, Calendar, AlertCircle, CheckCircle2, Edit2 } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
+import { Home, Wallet, Calendar, AlertCircle, CheckCircle2, Edit2, X } from 'lucide-react';
 
 interface MortgagePaymentSheetProps {
     open: boolean;
@@ -83,6 +85,7 @@ function getCurrentMonth(): string {
 }
 
 export function MortgagePaymentSheet({ open, onOpenChange, mortgage }: MortgagePaymentSheetProps) {
+    const isMobile = useIsMobile(470);
     const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
     const [skipPayment, setSkipPayment] = useState(false);
     const [isEditingAmount, setIsEditingAmount] = useState(false);
@@ -195,28 +198,44 @@ export function MortgagePaymentSheet({ open, onOpenChange, mortgage }: MortgageP
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="sm:max-w-[500px] flex flex-col">
-                <SheetHeader>
-                    <SheetTitle className="flex items-center gap-2">
-                        <Home className="h-5 w-5" />
-                        Pay {mortgage.propertyName}
-                    </SheetTitle>
-                    <SheetDescription>
+            <SheetContent 
+                side={isMobile ? 'bottom' : 'right'}
+                className={cn(
+                    "sm:max-w-[500px] flex flex-col",
+                    isMobile ? "h-[92dvh] rounded-t-2xl p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]" : ""
+                )}
+            >
+                <SheetHeader className={isMobile ? "text-left" : ""}>
+                    <div className="flex items-center justify-between">
+                        <SheetTitle className="flex items-center gap-2">
+                            <Home className="h-5 w-5" />
+                            Pay {mortgage.propertyName}
+                        </SheetTitle>
+                        {isMobile && (
+                            <button 
+                                onClick={() => onOpenChange(false)}
+                                className="p-2 -mr-2 text-muted-foreground hover:text-foreground"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        )}
+                    </div>
+                    <SheetDescription className="text-xs sm:text-sm">
                         Select months to pay. Money will be deducted from your linked account.
                         {mortgage.paymentDay && (
-                            <span className="block mt-1 text-xs">
+                            <span className="block mt-1">
                                 Payment due on day {mortgage.paymentDay} of each month
                             </span>
                         )}
                     </SheetDescription>
                 </SheetHeader>
 
-                <div className="flex-1 space-y-4 py-4 overflow-hidden flex flex-col">
+                <div className="flex-1 space-y-3 py-4 overflow-hidden flex flex-col min-h-0">
                     {/* Payment Info */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="p-3 rounded-lg bg-muted/50">
-                            <div className="text-xs text-muted-foreground mb-1 flex items-center justify-between">
-                                <span>Monthly Payment</span>
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4 shrink-0">
+                        <div className="p-3 rounded-xl bg-muted/50 border border-border/50">
+                            <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1 flex items-center justify-between">
+                                <span>Monthly</span>
                                 <button
                                     onClick={() => setIsEditingAmount(!isEditingAmount)}
                                     className="text-primary hover:text-primary/80 transition-colors"
@@ -241,30 +260,30 @@ export function MortgagePaymentSheet({ open, onOpenChange, mortgage }: MortgageP
                                 />
                             ) : (
                                 <div
-                                    className="font-semibold cursor-pointer hover:text-primary transition-colors flex items-center justify-between"
+                                    className="text-base font-bold cursor-pointer hover:text-primary transition-colors flex items-center justify-between"
                                     onClick={() => setIsEditingAmount(true)}
                                 >
                                     <span>{mortgage.currency} {Number(monthlyPayment).toLocaleString()}</span>
                                 </div>
                             )}
                         </div>
-                        <div className="p-3 rounded-lg bg-muted/50">
-                            <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                                <Wallet className="h-3 w-3" /> Account Balance
+                        <div className="p-3 rounded-xl bg-muted/50 border border-border/50">
+                            <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1 flex items-center gap-1">
+                                <Wallet className="h-3 w-3" /> Balance
                             </div>
-                            <div className={`font-semibold ${hasInsufficientBalance && selectedMonths.length > 0 ? 'text-destructive' : ''}`}>
+                            <div className={`text-base font-bold ${hasInsufficientBalance && selectedMonths.length > 0 ? 'text-destructive' : ''}`}>
                                 {mortgage.currency} {accountBalance.toLocaleString()}
                             </div>
                         </div>
                     </div>
 
                     {/* Quick Actions */}
-                    <div className="space-y-2">
+                    <div className="space-y-2 shrink-0">
                         {paidMonths.has(currentMonth) && (
-                            <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 text-green-600 text-sm">
-                                <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-green-500/10 text-green-600 text-[11px] sm:text-xs">
+                                <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
                                 <span className="font-medium">
-                                    Current month ({formatMonth(currentMonth)}) is already paid
+                                    Current month ({formatMonth(currentMonth)}) is paid
                                 </span>
                             </div>
                         )}
@@ -272,31 +291,33 @@ export function MortgagePaymentSheet({ open, onOpenChange, mortgage }: MortgageP
                             {unpaidMonths.includes(currentMonth) && (
                                 <Button
                                     variant="outline"
-                                    className="flex-1 justify-start gap-2"
+                                    size="sm"
+                                    className="flex-1 justify-center gap-2 text-xs h-9"
                                     onClick={selectCurrentMonth}
                                 >
-                                    <Calendar className="h-4 w-4" />
-                                    Pay Current
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    Current
                                 </Button>
                             )}
                             {unpaidMonths.some(m => m <= currentMonth) && (
                                 <Button
                                     variant="outline"
-                                    className="flex-1 justify-start gap-2"
+                                    size="sm"
+                                    className="flex-1 justify-center gap-2 text-xs h-9"
                                     onClick={selectAllUntilCurrent}
                                 >
-                                    <CheckCircle2 className="h-4 w-4" />
-                                    Pay all due
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    All due
                                 </Button>
                             )}
                         </div>
                     </div>
 
                     {/* Month Selection */}
-                    <div className="flex-1 overflow-hidden flex flex-col">
-                        <Label className="mb-2">Select Months to Pay</Label>
-                        <ScrollArea className="flex-1 border rounded-lg">
-                            <div className="p-3 space-y-2">
+                    <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+                        <Label className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground/80">Select Months</Label>
+                        <ScrollArea className="flex-1 border rounded-xl bg-background/50">
+                            <div className="p-2 space-y-1">
                                 {allMonths.map((month) => {
                                     const isPaid = paidMonths.has(month);
                                     const isSelected = selectedMonths.includes(month);
@@ -306,14 +327,14 @@ export function MortgagePaymentSheet({ open, onOpenChange, mortgage }: MortgageP
                                     return (
                                         <div
                                             key={month}
-                                            className={`flex items-center justify-between p-2 rounded-md transition-colors ${isPaid
-                                                ? 'bg-green-500/10'
-                                                : isSelected
-                                                    ? 'bg-primary/10'
-                                                    : isOverdue
-                                                        ? 'bg-red-500/5'
-                                                        : 'hover:bg-muted/50'
-                                                }`}
+                                            className={cn(
+                                                "flex items-center justify-between p-2 rounded-lg transition-all",
+                                                isPaid ? 'bg-green-500/5 opacity-60' : 
+                                                isSelected ? 'bg-primary/10 border border-primary/20' : 
+                                                isOverdue ? 'bg-red-500/5 border border-red-500/10' : 
+                                                'hover:bg-muted/50 border border-transparent'
+                                            )}
+                                            onClick={() => !isPaid && toggleMonth(month)}
                                         >
                                             <div className="flex items-center gap-3">
                                                 {isPaid ? (
@@ -322,23 +343,29 @@ export function MortgagePaymentSheet({ open, onOpenChange, mortgage }: MortgageP
                                                     <Checkbox
                                                         checked={isSelected}
                                                         onCheckedChange={() => toggleMonth(month)}
+                                                        className="rounded-full"
                                                     />
                                                 )}
-                                                <span className={isPaid ? 'text-muted-foreground line-through' : ''}>
+                                                <span className={cn(
+                                                    "text-sm",
+                                                    isPaid ? 'text-muted-foreground line-through' : 'font-medium'
+                                                )}>
                                                     {formatMonth(month)}
                                                 </span>
+                                            </div>
+                                            <div className="flex gap-1.5">
                                                 {isCurrent && !isPaid && (
-                                                    <Badge variant="secondary" className="text-xs">Current</Badge>
+                                                    <Badge variant="secondary" className="text-[9px] uppercase h-4 px-1">Current</Badge>
                                                 )}
                                                 {isOverdue && (
-                                                    <Badge variant="destructive" className="text-xs">Overdue</Badge>
+                                                    <Badge variant="destructive" className="text-[9px] uppercase h-4 px-1">Overdue</Badge>
+                                                )}
+                                                {isPaid && (
+                                                    <Badge variant="secondary" className="bg-green-500/20 text-green-500 text-[9px] uppercase h-4 px-1">
+                                                        Paid
+                                                    </Badge>
                                                 )}
                                             </div>
-                                            {isPaid && (
-                                                <Badge variant="secondary" className="bg-green-500/20 text-green-500 text-xs">
-                                                    Paid
-                                                </Badge>
-                                            )}
                                         </div>
                                     );
                                 })}
@@ -348,47 +375,50 @@ export function MortgagePaymentSheet({ open, onOpenChange, mortgage }: MortgageP
 
                     {/* Insufficient Balance Warning */}
                     {hasInsufficientBalance && selectedMonths.length > 0 && !skipPayment && (
-                        <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-                            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-destructive/10 text-destructive text-[11px] shrink-0">
+                            <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
                             <span>
                                 Insufficient balance. Need {mortgage.currency} {totalPayment.toLocaleString()}
-                                but only have {mortgage.currency} {accountBalance.toLocaleString()}
                             </span>
                         </div>
                     )}
 
                     {/* Skip Payment Toggle */}
                     {selectedMonths.length > 0 && (
-                        <div className="flex items-center space-x-2 p-3 rounded-lg bg-muted/50">
+                        <div 
+                            className="flex items-start space-x-3 p-3 rounded-xl bg-muted/30 border border-dashed shrink-0 cursor-pointer"
+                            onClick={() => setSkipPayment(!skipPayment)}
+                        >
                             <Checkbox
                                 id="skipPayment"
                                 checked={skipPayment}
                                 onCheckedChange={(checked) => setSkipPayment(!!checked)}
+                                className="mt-0.5"
                             />
-                            <div className="grid gap-1.5 leading-none">
-                                <Label htmlFor="skipPayment" className="font-medium cursor-pointer">
+                            <div className="grid gap-1 leading-none">
+                                <Label htmlFor="skipPayment" className="text-xs font-bold cursor-pointer">
                                     Mark as paid (skip payment)
                                 </Label>
-                                <p className="text-xs text-muted-foreground">
-                                    Mark months as paid without deducting money from account
+                                <p className="text-[10px] text-muted-foreground">
+                                    Don't deduct money from account
                                 </p>
                             </div>
                         </div>
                     )}
                 </div>
 
-                <SheetFooter className="border-t pt-4">
+                <SheetFooter className="border-t pt-4 shrink-0">
                     <div className="w-full space-y-3">
                         {/* Total */}
                         {selectedMonths.length > 0 && (
-                            <div className="flex justify-between items-center text-lg font-semibold">
-                                <span>Total ({selectedMonths.length} month{selectedMonths.length > 1 ? 's' : ''})</span>
+                            <div className="flex justify-between items-center text-base font-bold">
+                                <span>Total ({selectedMonths.length} mo)</span>
                                 <span>{mortgage.currency} {totalPayment.toLocaleString()}</span>
                             </div>
                         )}
 
                         <Button
-                            className="w-full"
+                            className="w-full h-11 rounded-full font-bold shadow-none"
                             disabled={
                                 selectedMonths.length === 0 ||
                                 (hasInsufficientBalance && !skipPayment) ||
@@ -400,9 +430,9 @@ export function MortgagePaymentSheet({ open, onOpenChange, mortgage }: MortgageP
                             {makePayment.isPending || markAsPaid.isPending
                                 ? 'Processing...'
                                 : selectedMonths.length === 0
-                                    ? 'Select months to pay'
+                                    ? 'Select months'
                                     : skipPayment
-                                        ? `Mark ${selectedMonths.length} month(s) as paid`
+                                        ? `Mark ${selectedMonths.length} month(s)`
                                         : `Pay ${mortgage.currency} ${totalPayment.toLocaleString()}`
                             }
                         </Button>

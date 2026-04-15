@@ -16,6 +16,7 @@ import {
 import { PageHeader } from '@/components/PageHeader';
 import { AddDebtSheet } from '@/components/AddDebtSheet';
 import { AddDebtPaymentSheet } from '@/components/AddDebtPaymentSheet';
+import { ActionButton } from '@/components/ui/action-button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -637,10 +638,10 @@ export function DebtsPage() {
             >
                 <AddDebtSheet
                     trigger={
-                        <Button className="gap-2 flex-1 sm:flex-none">
+                        <ActionButton className="sm:flex-none">
                             <Plus className="h-4 w-4" />
                             Add
-                        </Button>
+                        </ActionButton>
                     }
                 />
             </PageHeader>

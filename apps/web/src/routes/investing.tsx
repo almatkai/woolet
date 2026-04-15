@@ -38,6 +38,7 @@ import { toast } from 'sonner';
 import { PageHeader } from '@/components/PageHeader';
 import { AddInvestmentSheet } from '@/components/AddInvestmentSheet';
 import { SeeInvestingAccountsSheet } from '@/components/SeeInvestingAccountsSheet';
+import { ActionButton } from '@/components/ui/action-button';
 import { EditInvestmentTransactionSheet } from '@/components/EditInvestmentTransactionSheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
@@ -400,18 +401,18 @@ export function InvestingPage() {
             >
                 <SeeInvestingAccountsSheet
                     trigger={
-                        <Button variant="secondary" className="gap-2 flex-1 sm:flex-none">
+                        <ActionButton variant="secondary" className="flex-1 sm:flex-none">
                             <Building2 className="h-4 w-4" />
                             Accounts
-                        </Button>
+                        </ActionButton>
                     }
                 />
                 <AddInvestmentSheet
                     trigger={
-                        <Button className="gap-2 flex-1 sm:flex-none">
+                        <ActionButton className="flex-1 sm:flex-none">
                             <Plus className="h-4 w-4" />
                             Add
-                        </Button>
+                        </ActionButton>
                     }
                 />
             </PageHeader>

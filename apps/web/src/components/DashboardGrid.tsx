@@ -718,8 +718,18 @@ export const DashboardGrid = forwardRef<{ handleSave: () => void; handleCancel: 
                             setCurrentBreakpoint(bp);
                         }
                     }}
-                    margin={currentBreakpoint === 'xs' ? [8, 8] : currentBreakpoint === 'sm' ? [10, 10] : [20, 20]}
-                    containerPadding={[12, 12]}
+                    margin={{
+                        lg: [20, 20],
+                        md: [16, 16],
+                        sm: [8, 8],
+                        xs: [4, 6],
+                    }}
+                    containerPadding={{
+                        lg: [0, 12],
+                        md: [0, 10],
+                        sm: [0, 8],
+                        xs: [0, 6],
+                    }}
                     draggableHandle=".drag-handle"
                     draggableCancel=".no-drag"
                     compactType="vertical"

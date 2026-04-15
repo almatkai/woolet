@@ -96,7 +96,6 @@ export function AddMortgageSheet({ open: controlledOpen, onOpenChange: controlle
     const updateMortgage = trpc.mortgage.update.useMutation({
         onSuccess: () => {
             utils.mortgage.list.invalidate();
-            toast.success('Mortgage updated successfully');
             reset();
             setOpen(false);
         },

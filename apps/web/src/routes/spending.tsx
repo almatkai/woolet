@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/PageHeader';
 import { AddTransactionSheet } from '@/components/AddTransactionSheet';
+import { ActionButton } from '@/components/ui/action-button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1217,16 +1218,15 @@ export function SpendingPage() {
                 >
                 <div className="flex items-center gap-2">
                     {/* Shortcuts button - icon-only on mobile */}
-                    <Button
-                        variant="outline"
-                        size="sm"
+                    <ActionButton
+                        variant="secondary"
                         onClick={() => setShortcutsListOpen(true)}
                         title="Shortcuts"
-                        className="px-2 md:px-3 h-8 md:h-9"
+                        className="px-2 md:px-3"
                     >
                         <Bookmark className="h-4 w-4 md:mr-2" />
                         <span className="hidden md:inline">Shortcuts</span>
-                    </Button>
+                    </ActionButton>
                 </div>
                 <AddTransactionSheet
                         open={transactionSheetOpen}
@@ -1252,11 +1252,11 @@ export function SpendingPage() {
                             setShortcutSheetOpen(true);
                         }}
                         trigger={(
-                            <Button size="sm" className="gap-2 h-8 md:h-9" onClick={() => setSelectedShortcut(null)}>
+                            <ActionButton onClick={() => setSelectedShortcut(null)}>
                                 <Plus className="h-4 w-4" />
                                 <span className="hidden md:inline">Add Transaction</span>
                                 <span className="md:hidden">Add</span>
-                            </Button>
+                            </ActionButton>
                         )}
                     />
             </PageHeader>

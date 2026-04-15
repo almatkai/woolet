@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Building2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
+import { ActionButton } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -64,10 +65,10 @@ export function AddBankSheet({ trigger }: { trigger?: React.ReactNode }) {
         <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
                 {trigger || (
-                    <Button className="gap-2 flex-1 sm:flex-none w-full sm:w-auto">
+                    <ActionButton className="flex-1 sm:flex-none w-full sm:w-auto">
                         <Plus className="h-4 w-4" />
                         Bank
-                    </Button>
+                    </ActionButton>
                 )}
             </SheetTrigger>
             <SheetContent

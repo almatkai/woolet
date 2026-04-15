@@ -57,7 +57,9 @@ export function PageHeader({ title, subtitle, variant, children, className }: Pa
                 <h1 className="text-2xl font-bold">{title}</h1>
                 {subtitle && <p className={subtitleClass}>{subtitle}</p>}
             </div>
-            {children}
+            <div className="flex items-center">
+                {children}
+            </div>
         </div>
     );
 }

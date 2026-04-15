@@ -169,6 +169,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                                     closeButton
                                     duration={5000}
                                     offset={{ right: '24px', bottom: 'var(--toast-bottom-offset, 24px)' }}
+                                    toastOptions={{
+                                        className: 'max-[600px]:!top-4 max-[600px]:!right-4 max-[600px]:!bottom-auto max-[600px]:!left-auto max-[600px]:!fixed max-[600px]:!w-auto max-[600px]:!min-w-[200px]',
+                                    }}
                                 />
                             </PricingProvider>
                         </QueryClientProvider>

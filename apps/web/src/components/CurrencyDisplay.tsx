@@ -68,7 +68,11 @@ export const formatAmountAbbreviated = (amount: string | number, ignoreOpacity: 
         return <>{sign}{formatted}<span className={ignoreOpacity ? "" : "opacity-50"}>k</span></>;
     }
     
-    const formatted = num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    const isWhole = num % 1 === 0;
+    const formatted = num.toLocaleString('en-US', { 
+        maximumFractionDigits: isWhole ? 0 : 2,
+        minimumFractionDigits: isWhole ? 0 : 2 
+    });
     const parts = formatted.split('.');
     if (parts.length > 1) {
          return <>{parts[0]}<span className={ignoreOpacity ? "" : "opacity-50"}>.{parts[1]}</span></>;
@@ -78,12 +82,19 @@ export const formatAmountAbbreviated = (amount: string | number, ignoreOpacity: 
 
 export const formatFullAmount = (amount: string | number, currency?: string, ignoreOpacity: boolean = false): React.ReactNode => {
     const num = Number(amount);
+    const isWhole = num % 1 === 0;
     
     let formattedStr = '';
     if (!currency) {
-        formattedStr = num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+        formattedStr = num.toLocaleString('en-US', { 
+            maximumFractionDigits: isWhole ? 0 : 2,
+            minimumFractionDigits: isWhole ? 0 : 2 
+        });
     } else {
-        formattedStr = num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+        formattedStr = num.toLocaleString('en-US', { 
+            maximumFractionDigits: isWhole ? 0 : 2,
+            minimumFractionDigits: isWhole ? 0 : 2 
+        });
     }
 
     // Attempt to split by decimal to apply opacity to the decimal part if it exists
@@ -97,7 +108,28 @@ export const formatFullAmount = (amount: string | number, currency?: string, ign
 export function CurrencyDisplay({ amount, currency, className, abbreviate = true, showSign = false, size = 'default', color }: CurrencyDisplayProps) {
     const [open, setOpen] = useState(false);
     const num = Number(amount);
-    const fullAmountStr = !currency ? num.toLocaleString('en-US', { maximumFractionDigits: 2 }) : (() => { try { return num.toLocaleString('en-US', { style: 'currency', currency }) } catch { return `${currency} ${num.toLocaleString('en-US', { maximumFractionDigits: 2 })}` } })();
+    
+    // Check if amount is a whole number
+    const isWhole = num % 1 === 0;
+    
+    const fullAmountStr = !currency ? num.toLocaleString('en-US', { 
+        maximumFractionDigits: isWhole ? 0 : 2,
+        minimumFractionDigits: isWhole ? 0 : 2 
+    }) : (() => { 
+        try { 
+            return num.toLocaleString('en-US', { 
+                style: 'currency', 
+                currency,
+                maximumFractionDigits: isWhole ? 0 : 2,
+                minimumFractionDigits: isWhole ? 0 : 2
+            }) 
+        } catch { 
+            return `${currency} ${num.toLocaleString('en-US', { 
+                maximumFractionDigits: isWhole ? 0 : 2,
+                minimumFractionDigits: isWhole ? 0 : 2
+            })}` 
+        } 
+    })();
     
     const ignoreOpacity = !!color;
     

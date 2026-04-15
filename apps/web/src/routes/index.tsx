@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/PageHeader';
+import { ActionButton } from '@/components/ui/action-button';
 import { UniversalAddSheet } from '@/components/UniversalAddSheet';
 import { SpendingChart } from '@/components/SpendingChart';
 import { CategoryPieChart } from '@/components/CategoryPieChart';
@@ -44,40 +45,40 @@ export function Dashboard() {
                 <PageHeader title="Dashboard" variant="two-with-text">
                     {isEditing ? (
                         <>
-                            <Button
+                            <ActionButton
                                 variant="outline"
                                 onClick={() => {
                                     setIsEditing(false);
                                     dashboardGridRef.current?.handleCancel();
                                 }}
-                                className="gap-2 flex-1 sm:flex-none"
+                                className="flex-1 sm:flex-none"
                             >
                                 <X className="h-4 w-4" />
                                 Cancel
-                            </Button>
-                            <Button
+                            </ActionButton>
+                            <ActionButton
                                 onClick={() => {
                                     setIsEditing(false);
                                     dashboardGridRef.current?.handleSave();
                                 }}
-                                className="gap-2 flex-1 sm:flex-none"
+                                className="flex-1 sm:flex-none"
                             >
                                 <Save className="h-4 w-4" />
                                 Save Layout
-                            </Button>
+                            </ActionButton>
                         </>
                     ) : (
                         <>
-                            <Button variant="secondary" onClick={() => setIsEditing(true)} className="gap-2 flex-1 sm:flex-none">
+                            <ActionButton variant="secondary" onClick={() => setIsEditing(true)} className="flex-1 sm:flex-none">
                                 <Pencil className="h-4 w-4" />
                                 Edit Layout
-                            </Button>
+                            </ActionButton>
                             <UniversalAddSheet
                                 trigger={
-                                    <Button className="gap-2 flex-1 sm:flex-none">
+                                    <ActionButton className="flex-1 sm:flex-none">
                                         <Plus className="h-4 w-4" />
                                         Add
-                                    </Button>
+                                    </ActionButton>
                                 }
                             />
                         </>

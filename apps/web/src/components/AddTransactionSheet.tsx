@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import posthog from 'posthog-js';
 import { useForm } from 'react-hook-form';
@@ -173,6 +173,8 @@ export function AddTransactionSheet({
     });
 
     const watchedValues = watch();
+    const dateInputRef = useRef<HTMLInputElement | null>(null);
+    const dateField = register('date');
 
     useEffect(() => {
         if (!open) return;
@@ -683,8 +685,29 @@ export function AddTransactionSheet({
                             <div className="space-y-2">
                                 <Label htmlFor="date" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground ml-1">Date</Label>
                                 <div className="relative">
-                                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/70" />
-                                    <Input id="date" type="date" {...register('date')} className="h-10 pl-9 bg-background border-muted-foreground/20" />
+                                    <button
+                                        type="button"
+                                        aria-label="Open date picker"
+                                        className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/70 hover:text-foreground transition-colors"
+                                        onClick={() => {
+                                            const el = dateInputRef.current;
+                                            if (!el) return;
+                                            el.focus();
+                                            (el as HTMLInputElement & { showPicker?: () => void }).showPicker?.();
+                                        }}
+                                    >
+                                        <Calendar className="h-4 w-4" />
+                                    </button>
+                                    <Input
+                                        id="date"
+                                        type="date"
+                                        {...dateField}
+                                        ref={(el) => {
+                                            dateField.ref(el);
+                                            dateInputRef.current = el;
+                                        }}
+                                        className="h-10 pl-9 bg-background border-muted-foreground/20"
+                                    />
                                 </div>
                                 {errors.date && <p className="text-sm text-red-500 mt-1">{(errors.date as any).message}</p>}
                             </div>

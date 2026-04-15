@@ -48,8 +48,8 @@ export function DateRangePicker({ className, date, onDateChange }: DateRangePick
                             !currentDate && 'text-muted-foreground'
                         )}
                     >
-                        <CalendarIcon className="sm:mr-2 h-4 w-4" />
-                        <span className="hidden sm:inline">
+                        <CalendarIcon className="sm:mr-2 h-4 w-4 dark:text-white" />
+                        <span className="hidden sm:inline dark:text-white">
                             {currentDate?.from ? (
                                 currentDate.to ? (
                                     <>

@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
+import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus, PiggyBank, Trash2, Edit, DollarSign, Percent, TrendingUp, Building } from 'lucide-react';
 import { toast } from 'sonner';
+import { ActionButton } from '@/components/ui/action-button';
 import { PageHeader } from '@/components/PageHeader';
 import { AddDepositSheet } from '@/components/AddDepositSheet';
 import {
@@ -91,41 +93,41 @@ export default function DepositsPage() {
                 subtitle="Manage your savings and deposits"
                 variant="one"
             >
-                <Button onClick={() => setShowAddDeposit(true)} className="gap-2 flex-1 sm:flex-none">
+                <ActionButton onClick={() => setShowAddDeposit(true)} className="sm:flex-none">
                     <Plus className="h-4 w-4" />
                     Add
-                </Button>
+                </ActionButton>
             </PageHeader>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Total Principal</CardDescription>
+                    <CardHeader className="pb-1 px-4 pt-4">
+                        <CardDescription className="text-xs">Total Principal</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">
-                            {totalPrincipal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    <CardContent className="px-4 pb-4">
+                        <div className="text-xl font-bold">
+                            <CurrencyDisplay amount={totalPrincipal} currency="KZT" abbreviate={false} />
                         </div>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Current Balance</CardDescription>
+                    <CardHeader className="pb-1 px-4 pt-4">
+                        <CardDescription className="text-xs">Current Balance</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-500">
-                            {totalCurrent.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    <CardContent className="px-4 pb-4">
+                        <div className="text-xl font-bold text-green-500">
+                            <CurrencyDisplay amount={totalCurrent} currency="KZT" abbreviate={false} />
                         </div>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Interest Earned</CardDescription>
+                    <CardHeader className="pb-1 px-4 pt-4">
+                        <CardDescription className="text-xs">Interest Earned</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-blue-500">
-                            +{totalInterestEarned.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    <CardContent className="px-4 pb-4">
+                        <div className="text-xl font-bold text-blue-500">
+                            <CurrencyDisplay amount={totalInterestEarned} currency="KZT" abbreviate={false} showSign />
                         </div>
                     </CardContent>
                 </Card>
@@ -150,26 +152,24 @@ export default function DepositsPage() {
                         const interestEarned = Number(deposit.currentBalance) - Number(deposit.principalAmount);
                         return (
                             <Card key={deposit.id}>
-                                <CardHeader className="pb-2">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <CardTitle className="text-lg flex items-center gap-2">
-                                                <PiggyBank className="h-4 w-4" />
+                                <CardHeader className="pb-2 px-4 pt-4">
+                                    <div className="flex items-center justify-between gap-3 overflow-hidden">
+                                        <div className="min-w-0 flex-1">
+                                            <CardTitle className="text-base flex items-center gap-2 truncate">
+                                                <PiggyBank className="h-4 w-4 flex-shrink-0" />
                                                 {deposit.depositName}
                                             </CardTitle>
-                                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                                                <Building className="h-3 w-3" />
+                                            <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5 truncate">
+                                                <Building className="h-3 w-3 flex-shrink-0" />
                                                 {deposit.bankName}
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1 flex-shrink-0">
                                             {getStatusBadge(deposit.status)}
-                                            {deposit.isFlexible && (
-                                                <Badge variant="outline" className="text-xs">Flexible</Badge>
-                                            )}
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
+                                                className="h-8 w-8"
                                                 onClick={() => setEditingDeposit(deposit)}
                                             >
                                                 <Edit className="h-4 w-4" />
@@ -177,6 +177,7 @@ export default function DepositsPage() {
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
+                                                className="h-8 w-8"
                                                 onClick={() => setDeletingDeposit(deposit)}
                                             >
                                                 <Trash2 className="h-4 w-4 text-destructive" />
@@ -184,36 +185,36 @@ export default function DepositsPage() {
                                         </div>
                                     </div>
                                 </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                <CardContent className="space-y-3 px-4 pb-4">
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                                         <div className="flex items-center gap-2">
-                                            <DollarSign className="h-4 w-4 text-muted-foreground" />
+                                            <DollarSign className="h-3 w-3 text-muted-foreground" />
                                             <span className="text-muted-foreground">Principal:</span>
                                             <span className="font-medium">
-                                                {deposit.currency} {Number(deposit.principalAmount).toLocaleString()}
+                                                <CurrencyDisplay amount={deposit.principalAmount} currency={deposit.currency} abbreviate={false} />
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <Percent className="h-4 w-4 text-muted-foreground" />
+                                            <Percent className="h-3 w-3 text-muted-foreground" />
                                             <span className="text-muted-foreground">Rate:</span>
                                             <span className="font-medium">{deposit.interestRate}%</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <DollarSign className="h-4 w-4 text-green-500" />
-                                            <span className="text-muted-foreground">Current:</span>
+                                            <DollarSign className="h-3 w-3 text-green-500" />
+                                            <span className="text-muted-foreground text-green-500">Current:</span>
                                             <span className="font-medium text-green-500">
-                                                {deposit.currency} {Number(deposit.currentBalance).toLocaleString()}
+                                                <CurrencyDisplay amount={deposit.currentBalance} currency={deposit.currency} abbreviate={false} />
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <TrendingUp className="h-4 w-4 text-blue-500" />
-                                            <span className="text-muted-foreground">Earned:</span>
+                                            <TrendingUp className="h-3 w-3 text-blue-500" />
+                                            <span className="text-muted-foreground text-blue-500">Earned:</span>
                                             <span className="font-medium text-blue-500">
-                                                +{deposit.currency} {interestEarned.toLocaleString()}
+                                                <CurrencyDisplay amount={interestEarned} currency={deposit.currency} abbreviate={false} showSign />
                                             </span>
                                         </div>
                                     </div>
-                                    <div className="text-xs text-muted-foreground">
+                                    <div className="text-[10px] text-muted-foreground pt-1 border-t border-dashed">
                                         {getCompoundingLabel(deposit.compoundingFrequency)} compounding
                                         {deposit.maturityDate && ` • Matures: ${new Date(deposit.maturityDate).toLocaleDateString()}`}
                                     </div>

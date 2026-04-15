@@ -9,6 +9,7 @@ import { AddCurrencyBalanceSheet } from '@/components/AddCurrencyBalanceSheet';
 import { AccountActionSheet } from '@/components/AccountActionSheet';
 import { PageHeader } from '@/components/PageHeader';
 import { TransferSheet } from '@/components/TransferSheet';
+import { ActionButton } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 import { trpc } from '@/lib/trpc';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -716,10 +717,10 @@ export function AccountsPage() {
             >
                 <TransferSheet
                     trigger={
-                        <Button variant="secondary" className="gap-2 flex-1 sm:flex-none">
+                        <ActionButton variant="secondary" className="flex-1 sm:flex-none">
                             <CircleDollarSign className="h-4 w-4" />
                             Transfer
-                        </Button>
+                        </ActionButton>
                     }
                 />
                 <AddBankSheet />

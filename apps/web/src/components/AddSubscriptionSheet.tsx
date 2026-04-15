@@ -163,12 +163,6 @@ export function AddSubscriptionSheet({ open: controlledOpen, onOpenChange: contr
             >
                 <SheetHeader>
                     <SheetTitle>{editingSubscription ? 'Edit Subscription' : 'Add Subscription'}</SheetTitle>
-                    <SheetDescription>
-                        {editingSubscription
-                            ? 'Update your subscription details'
-                            : 'Add a new recurring payment to track'
-                        }
-                    </SheetDescription>
                 </SheetHeader>
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-6">
