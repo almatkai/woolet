@@ -1,7 +1,7 @@
 .dashboard-widget {
     @apply transition-all duration-500 ease-bounce-out border-border/40 bg-card min-w-0 shadow-sm;
-    border-radius: 32px !important;
-    overflow: hidden; /* Keep content contained inside large rounding */
+    border-radius: var(--radius-lg) !important;
+    overflow: hidden; /* Keep content contained inside global rounding */
 }
 
 .dashboard-widget:hover {

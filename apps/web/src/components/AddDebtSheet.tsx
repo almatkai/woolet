@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -70,6 +70,7 @@ type CreateDebtForm = z.infer<typeof createDebtSchema>;
 interface AddDebtSheetProps {
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
+    trigger?: ReactNode;
 }
 
 type UsernameSearchResult = {
@@ -78,7 +79,11 @@ type UsernameSearchResult = {
     name: string | null;
 };
 
-export function AddDebtSheet({ open: controlledOpen, onOpenChange: controlledOnOpenChange }: AddDebtSheetProps = {}) {
+export function AddDebtSheet({
+    open: controlledOpen,
+    onOpenChange: controlledOnOpenChange,
+    trigger,
+}: AddDebtSheetProps = {}) {
     const isCompactMobile = useIsMobile(470);
     const [internalOpen, setInternalOpen] = useState(false);
     const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
@@ -171,10 +176,12 @@ export function AddDebtSheet({ open: controlledOpen, onOpenChange: controlledOnO
         <Sheet open={open} onOpenChange={setOpen}>
             {!isControlled && (
                 <SheetTrigger asChild>
-                    <Button className="gap-2">
-                        <Plus className="h-4 w-4" />
-                        Add Debt
-                    </Button>
+                    {trigger ?? (
+                        <Button className="gap-2">
+                            <Plus className="h-4 w-4" />
+                            Add Debt
+                        </Button>
+                    )}
                 </SheetTrigger>
             )}
             <SheetContent

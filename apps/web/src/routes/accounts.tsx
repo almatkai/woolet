@@ -83,8 +83,8 @@ function AccountCard({
     onDeleteAccount: (id: string) => void;
     onSelectAccount: (account: Account) => void;
 }) {
-    const CARD_W = 308;
-    const CARD_W_ACTIVE = 342;
+    const CARD_W = 284;
+    const CARD_W_ACTIVE = 312;
     const CARD_H = 180;
     const TAB_TRANSFORM_Y = 38;
     const WALLET_Z_INDEX = 20;
@@ -286,9 +286,10 @@ function AccountCard({
             onMouseLeave={handleMouseLeave}
             initial={false}
             animate={controls}
-            transformTemplate={(transforms, generated) =>
-                !isActive ? `perspective(600px) ${generated}` : generated
-            }
+            transformTemplate={(transforms, generated) => {
+                const centered = `translateX(-50%) ${generated}`;
+                return !isActive ? `perspective(600px) ${centered}` : centered;
+            }}
             className={cn(
                 "absolute flex flex-col justify-between text-white overflow-hidden rounded-2xl p-5",
                 isActive ? "shadow-2xl" : "cursor-pointer hover:brightness-110"
@@ -297,6 +298,7 @@ function AccountCard({
                 width: isActive ? CARD_W_ACTIVE : CARD_W,
                 height: CARD_H,
                 backgroundColor: getCardColor(index),
+                left: '50%',
                 bottom: inactiveBottom,
                 rotateX: isActive ? rotateX : 0,
                 rotateY: isActive ? rotateY : 0,
@@ -453,18 +455,18 @@ function WalletBank({
         onActiveCardChange(activeCardId === accountId ? null : accountId);
     };
 
-    const CARD_W = 328;
+    const CARD_W = 304;
     const CARD_H = 180;
     const TAB_H = 164;
     const TAB_TRANSFORM_Y = 34;
 
     return (
         <div
-            className="relative flex flex-col items-center w-full max-w-[368px] mx-auto"
+            className="relative flex flex-col items-center w-full max-w-[332px] mx-auto"
             style={{ zIndex: isActiveWallet ? 1 : 0 }}
         >
             {/* Wallet wrapper — card overlays on top */}
-            <div className="relative w-[328px] mt-[30px]">
+            <div className="relative w-[304px] mt-[30px] origin-top [zoom:0.56] min-[390px]:[zoom:0.62] min-[430px]:[zoom:0.7] sm:[zoom:0.82] md:[zoom:0.92] lg:[zoom:1]">
                 {/* Wallet Back Panel */}
                 <div 
                     className="absolute inset-x-0 bottom-0 rounded-b-2xl rounded-t-3xl border border-white/60 dark:border-white/10 overflow-hidden transition-all duration-300 pointer-events-none bg-cover bg-center brightness-110 dark:brightness-75 drop-shadow-[0_0_15px_rgba(0,0,0,0.5)]"
@@ -519,7 +521,7 @@ function WalletBank({
                     <div 
                         className="absolute inset-0 rounded-b-2xl overflow-hidden bg-cover bg-center dark:brightness-75"
                         style={{
-                            clipPath: `path("M0,16 C0,7 7,0 16,0 L120,0 C128,0 133,4 137,10 C143,22 150,28 164,28 C178,28 185,22 191,10 C195,4 200,0 208,0 L312,0 C321,0 328,7 328,16 L328,1000 L0,1000 Z")`,
+                            clipPath: `path("M0,16 C0,7 7,0 16,0 L108,0 C116,0 121,4 125,10 C131,22 138,28 152,28 C166,28 173,22 179,10 C183,4 188,0 196,0 L288,0 C297,0 304,7 304,16 L304,1000 L0,1000 Z")`,
                             backgroundImage: `url(${Leather})`,
                             boxShadow: 'inset 0 2px 5px rgba(255,255,255,0.4), inset 0px -2px 10px rgba(0,0,0,0.1)',
                         }}
@@ -532,15 +534,15 @@ function WalletBank({
                     </div>
 
                     {/* Top edge lip rendering for stroke & stitches */}
-                    <svg className="absolute top-0 left-0 pointer-events-none z-10" width="328" height="40" viewBox="0 0 328 40">
+                    <svg className="absolute top-0 left-0 pointer-events-none z-10" width="304" height="40" viewBox="0 0 304 40">
                         {/* Outer Highlight line */}
-                        <path d="M1,16 C1,7.5 7.5,1 16,1 L120,1 C128,1 133,5 137,11 C143,23 150,29 164,29 C178,29 185,23 191,11 C195,5 200,1 208,1 L312,1 C320.5,1 327,7.5 327,16" 
+                        <path d="M1,16 C1,7.5 7.5,1 16,1 L108,1 C116,1 121,5 125,11 C131,23 138,29 152,29 C166,29 173,23 179,11 C183,5 188,1 196,1 L288,1 C296.5,1 303,7.5 303,16" 
                             fill="none" stroke="currentColor" className="text-white dark:text-white/20" strokeWidth="2" strokeOpacity="0.8" />
                         {/* Outer Shadow line */}
-                        <path d="M0,16 C0,7 7,0 16,0 L120,0 C128,0 133,4 137,10 C143,22 150,28 164,28 C178,28 185,22 191,10 C195,4 200,0 208,0 L312,0 C321,0 328,7 328,16" 
+                        <path d="M0,16 C0,7 7,0 16,0 L108,0 C116,0 121,4 125,10 C131,22 138,28 152,28 C166,28 173,22 179,10 C183,4 188,0 196,0 L288,0 C297,0 304,7 304,16" 
                             fill="none" stroke="#000000" strokeWidth="1" strokeOpacity="0.25" />
                         {/* Stitching effect top */}
-                        <path d="M6,16 C6,10 10,6 16,6 L118,6 C125,6 130,9 133,15 C139,27 148,33 164,33 C180,33 189,27 195,15 C198,9 203,6 210,6 L312,6 C318,6 322,10 322,16" 
+                        <path d="M6,16 C6,10 10,6 16,6 L106,6 C113,6 118,9 121,15 C127,27 136,33 152,33 C168,33 177,27 183,15 C186,9 191,6 198,6 L288,6 C294,6 298,10 298,16" 
                             fill="none" stroke="currentColor" className="text-[#99948D] dark:text-[#5A5854]" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.8"/>
                     </svg>
 
@@ -735,7 +737,7 @@ export function AccountsPage() {
                     <p>Add a bank or brokerage (like Freedom, Interactive Brokers) to get started!</p>
                 </div>
             ) : (
-                <div className="columns-1 md:columns-2 md:gap-12">
+                <div className="columns-2 gap-1 min-[390px]:gap-2 sm:gap-3 md:gap-6 lg:gap-8">
                     {banksWithAccounts.map((bank) => (
                         <div key={bank.id} className="mb-8 break-inside-avoid md:mb-12">
                             <WalletBank
